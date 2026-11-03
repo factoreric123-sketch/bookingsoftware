@@ -15,6 +15,7 @@ This file distinguishes working product behavior from provider-dependent or sche
 - Scheduling engine that derives availability from business hours and service duration.
 - Conflict prevention before appointment creation.
 - Public mobile-first booking page with service, date, time, customer details, and confirmation.
+- Booking distribution workspace with shareable links, direct service links, website-button HTML, and inline iframe embed code.
 - Private per-appointment management links with view, reschedule, cancel, conflict prevention, and immediate availability release.
 - Dashboard metrics, real workspace-derived values, schedule, setup checklist, and activity chart.
 - Team directory with roles, service assignment, weekly capacity, and member creation.
