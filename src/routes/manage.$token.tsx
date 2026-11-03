@@ -18,7 +18,7 @@ function ManageBooking() {
   if (!appointment) return <div className="manage-page"><main className="manage-card invalid-token"><ShieldCheck size={34}/><h1>This link is invalid or expired.</h1><p>For privacy, booking details are only available through a valid management link.</p><Link to="/">Return home</Link></main></div>;
   const service = workspace.services.find((item) => item.id === appointment.serviceId);
   const customer = workspace.customers.find((item) => item.id === appointment.customerId);
-  const slots = date && service ? availableSlots(workspace, service.id, date, appointment.id) : [];
+  const slots = date && service ? availableSlots(workspace, service.id, date, appointment.id, appointment.staffId) : [];
   const reschedule = () => { const result = rescheduleAppointment(appointment.id,date,time); if(result.error)setError(result.error);else setMode("done"); };
   const cancel = () => { updateAppointment(appointment.id,{status:"cancelled"}); setMode("done"); };
 

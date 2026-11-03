@@ -22,4 +22,12 @@ describe("availability engine", () => {
 
     expect(slots).toContain("11:00");
   });
+
+  it("keeps a slot available for a different staff member", () => {
+    const ownerSlots = availableSlots(seedWorkspace, "svc_review", "2026-11-04", undefined, "staff_owner");
+    const morganSlots = availableSlots(seedWorkspace, "svc_review", "2026-11-04", undefined, "staff_morgan");
+
+    expect(ownerSlots).toContain("11:00");
+    expect(morganSlots).not.toContain("11:00");
+  });
 });

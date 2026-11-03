@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 export type Service = { id: string; name: string; description: string; duration: number; price: number; color: string; active: boolean };
 export type Customer = { id: string; name: string; email: string; phone: string; notes: string; tags: string[]; createdAt: string };
 export type AppointmentStatus = "confirmed" | "pending" | "completed" | "cancelled" | "no-show";
-export type Appointment = { id: string; serviceId: string; customerId: string; date: string; time: string; duration: number; status: AppointmentStatus; source: "dashboard" | "booking-page"; notes?: string; createdAt: string; manageToken: string };
+export type Appointment = { id: string; serviceId: string; customerId: string; staffId?: string; date: string; time: string; duration: number; status: AppointmentStatus; source: "dashboard" | "booking-page"; notes?: string; createdAt: string; manageToken: string };
 export type Business = { id: string; name: string; slug: string; industry: string; email: string; phone: string; address: string; timezone: string; accent: string; setupComplete: boolean; hours: Record<string, { open: string; close: string; enabled: boolean }> };
 export type Integration = { id: string; name: string; description: string; status: "connected" | "not-configured" | "pending-approval"; category: string };
 export type Staff = { id: string; name: string; email: string; role: "owner" | "manager" | "staff"; active: boolean; serviceIds: string[]; weeklyHours: number };
@@ -34,9 +34,9 @@ export const seedWorkspace: Workspace = {
     { id: "cus_avery", name: "Avery Morgan", email: "avery@example.com", phone: "(555) 017-9914", notes: "Referred by Maya.", tags: ["Referral"], createdAt: "2026-10-28" },
   ],
   appointments: [
-    { id: "apt_1", serviceId: "svc_strategy", customerId: "cus_maya", date: "2026-11-03", time: "10:00", duration: 60, status: "confirmed", source: "booking-page", createdAt: "2026-10-30T12:00:00Z", manageToken: "manage_maya_2026" },
-    { id: "apt_2", serviceId: "svc_consult", customerId: "cus_jordan", date: "2026-11-03", time: "13:30", duration: 30, status: "confirmed", source: "booking-page", createdAt: "2026-11-01T16:00:00Z", manageToken: "manage_jordan_2026" },
-    { id: "apt_3", serviceId: "svc_review", customerId: "cus_avery", date: "2026-11-04", time: "11:00", duration: 90, status: "pending", source: "dashboard", createdAt: "2026-11-02T09:00:00Z", manageToken: "manage_avery_2026" },
+    { id: "apt_1", serviceId: "svc_strategy", customerId: "cus_maya", staffId: "staff_owner", date: "2026-11-03", time: "10:00", duration: 60, status: "confirmed", source: "booking-page", createdAt: "2026-10-30T12:00:00Z", manageToken: "manage_maya_2026" },
+    { id: "apt_2", serviceId: "svc_consult", customerId: "cus_jordan", staffId: "staff_morgan", date: "2026-11-03", time: "13:30", duration: 30, status: "confirmed", source: "booking-page", createdAt: "2026-11-01T16:00:00Z", manageToken: "manage_jordan_2026" },
+    { id: "apt_3", serviceId: "svc_review", customerId: "cus_avery", staffId: "staff_morgan", date: "2026-11-04", time: "11:00", duration: 90, status: "pending", source: "dashboard", createdAt: "2026-11-02T09:00:00Z", manageToken: "manage_avery_2026" },
   ],
   integrations: [
     { id: "google", name: "Google Calendar", description: "Two-way calendar availability and event sync.", status: "not-configured", category: "Calendar" },
@@ -109,7 +109,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     updateCustomer: (id, patch) => setWorkspace((current) => ({ ...current, customers: current.customers.map((customer) => customer.id === id ? { ...customer, ...patch } : customer) })),
     addAppointment: (input) => {
       const start = minutes(input.time); const end = start + input.duration;
-      const conflict = workspace.appointments.some((item) => item.date === input.date && item.status !== "cancelled" && start < minutes(item.time) + item.duration && end > minutes(item.time));
+      const conflict = workspace.appointments.some((item) => item.date === input.date && item.status !== "cancelled" && (!input.staffId || !item.staffId || item.staffId === input.staffId) && start < minutes(item.time) + item.duration && end > minutes(item.time));
       if (conflict) return { error: "That time is no longer available. Choose another time." };
       const appointment = { ...input, id: uid("apt"), createdAt: new Date().toISOString(), manageToken: uid("manage") };
       setWorkspace((current) => ({ ...current, appointments: [...current.appointments, appointment] })); return { appointment };
@@ -118,7 +118,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     rescheduleAppointment: (id, date, time) => {
       const current = workspace.appointments.find((appointment) => appointment.id === id); if (!current) return { error: "Appointment not found." };
       const start = minutes(time); const end = start + current.duration;
-      const conflict = workspace.appointments.some((item) => item.id !== id && item.date === date && item.status !== "cancelled" && start < minutes(item.time) + item.duration && end > minutes(item.time));
+      const conflict = workspace.appointments.some((item) => item.id !== id && item.date === date && item.status !== "cancelled" && (!current.staffId || !item.staffId || item.staffId === current.staffId) && start < minutes(item.time) + item.duration && end > minutes(item.time));
       if (conflict) return { error: "That time is no longer available. Choose another time." };
       const appointment = { ...current, date, time, status: "confirmed" as const };
       setWorkspace((state) => ({ ...state, appointments: state.appointments.map((item) => item.id === id ? appointment : item) })); return { appointment };
@@ -148,13 +148,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
 export function useAppStore() { const value = useContext(AppStore); if (!value) throw new Error("useAppStore must be used inside AppStoreProvider"); return value; }
 
-export function availableSlots(workspace: Workspace, serviceId: string, date: string, excludeAppointmentId?: string) {
+export function availableSlots(workspace: Workspace, serviceId: string, date: string, excludeAppointmentId?: string, staffId?: string) {
   const service = workspace.services.find((item) => item.id === serviceId); if (!service) return [];
   const day = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
   const hours = workspace.business.hours[day]; if (!hours?.enabled) return [];
   const slots: string[] = [];
   for (let cursor = minutes(hours.open); cursor + service.duration <= minutes(hours.close); cursor += 30) {
-    const conflict = workspace.appointments.some((item) => item.id !== excludeAppointmentId && item.date === date && item.status !== "cancelled" && cursor < minutes(item.time) + item.duration && cursor + service.duration > minutes(item.time));
+    const conflict = workspace.appointments.some((item) => item.id !== excludeAppointmentId && item.date === date && item.status !== "cancelled" && (!staffId || !item.staffId || item.staffId === staffId) && cursor < minutes(item.time) + item.duration && cursor + service.duration > minutes(item.time));
     if (!conflict) slots.push(`${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`);
   }
   return slots;

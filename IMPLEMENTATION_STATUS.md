@@ -13,7 +13,8 @@ This file distinguishes working product behavior from provider-dependent or sche
 - Customers: create, search across contact details/tags, edit full profiles, persist notes/tags, view appointment/payment/form timelines, and export CSV.
 - Appointments: create, list, filter-ready table, and status updates.
 - Scheduling engine that derives availability from business hours and service duration.
-- Conflict prevention before appointment creation.
+- Staff-aware availability and conflict prevention, allowing simultaneous appointments across different team members while preventing overlaps for the same person.
+- Public and dashboard bookings support assigned staff, including automatic assignment through “Anyone available.”
 - Public mobile-first booking page with service, date, time, customer details, and confirmation.
 - Booking distribution workspace with shareable links, direct service links, website-button HTML, and inline iframe embed code.
 - Private per-appointment management links with view, reschedule, cancel, conflict prevention, and immediate availability release.
