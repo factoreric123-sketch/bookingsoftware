@@ -16,4 +16,10 @@ describe("availability engine", () => {
   it("returns no slots on a closed day", () => {
     expect(availableSlots(seedWorkspace, "svc_strategy", "2026-11-08")).toEqual([]);
   });
+
+  it("releases the current appointment while choosing a reschedule slot", () => {
+    const slots = availableSlots(seedWorkspace, "svc_review", "2026-11-04", "apt_3");
+
+    expect(slots).toContain("11:00");
+  });
 });

@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as FormsFormIdRouteImport } from './routes/forms.$formId'
+import { Route as ManageTokenRouteImport } from './routes/manage.$token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const FormsFormIdRoute = FormsFormIdRouteImport.update({
   path: '/forms/$formId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ManageTokenRoute = ManageTokenRouteImport.update({
+  id: '/manage/$token',
+  path: '/manage/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/book/$slug': typeof BookSlugRoute
   '/forms/$formId': typeof FormsFormIdRoute
+  '/manage/$token': typeof ManageTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/book/$slug': typeof BookSlugRoute
   '/forms/$formId': typeof FormsFormIdRoute
+  '/manage/$token': typeof ManageTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,13 +79,27 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/book/$slug': typeof BookSlugRoute
   '/forms/$formId': typeof FormsFormIdRoute
+  '/manage/$token': typeof ManageTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/app' | '/login' | '/onboarding' | '/book/$slug' | '/forms/$formId'
+    | '/'
+    | '/app'
+    | '/login'
+    | '/onboarding'
+    | '/book/$slug'
+    | '/forms/$formId'
+    | '/manage/$token'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/app' | '/login' | '/onboarding' | '/book/$slug' | '/forms/$formId'
+  to:
+    | '/'
+    | '/app'
+    | '/login'
+    | '/onboarding'
+    | '/book/$slug'
+    | '/forms/$formId'
+    | '/manage/$token'
   id:
     | '__root__'
     | '/'
@@ -86,6 +108,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/book/$slug'
     | '/forms/$formId'
+    | '/manage/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,6 +118,7 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   BookSlugRoute: typeof BookSlugRoute
   FormsFormIdRoute: typeof FormsFormIdRoute
+  ManageTokenRoute: typeof ManageTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -141,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FormsFormIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/manage/$token': {
+      id: '/manage/$token'
+      path: '/manage/$token'
+      fullPath: '/manage/$token'
+      preLoaderRoute: typeof ManageTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -151,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   BookSlugRoute: BookSlugRoute,
   FormsFormIdRoute: FormsFormIdRoute,
+  ManageTokenRoute: ManageTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
