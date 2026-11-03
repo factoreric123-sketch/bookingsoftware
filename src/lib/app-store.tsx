@@ -13,7 +13,9 @@ export type FormSubmission = { id: string; formId: string; customerId?: string; 
 export type Workflow = { id: string; name: string; trigger: string; action: string; active: boolean; runs: number; lastRun?: string };
 export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void";
 export type Invoice = { id: string; customerId: string; number: string; amount: number; status: InvoiceStatus; dueDate: string; createdAt: string };
-export type Workspace = { business: Business; services: Service[]; customers: Customer[]; appointments: Appointment[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[] };
+export type AiReceptionist = { name: string; greeting: string; transferPhone: string; voice: string; afterHours: "take-message" | "offer-callback"; recordingEnabled: boolean; disclosureEnabled: boolean };
+export type CallLog = { id: string; caller: string; startedAt: string; durationSeconds: number; outcome: "booked" | "message" | "transferred"; summary: string; appointmentId?: string; sandbox: true };
+export type Workspace = { business: Business; services: Service[]; customers: Customer[]; appointments: Appointment[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
 
 const STORAGE_KEY = "avello.phase1.workspace.v1";
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -60,6 +62,8 @@ export const seedWorkspace: Workspace = {
     { id: "inv_1", customerId: "cus_maya", number: "INV-1001", amount: 150, status: "paid", dueDate: "2026-10-22", createdAt: "2026-10-15" },
     { id: "inv_2", customerId: "cus_avery", number: "INV-1002", amount: 225, status: "sent", dueDate: "2026-11-10", createdAt: "2026-11-01" },
   ],
+  aiReceptionist: { name: "Ava", greeting: "Thanks for calling Northstar Studio. I’m Ava, the virtual receptionist. How can I help?", transferPhone: "", voice: "Warm and professional", afterHours: "take-message", recordingEnabled: false, disclosureEnabled: true },
+  callLogs: [],
 };
 
 type Store = {
@@ -80,16 +84,18 @@ type Store = {
   updateWorkflow: (id: string, patch: Partial<Workflow>) => void;
   addInvoice: (invoice: Omit<Invoice, "id" | "number" | "createdAt">) => Invoice;
   updateInvoice: (id: string, patch: Partial<Invoice>) => void;
+  updateAiReceptionist: (patch: Partial<AiReceptionist>) => void;
+  addCallLog: (log: Omit<CallLog, "id" | "startedAt" | "sandbox">) => CallLog;
   resetDemo: () => void;
 };
 
 const AppStore = createContext<Store | null>(null);
 const uid = (prefix: string) => `${prefix}_${crypto.randomUUID().slice(0, 8)}`;
-const minutes = (time: string) => { const [h, m] = time.split(":").map(Number); return h * 60 + m; };
+const minutes = (time: string) => { const [h = 0, m = 0] = time.split(":").map(Number); return h * 60 + m; };
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace>(seedWorkspace);
-  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { const parsed = JSON.parse(saved) as Partial<Workspace>; setWorkspace({ ...seedWorkspace, ...parsed, business: { ...seedWorkspace.business, ...parsed.business }, appointments: (parsed.appointments ?? seedWorkspace.appointments).map((appointment) => ({ ...appointment, manageToken: appointment.manageToken ?? uid("manage") })), staff: parsed.staff ?? seedWorkspace.staff, forms: parsed.forms ?? seedWorkspace.forms, formSubmissions: parsed.formSubmissions ?? [], workflows: parsed.workflows ?? seedWorkspace.workflows, invoices: parsed.invoices ?? seedWorkspace.invoices }); } catch { localStorage.removeItem(STORAGE_KEY); } } }, []);
+  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { const parsed = JSON.parse(saved) as Partial<Workspace>; setWorkspace({ ...seedWorkspace, ...parsed, business: { ...seedWorkspace.business, ...parsed.business }, appointments: (parsed.appointments ?? seedWorkspace.appointments).map((appointment) => ({ ...appointment, manageToken: appointment.manageToken ?? uid("manage") })), staff: parsed.staff ?? seedWorkspace.staff, forms: parsed.forms ?? seedWorkspace.forms, formSubmissions: parsed.formSubmissions ?? [], workflows: parsed.workflows ?? seedWorkspace.workflows, invoices: parsed.invoices ?? seedWorkspace.invoices, aiReceptionist: { ...seedWorkspace.aiReceptionist, ...parsed.aiReceptionist }, callLogs: parsed.callLogs ?? [] }); } catch { localStorage.removeItem(STORAGE_KEY); } } }, []);
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace)); }, [workspace]);
 
   const store = useMemo<Store>(() => ({
@@ -123,7 +129,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       const name = Object.entries(answers).find(([key]) => key.toLowerCase().includes("name"))?.[1];
       const existing = typeof email === "string" ? workspace.customers.find((customer) => customer.email.toLowerCase() === email.toLowerCase()) : undefined;
       const customer = existing ?? (typeof email === "string" && typeof name === "string" ? { id: uid("cus"), name, email, phone: "", notes: "Created from form submission.", tags: ["Form lead"], createdAt: new Date().toISOString() } : undefined);
-      const submission = { id: uid("submission"), formId, customerId: customer?.id, answers, submittedAt: new Date().toISOString() };
+      const submission: FormSubmission = { id: uid("submission"), formId, ...(customer ? { customerId: customer.id } : {}), answers, submittedAt: new Date().toISOString() };
       setWorkspace((current) => ({ ...current, customers: customer && !existing ? [...current.customers, customer] : current.customers, formSubmissions: [...current.formSubmissions, submission], forms: current.forms.map((form) => form.id === formId ? { ...form, submissions: form.submissions + 1 } : form) }));
       return submission;
     },
@@ -131,6 +137,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     updateWorkflow: (id, patch) => setWorkspace((current) => ({ ...current, workflows: current.workflows.map((workflow) => workflow.id === id ? { ...workflow, ...patch } : workflow) })),
     addInvoice: (input) => { const invoice = { ...input, id: uid("inv"), number: `INV-${1000 + workspace.invoices.length + 1}`, createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, invoices: [...current.invoices, invoice] })); return invoice; },
     updateInvoice: (id, patch) => setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === id ? { ...invoice, ...patch } : invoice) })),
+    updateAiReceptionist: (patch) => setWorkspace((current) => ({ ...current, aiReceptionist: { ...current.aiReceptionist, ...patch } })),
+    addCallLog: (input) => { const log = { ...input, id: uid("call"), startedAt: new Date().toISOString(), sandbox: true as const }; setWorkspace((current) => ({ ...current, callLogs: [log, ...current.callLogs] })); return log; },
     resetDemo: () => setWorkspace(seedWorkspace),
   }), [workspace]);
   return <AppStore.Provider value={store}>{children}</AppStore.Provider>;

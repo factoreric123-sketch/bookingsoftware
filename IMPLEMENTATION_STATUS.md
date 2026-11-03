@@ -25,6 +25,7 @@ This file distinguishes working product behavior from provider-dependent or sche
 - Invoice creation, due dates, statuses, collection totals, and honest Stripe-offline state.
 - Analytics calculated from actual preview bookings, customers, services, sources, and paid invoices.
 - Integrations status screen that never presents unconfigured providers as working.
+- AI receptionist sandbox with configurable identity, disclosure/recording controls, real availability-backed simulated bookings, and clearly labeled persisted test call logs.
 - Responsive desktop/mobile layouts.
 
 ## Production schema blocked on Lovable database tooling
@@ -52,7 +53,7 @@ Required database work includes UUID keys, tenant foreign keys, unique constrain
 - Outlook Calendar: requires a Microsoft Entra application.
 - Stripe subscriptions and Stripe Connect: requires Stripe account decisions, webhook secrets, plan IDs, and Connect configuration.
 - Twilio SMS and phone numbers: requires Twilio credentials, messaging registration, webhook URLs, and consent policy choices.
-- AI phone receptionist: requires a telephony/voice provider, credentials, transfer behavior, recording consent, and retention choices.
+- Live AI phone receptionist: the booking-capable sandbox works locally; real calls still require a telephony/voice provider, credentials, transfer behavior, recording consent, and retention choices.
 - Transactional email: requires a Resend-compatible provider and verified sender domain.
 - Google Book Online: requires the official partner approval process; it is marked pending approval in product UI.
 
