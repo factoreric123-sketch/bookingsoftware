@@ -15,7 +15,8 @@ export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void";
 export type Invoice = { id: string; customerId: string; number: string; amount: number; status: InvoiceStatus; dueDate: string; createdAt: string };
 export type AiReceptionist = { name: string; greeting: string; transferPhone: string; voice: string; afterHours: "take-message" | "offer-callback"; recordingEnabled: boolean; disclosureEnabled: boolean };
 export type CallLog = { id: string; caller: string; startedAt: string; durationSeconds: number; outcome: "booked" | "message" | "transferred"; summary: string; appointmentId?: string; sandbox: true };
-export type Workspace = { business: Business; services: Service[]; customers: Customer[]; appointments: Appointment[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
+export type BlockedTime = { id: string; staffId?: string; date: string; start: string; end: string; reason: string; createdAt: string };
+export type Workspace = { business: Business; services: Service[]; customers: Customer[]; appointments: Appointment[]; blockedTimes: BlockedTime[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
 
 const STORAGE_KEY = "avello.phase1.workspace.v1";
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -38,6 +39,7 @@ export const seedWorkspace: Workspace = {
     { id: "apt_2", serviceId: "svc_consult", customerId: "cus_jordan", staffId: "staff_morgan", date: "2026-11-03", time: "13:30", duration: 30, status: "confirmed", source: "booking-page", createdAt: "2026-11-01T16:00:00Z", manageToken: "manage_jordan_2026" },
     { id: "apt_3", serviceId: "svc_review", customerId: "cus_avery", staffId: "staff_morgan", date: "2026-11-04", time: "11:00", duration: 90, status: "pending", source: "dashboard", createdAt: "2026-11-02T09:00:00Z", manageToken: "manage_avery_2026" },
   ],
+  blockedTimes: [],
   integrations: [
     { id: "google", name: "Google Calendar", description: "Two-way calendar availability and event sync.", status: "not-configured", category: "Calendar" },
     { id: "stripe", name: "Stripe", description: "Deposits, payments, subscriptions, and invoices.", status: "not-configured", category: "Payments" },
@@ -77,6 +79,8 @@ type Store = {
   addAppointment: (appointment: Omit<Appointment, "id" | "createdAt" | "manageToken">) => { appointment?: Appointment; error?: string };
   updateAppointment: (id: string, patch: Partial<Appointment>) => void;
   rescheduleAppointment: (id: string, date: string, time: string) => { appointment?: Appointment; error?: string };
+  addBlockedTime: (block: Omit<BlockedTime, "id" | "createdAt">) => { block?: BlockedTime; error?: string };
+  removeBlockedTime: (id: string) => void;
   addStaff: (staff: Omit<Staff, "id">) => Staff;
   addForm: (form: Omit<BusinessForm, "id" | "createdAt" | "submissions">) => BusinessForm;
   updateForm: (id: string, patch: Partial<BusinessForm>) => void;
@@ -96,8 +100,9 @@ const minutes = (time: string) => { const [h = 0, m = 0] = time.split(":").map(N
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace>(seedWorkspace);
-  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { const parsed = JSON.parse(saved) as Partial<Workspace>; setWorkspace({ ...seedWorkspace, ...parsed, business: { ...seedWorkspace.business, ...parsed.business }, appointments: (parsed.appointments ?? seedWorkspace.appointments).map((appointment) => ({ ...appointment, manageToken: appointment.manageToken ?? uid("manage") })), staff: parsed.staff ?? seedWorkspace.staff, forms: parsed.forms ?? seedWorkspace.forms, formSubmissions: parsed.formSubmissions ?? [], workflows: parsed.workflows ?? seedWorkspace.workflows, invoices: parsed.invoices ?? seedWorkspace.invoices, aiReceptionist: { ...seedWorkspace.aiReceptionist, ...parsed.aiReceptionist }, callLogs: parsed.callLogs ?? [] }); } catch { localStorage.removeItem(STORAGE_KEY); } } }, []);
-  useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace)); }, [workspace]);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { const parsed = JSON.parse(saved) as Partial<Workspace>; setWorkspace({ ...seedWorkspace, ...parsed, business: { ...seedWorkspace.business, ...parsed.business }, appointments: (parsed.appointments ?? seedWorkspace.appointments).map((appointment) => ({ ...appointment, manageToken: appointment.manageToken ?? uid("manage") })), blockedTimes: parsed.blockedTimes ?? [], staff: parsed.staff ?? seedWorkspace.staff, forms: parsed.forms ?? seedWorkspace.forms, formSubmissions: parsed.formSubmissions ?? [], workflows: parsed.workflows ?? seedWorkspace.workflows, invoices: parsed.invoices ?? seedWorkspace.invoices, aiReceptionist: { ...seedWorkspace.aiReceptionist, ...parsed.aiReceptionist }, callLogs: parsed.callLogs ?? [] }); } catch { localStorage.removeItem(STORAGE_KEY); } } setHydrated(true); }, []);
+  useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace)); }, [hydrated, workspace]);
 
   const store = useMemo<Store>(() => ({
     workspace,
@@ -111,6 +116,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       const start = minutes(input.time); const end = start + input.duration;
       const conflict = workspace.appointments.some((item) => item.date === input.date && item.status !== "cancelled" && (!input.staffId || !item.staffId || item.staffId === input.staffId) && start < minutes(item.time) + item.duration && end > minutes(item.time));
       if (conflict) return { error: "That time is no longer available. Choose another time." };
+      const blocked = workspace.blockedTimes.some((item) => item.date === input.date && (!item.staffId || !input.staffId || item.staffId === input.staffId) && start < minutes(item.end) && end > minutes(item.start));
+      if (blocked) return { error: "That team member is unavailable during the selected time." };
       const appointment = { ...input, id: uid("apt"), createdAt: new Date().toISOString(), manageToken: uid("manage") };
       setWorkspace((current) => ({ ...current, appointments: [...current.appointments, appointment] })); return { appointment };
     },
@@ -120,9 +127,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       const start = minutes(time); const end = start + current.duration;
       const conflict = workspace.appointments.some((item) => item.id !== id && item.date === date && item.status !== "cancelled" && (!current.staffId || !item.staffId || item.staffId === current.staffId) && start < minutes(item.time) + item.duration && end > minutes(item.time));
       if (conflict) return { error: "That time is no longer available. Choose another time." };
+      const blocked = workspace.blockedTimes.some((item) => item.date === date && (!item.staffId || !current.staffId || item.staffId === current.staffId) && start < minutes(item.end) && end > minutes(item.start));
+      if (blocked) return { error: "That team member is unavailable during the selected time." };
       const appointment = { ...current, date, time, status: "confirmed" as const };
       setWorkspace((state) => ({ ...state, appointments: state.appointments.map((item) => item.id === id ? appointment : item) })); return { appointment };
     },
+    addBlockedTime: (input) => { const start = minutes(input.start); const end = minutes(input.end); if (end <= start) return { error: "End time must be after start time." }; const overlap = workspace.blockedTimes.some((item) => item.date === input.date && (item.staffId ?? "all") === (input.staffId ?? "all") && start < minutes(item.end) && end > minutes(item.start)); if (overlap) return { error: "That blocked period overlaps an existing block." }; const block: BlockedTime = { ...input, id: uid("block"), createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, blockedTimes: [...current.blockedTimes, block] })); return { block }; },
+    removeBlockedTime: (id) => setWorkspace((current) => ({ ...current, blockedTimes: current.blockedTimes.filter((item) => item.id !== id) })),
     addStaff: (input) => { const staff = { ...input, id: uid("staff") }; setWorkspace((current) => ({ ...current, staff: [...current.staff, staff] })); return staff; },
     addForm: (input) => { const form = { ...input, id: uid("form"), createdAt: new Date().toISOString(), submissions: 0 }; setWorkspace((current) => ({ ...current, forms: [...current.forms, form] })); return form; },
     updateForm: (id, patch) => setWorkspace((current) => ({ ...current, forms: current.forms.map((form) => form.id === id ? { ...form, ...patch } : form) })),
@@ -155,7 +166,8 @@ export function availableSlots(workspace: Workspace, serviceId: string, date: st
   const slots: string[] = [];
   for (let cursor = minutes(hours.open); cursor + service.duration <= minutes(hours.close); cursor += 30) {
     const conflict = workspace.appointments.some((item) => item.id !== excludeAppointmentId && item.date === date && item.status !== "cancelled" && (!staffId || !item.staffId || item.staffId === staffId) && cursor < minutes(item.time) + item.duration && cursor + service.duration > minutes(item.time));
-    if (!conflict) slots.push(`${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`);
+    const blocked = workspace.blockedTimes.some((item) => item.date === date && (!item.staffId || !staffId || item.staffId === staffId) && cursor < minutes(item.end) && cursor + service.duration > minutes(item.start));
+    if (!conflict && !blocked) slots.push(`${String(Math.floor(cursor / 60)).padStart(2, "0")}:${String(cursor % 60).padStart(2, "0")}`);
   }
   return slots;
 }

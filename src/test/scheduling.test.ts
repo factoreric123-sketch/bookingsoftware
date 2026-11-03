@@ -30,4 +30,11 @@ describe("availability engine", () => {
     expect(ownerSlots).toContain("11:00");
     expect(morganSlots).not.toContain("11:00");
   });
+
+  it("removes staff blocked time without hiding another staff member", () => {
+    const workspace = { ...seedWorkspace, blockedTimes: [{ id: "block_test", staffId: "staff_morgan", date: "2026-11-05", start: "09:00", end: "11:00", reason: "Time off", createdAt: "2026-11-03" }] };
+
+    expect(availableSlots(workspace, "svc_consult", "2026-11-05", undefined, "staff_morgan")).not.toContain("09:00");
+    expect(availableSlots(workspace, "svc_consult", "2026-11-05", undefined, "staff_owner")).toContain("09:00");
+  });
 });

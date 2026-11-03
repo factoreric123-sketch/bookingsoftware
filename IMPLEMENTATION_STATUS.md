@@ -15,6 +15,7 @@ This file distinguishes working product behavior from provider-dependent or sche
 - Scheduling engine that derives availability from business hours and service duration.
 - Staff-aware availability and conflict prevention, allowing simultaneous appointments across different team members while preventing overlaps for the same person.
 - Public and dashboard bookings support assigned staff, including automatic assignment through “Anyone available.”
+- Team week calendar with appointment lanes, staff/all-team blocked time, overlap validation, removal controls, and immediate exclusion from every availability channel.
 - Public mobile-first booking page with service, date, time, customer details, and confirmation.
 - Booking distribution workspace with shareable links, direct service links, website-button HTML, and inline iframe embed code.
 - Private per-appointment management links with view, reschedule, cancel, conflict prevention, and immediate availability release.
