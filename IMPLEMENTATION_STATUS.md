@@ -16,6 +16,11 @@ This file distinguishes working product behavior from provider-dependent or sche
 - Conflict prevention before appointment creation.
 - Public mobile-first booking page with service, date, time, customer details, and confirmation.
 - Dashboard metrics, real workspace-derived values, schedule, setup checklist, and activity chart.
+- Team directory with roles, service assignment, weekly capacity, and member creation.
+- Form builder with configurable fields, required flags, share links, response status, and persistent drafts.
+- Automation configuration with triggers, actions, activation state, run counts, and explicit execution-safety boundaries.
+- Invoice creation, due dates, statuses, collection totals, and honest Stripe-offline state.
+- Analytics calculated from actual preview bookings, customers, services, sources, and paid invoices.
 - Integrations status screen that never presents unconfigured providers as working.
 - Responsive desktop/mobile layouts.
 
@@ -56,5 +61,6 @@ Required database work includes UUID keys, tenant foreign keys, unique constrain
 4. Add secure customer manage/reschedule/cancel tokens.
 5. Add messaging provider adapters, transactional events, and reminder jobs.
 6. Add Stripe/Connect, calendar providers, webhook idempotency, and usage accounting.
-7. Add forms, automations, analytics, and super-admin capabilities.
-8. Add AI SMS and voice only after the scheduling engine is production-backed.
+7. Promote forms, automations, invoices, and analytics from the preview adapter to production tables and background jobs.
+8. Add super-admin, multi-location, and multi-brand capabilities.
+9. Add AI SMS and voice only after the scheduling engine is production-backed.

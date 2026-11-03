@@ -6,7 +6,13 @@ export type AppointmentStatus = "confirmed" | "pending" | "completed" | "cancell
 export type Appointment = { id: string; serviceId: string; customerId: string; date: string; time: string; duration: number; status: AppointmentStatus; source: "dashboard" | "booking-page"; notes?: string; createdAt: string };
 export type Business = { id: string; name: string; slug: string; industry: string; email: string; phone: string; address: string; timezone: string; accent: string; setupComplete: boolean; hours: Record<string, { open: string; close: string; enabled: boolean }> };
 export type Integration = { id: string; name: string; description: string; status: "connected" | "not-configured" | "pending-approval"; category: string };
-export type Workspace = { business: Business; services: Service[]; customers: Customer[]; appointments: Appointment[]; integrations: Integration[] };
+export type Staff = { id: string; name: string; email: string; role: "owner" | "manager" | "staff"; active: boolean; serviceIds: string[]; weeklyHours: number };
+export type FormField = { id: string; label: string; type: "text" | "email" | "phone" | "textarea" | "select" | "checkbox"; required: boolean; options?: string[] };
+export type BusinessForm = { id: string; name: string; description: string; active: boolean; fields: FormField[]; submissions: number; createdAt: string };
+export type Workflow = { id: string; name: string; trigger: string; action: string; active: boolean; runs: number; lastRun?: string };
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void";
+export type Invoice = { id: string; customerId: string; number: string; amount: number; status: InvoiceStatus; dueDate: string; createdAt: string };
+export type Workspace = { business: Business; services: Service[]; customers: Customer[]; appointments: Appointment[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; workflows: Workflow[]; invoices: Invoice[] };
 
 const STORAGE_KEY = "avello.phase1.workspace.v1";
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -36,6 +42,22 @@ export const seedWorkspace: Workspace = {
     { id: "voice", name: "AI Voice", description: "Real-time AI receptionist and call routing.", status: "not-configured", category: "AI" },
     { id: "google-booking", name: "Google Book Online", description: "Official Reserve with Google partner connection.", status: "pending-approval", category: "Booking" },
   ],
+  staff: [
+    { id: "staff_owner", name: "Eric Thompson", email: "eric@northstar.example", role: "owner", active: true, serviceIds: ["svc_strategy", "svc_consult", "svc_review"], weeklyHours: 40 },
+    { id: "staff_morgan", name: "Morgan Chen", email: "morgan@northstar.example", role: "staff", active: true, serviceIds: ["svc_consult", "svc_review"], weeklyHours: 32 },
+  ],
+  forms: [
+    { id: "form_intake", name: "New client intake", description: "Collect goals and project context before the first appointment.", active: true, submissions: 12, createdAt: "2026-10-12", fields: [{ id: "fld_name", label: "Full name", type: "text", required: true }, { id: "fld_email", label: "Email", type: "email", required: true }, { id: "fld_goals", label: "What would you like to accomplish?", type: "textarea", required: true }] },
+  ],
+  workflows: [
+    { id: "flow_confirmation", name: "Booking confirmation", trigger: "New booking", action: "Send confirmation email", active: false, runs: 0 },
+    { id: "flow_reminder", name: "24-hour reminder", trigger: "Appointment approaching", action: "Send SMS reminder", active: false, runs: 0 },
+    { id: "flow_review", name: "Review request", trigger: "Appointment completed", action: "Send review request next day", active: false, runs: 0 },
+  ],
+  invoices: [
+    { id: "inv_1", customerId: "cus_maya", number: "INV-1001", amount: 150, status: "paid", dueDate: "2026-10-22", createdAt: "2026-10-15" },
+    { id: "inv_2", customerId: "cus_avery", number: "INV-1002", amount: 225, status: "sent", dueDate: "2026-11-10", createdAt: "2026-11-01" },
+  ],
 };
 
 type Store = {
@@ -47,6 +69,13 @@ type Store = {
   addCustomer: (customer: Omit<Customer, "id" | "createdAt">) => Customer;
   addAppointment: (appointment: Omit<Appointment, "id" | "createdAt">) => { appointment?: Appointment; error?: string };
   updateAppointment: (id: string, patch: Partial<Appointment>) => void;
+  addStaff: (staff: Omit<Staff, "id">) => Staff;
+  addForm: (form: Omit<BusinessForm, "id" | "createdAt" | "submissions">) => BusinessForm;
+  updateForm: (id: string, patch: Partial<BusinessForm>) => void;
+  addWorkflow: (workflow: Omit<Workflow, "id" | "runs">) => Workflow;
+  updateWorkflow: (id: string, patch: Partial<Workflow>) => void;
+  addInvoice: (invoice: Omit<Invoice, "id" | "number" | "createdAt">) => Invoice;
+  updateInvoice: (id: string, patch: Partial<Invoice>) => void;
   resetDemo: () => void;
 };
 
@@ -56,7 +85,7 @@ const minutes = (time: string) => { const [h, m] = time.split(":").map(Number); 
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace>(seedWorkspace);
-  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { setWorkspace(JSON.parse(saved)); } catch { localStorage.removeItem(STORAGE_KEY); } } }, []);
+  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { const parsed = JSON.parse(saved) as Partial<Workspace>; setWorkspace({ ...seedWorkspace, ...parsed, business: { ...seedWorkspace.business, ...parsed.business }, staff: parsed.staff ?? seedWorkspace.staff, forms: parsed.forms ?? seedWorkspace.forms, workflows: parsed.workflows ?? seedWorkspace.workflows, invoices: parsed.invoices ?? seedWorkspace.invoices }); } catch { localStorage.removeItem(STORAGE_KEY); } } }, []);
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace)); }, [workspace]);
 
   const store = useMemo<Store>(() => ({
@@ -74,6 +103,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       setWorkspace((current) => ({ ...current, appointments: [...current.appointments, appointment] })); return { appointment };
     },
     updateAppointment: (id, patch) => setWorkspace((current) => ({ ...current, appointments: current.appointments.map((item) => item.id === id ? { ...item, ...patch } : item) })),
+    addStaff: (input) => { const staff = { ...input, id: uid("staff") }; setWorkspace((current) => ({ ...current, staff: [...current.staff, staff] })); return staff; },
+    addForm: (input) => { const form = { ...input, id: uid("form"), createdAt: new Date().toISOString(), submissions: 0 }; setWorkspace((current) => ({ ...current, forms: [...current.forms, form] })); return form; },
+    updateForm: (id, patch) => setWorkspace((current) => ({ ...current, forms: current.forms.map((form) => form.id === id ? { ...form, ...patch } : form) })),
+    addWorkflow: (input) => { const workflow = { ...input, id: uid("flow"), runs: 0 }; setWorkspace((current) => ({ ...current, workflows: [...current.workflows, workflow] })); return workflow; },
+    updateWorkflow: (id, patch) => setWorkspace((current) => ({ ...current, workflows: current.workflows.map((workflow) => workflow.id === id ? { ...workflow, ...patch } : workflow) })),
+    addInvoice: (input) => { const invoice = { ...input, id: uid("inv"), number: `INV-${1000 + workspace.invoices.length + 1}`, createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, invoices: [...current.invoices, invoice] })); return invoice; },
+    updateInvoice: (id, patch) => setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === id ? { ...invoice, ...patch } : invoice) })),
     resetDemo: () => setWorkspace(seedWorkspace),
   }), [workspace]);
   return <AppStore.Provider value={store}>{children}</AppStore.Provider>;
