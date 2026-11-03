@@ -73,6 +73,7 @@ type Store = {
   addService: (service: Omit<Service, "id">) => Service;
   updateService: (id: string, patch: Partial<Service>) => void;
   addCustomer: (customer: Omit<Customer, "id" | "createdAt">) => Customer;
+  updateCustomer: (id: string, patch: Partial<Customer>) => void;
   addAppointment: (appointment: Omit<Appointment, "id" | "createdAt" | "manageToken">) => { appointment?: Appointment; error?: string };
   updateAppointment: (id: string, patch: Partial<Appointment>) => void;
   rescheduleAppointment: (id: string, date: string, time: string) => { appointment?: Appointment; error?: string };
@@ -105,6 +106,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     addService: (input) => { const service = { ...input, id: uid("svc") }; setWorkspace((current) => ({ ...current, services: [...current.services, service] })); return service; },
     updateService: (id, patch) => setWorkspace((current) => ({ ...current, services: current.services.map((service) => service.id === id ? { ...service, ...patch } : service) })),
     addCustomer: (input) => { const customer = { ...input, id: uid("cus"), createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, customers: [...current.customers, customer] })); return customer; },
+    updateCustomer: (id, patch) => setWorkspace((current) => ({ ...current, customers: current.customers.map((customer) => customer.id === id ? { ...customer, ...patch } : customer) })),
     addAppointment: (input) => {
       const start = minutes(input.time); const end = start + input.duration;
       const conflict = workspace.appointments.some((item) => item.date === input.date && item.status !== "cancelled" && start < minutes(item.time) + item.duration && end > minutes(item.time));

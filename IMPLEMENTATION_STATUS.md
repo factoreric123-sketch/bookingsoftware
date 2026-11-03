@@ -10,7 +10,7 @@ This file distinguishes working product behavior from provider-dependent or sche
 - Tenant-shaped domain model for businesses, services, customers, appointments, hours, and integrations.
 - Persistent preview workspace with editable business profile.
 - Services: create, list, price, duration, and active/hidden state.
-- Customers: create, list, tags, appointment count, and calculated lifetime value.
+- Customers: create, search across contact details/tags, edit full profiles, persist notes/tags, view appointment/payment/form timelines, and export CSV.
 - Appointments: create, list, filter-ready table, and status updates.
 - Scheduling engine that derives availability from business hours and service duration.
 - Conflict prevention before appointment creation.
