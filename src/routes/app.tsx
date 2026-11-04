@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { availableSlots, useAppStore, type AppointmentStatus } from "../lib/app-store";
 import { useAuth } from "../lib/auth-context";
+import { invokeBackend } from "../integrations/supabase/backend";
 
 export const Route = createFileRoute("/app")({ component: Dashboard });
 type Section =
@@ -2531,17 +2532,17 @@ function Payments() {
 
 function Analytics() {
   const { workspace } = useAppStore();
-  const completed = workspace.appointments.filter((a) => a.status === "completed");
-  const active = workspace.appointments.filter((a) => a.status !== "cancelled");
-  const revenue = workspace.invoices
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + i.amount, 0);
-  const serviceCounts = workspace.services.map((service) => ({
-    name: service.name,
-    count: workspace.appointments.filter(
-      (a) => a.serviceId === service.id && a.status !== "cancelled",
-    ).length,
-  }));
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [analyticsError, setAnalyticsError] = useState("");
+  useEffect(() => {
+    const through = new Date(); const from = new Date(); from.setDate(from.getDate() - 29);
+    invokeBackend<any>("get_business_analytics", { p_business_id: workspace.business.id, p_location_id: null, p_from_date: from.toISOString().slice(0, 10), p_through_date: through.toISOString().slice(0, 10) }).then(setAnalytics).catch((caught) => setAnalyticsError(caught instanceof Error ? caught.message : "Analytics unavailable"));
+  }, [workspace.business.id]);
+  const activeCount = Number(analytics?.booking_count ?? 0) - Number(analytics?.cancelled_count ?? 0);
+  const completedCount = Number(analytics?.completed_count ?? 0);
+  const revenue = Number(analytics?.net_revenue_minor ?? 0) / 100;
+  const serviceCounts: Array<{ name: string; count: number }> = (analytics?.booking_value_by_service ?? []).map((item: any) => ({ name: item.service_name, count: Number(item.total_minor) / 100 }));
+  const bookingSources: Array<{ source: string; count: number }> = analytics?.booking_sources ?? [];
   const max = Math.max(1, ...serviceCounts.map((item) => item.count));
   return (
     <>
@@ -2558,14 +2559,14 @@ function Analytics() {
       <div className="metric-grid">
         <Metric
           label="Total bookings"
-          value={String(active.length)}
+          value={analytics ? String(activeCount) : "—"}
           trend="Excludes cancelled"
           icon={CalendarDays}
         />
         <Metric
           label="Completed"
-          value={String(completed.length)}
-          trend={`${active.length ? Math.round((completed.length / active.length) * 100) : 0}% completion rate`}
+          value={analytics ? String(completedCount) : "—"}
+          trend={activeCount ? `${Math.round((completedCount / activeCount) * 100)}% completion rate` : "No completed bookings"}
           icon={Check}
         />
         <Metric
@@ -2576,11 +2577,7 @@ function Analytics() {
         />
         <Metric
           label="Repeat customers"
-          value={String(
-            workspace.customers.filter(
-              (c) => workspace.appointments.filter((a) => a.customerId === c.id).length > 1,
-            ).length,
-          )}
+          value={analytics ? String(analytics.repeat_customers ?? 0) : "—"}
           trend="More than one booking"
           icon={Users}
         />
@@ -2590,7 +2587,7 @@ function Analytics() {
           <div className="panel-heading">
             <div>
               <h2>Services by booking volume</h2>
-              <p>Actual non-cancelled appointments</p>
+              <p>Authoritative booking value for the last 30 days</p>
             </div>
           </div>
           <div className="service-bars">
@@ -2600,7 +2597,7 @@ function Analytics() {
                 <div>
                   <i style={{ width: `${(item.count / max) * 100}%` }} />
                 </div>
-                <b>{item.count}</b>
+                <b>${item.count.toLocaleString()}</b>
               </div>
             ))}
           </div>
@@ -2612,20 +2609,22 @@ function Analytics() {
               <p>Where appointments were created</p>
             </div>
           </div>
-          {["booking-page", "dashboard"].map((source) => {
-            const count = workspace.appointments.filter((a) => a.source === source).length;
+          {bookingSources.map((entry) => {
+            const source = String(entry.source);
+            const count = Number(entry.count);
             return (
               <div className="source-row" key={source}>
-                <span>{source === "booking-page" ? "Public booking page" : "Dashboard"}</span>
+                <span>{source.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase())}</span>
                 <b>{count}</b>
                 <i
                   style={{
-                    width: `${workspace.appointments.length ? (count / workspace.appointments.length) * 100 : 0}%`,
+                    width: `${analytics.booking_count ? (count / Number(analytics.booking_count)) * 100 : 0}%`,
                   }}
                 />
               </div>
             );
           })}
+          {analyticsError && <div className="booking-error">{analyticsError}</div>}
           <div className="analytics-disclaimer">
             Visitor conversion, provider costs, SMS usage, and AI call metrics remain unavailable
             until their real event sources are connected.
