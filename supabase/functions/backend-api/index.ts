@@ -382,6 +382,12 @@ Deno.serve(async (req: Request) => {
     const { data: appointment } = await admin.from("appointments").select("status,session_id").eq("business_id", businessId).eq("id", appointmentId).single();
     if (!appointment) return json({ error: "Appointment not found" }, 404);
     if (appointment.status === nextStatus) return json({ data: { appointment_id: appointmentId, status: nextStatus } });
+    if (appointment.status === "cancelled") return json({ error: "Cancelled appointments cannot be changed" }, 409);
+    if (nextStatus === "cancelled") {
+      const { count, error: countError } = await admin.from("appointments").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("session_id", appointment.session_id).neq("status", "cancelled");
+      if (countError) return json({ error: countError.message, code: countError.code }, 400);
+      if ((count ?? 0) > 1) return json({ error: "Group bookings must be cancelled through the attendee management flow" }, 409);
+    }
     const values: Record<string, unknown> = { status: nextStatus };
     if (nextStatus === "cancelled") Object.assign(values, { cancelled_at: new Date().toISOString(), cancelled_by_user_id: userId, cancellation_reason: String(params.p_reason ?? "Cancelled by staff") });
     const { error: updateError } = await admin.from("appointments").update(values).eq("business_id", businessId).eq("id", appointmentId);
