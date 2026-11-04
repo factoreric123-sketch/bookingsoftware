@@ -34,6 +34,8 @@ const authenticatedActions = new Set([
   "create_dashboard_booking",
   "save_form",
   "save_customer_profile",
+  "save_sandbox_call",
+  "set_appointment_status",
 ]);
 
 const actorActions = new Set([
@@ -70,6 +72,23 @@ async function subjectHash(req: Request, secret: string) {
   const bytes = new TextEncoder().encode(`${secret}:${forwarded}:${agent}`);
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function localDateTimeToIso(date: unknown, time: unknown, timeZone: string) {
+  const local = `${String(date ?? "")}T${String(time ?? "")}:00`;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/.test(local)) throw new Error("A valid local date and time are required");
+  const target = new Date(`${local}Z`);
+  let candidate = target.getTime();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date(candidate));
+    const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+    const rendered = Date.parse(`${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}:${value("second")}Z`);
+    candidate += target.getTime() - rendered;
+  }
+  const check = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(candidate));
+  const value = (type: string) => check.find((part) => part.type === type)?.value ?? "";
+  if (`${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}:00` !== local) throw new Error("That local time does not exist in the business timezone");
+  return new Date(candidate).toISOString();
 }
 
 Deno.serve(async (req: Request) => {
@@ -294,6 +313,17 @@ Deno.serve(async (req: Request) => {
         if (locationId) await admin.from("staff_locations").insert({ business_id: businessId, staff_id: data.id, location_id: locationId });
         if (serviceIds.length) await admin.from("staff_services").insert(serviceIds.map((serviceId) => ({ business_id: businessId, staff_id: data.id, service_id: serviceId })));
       }
+      if (entity === "service") {
+        const locationId = typeof incoming.location_id === "string" ? incoming.location_id : null;
+        const staffIds = Array.isArray(incoming.staff_ids) ? incoming.staff_ids.filter((value): value is string => typeof value === "string") : [];
+        if (!locationId) return json({ error: "A location is required for a new service" }, 400);
+        const { error: locationLinkError } = await admin.from("service_locations").insert({ business_id: businessId, service_id: data.id, location_id: locationId });
+        if (locationLinkError) return json({ error: locationLinkError.message, code: locationLinkError.code }, 400);
+        if (staffIds.length) {
+          const { error: staffLinkError } = await admin.from("staff_services").insert(staffIds.map((staffId) => ({ business_id: businessId, staff_id: staffId, service_id: data.id })));
+          if (staffLinkError) return json({ error: staffLinkError.message, code: staffLinkError.code }, 400);
+        }
+      }
       return json({ data });
     }
     if (!id && entity !== "ai_settings") return json({ error: "Record id is required" }, 400);
@@ -310,6 +340,10 @@ Deno.serve(async (req: Request) => {
     if (!member || (member.role === "staff" && !member.can_manage_customers)) return json({ error: "Permission denied" }, 403);
     const { data: page } = await admin.from("booking_pages").select("id").eq("business_id", businessId).eq("status", "published").limit(1).maybeSingle();
     if (!page) return json({ error: "Publish a booking page before creating appointments" }, 409);
+    const { data: business } = await admin.from("businesses").select("timezone").eq("id", businessId).single();
+    let startsAt: string;
+    try { startsAt = localDateTimeToIso(params.p_local_date, params.p_local_time, business?.timezone ?? "UTC"); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid appointment time" }, 400); }
     const requestKey = String(params.p_request_key ?? crypto.randomUUID());
     const subject = await subjectHash(req, serviceKey);
     const { data: hold, error: holdError } = await admin.rpc("create_booking_hold", {
@@ -318,7 +352,7 @@ Deno.serve(async (req: Request) => {
       p_service_id: params.p_service_id,
       p_staff_id: params.p_staff_id ?? null,
       p_session_id: null,
-      p_starts_at: params.p_starts_at,
+      p_starts_at: startsAt,
       p_addon_quantities: {},
       p_seat_count: 1,
       p_request_key: requestKey,
@@ -336,6 +370,37 @@ Deno.serve(async (req: Request) => {
     });
     if (confirmError) return json({ error: confirmError.message, code: confirmError.code }, 400);
     return json({ data: confirmed });
+  }
+
+  if (action === "set_appointment_status") {
+    const businessId = String(params.p_business_id ?? "");
+    const appointmentId = String(params.p_appointment_id ?? "");
+    const nextStatus = String(params.p_status ?? "").replace("no-show", "no_show");
+    if (!["pending","confirmed","completed","cancelled","no_show"].includes(nextStatus)) return json({ error: "Unsupported appointment status" }, 400);
+    const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (!member || (member.role === "staff" && !member.can_manage_customers)) return json({ error: "Permission denied" }, 403);
+    const { data: appointment } = await admin.from("appointments").select("status,session_id").eq("business_id", businessId).eq("id", appointmentId).single();
+    if (!appointment) return json({ error: "Appointment not found" }, 404);
+    if (appointment.status === nextStatus) return json({ data: { appointment_id: appointmentId, status: nextStatus } });
+    const values: Record<string, unknown> = { status: nextStatus };
+    if (nextStatus === "cancelled") Object.assign(values, { cancelled_at: new Date().toISOString(), cancelled_by_user_id: userId, cancellation_reason: String(params.p_reason ?? "Cancelled by staff") });
+    const { error: updateError } = await admin.from("appointments").update(values).eq("business_id", businessId).eq("id", appointmentId);
+    if (updateError) return json({ error: updateError.message, code: updateError.code }, 400);
+    if (nextStatus === "cancelled") await admin.from("resource_reservations").update({ active: false }).eq("business_id", businessId).eq("session_id", appointment.session_id);
+    const { error: historyError } = await admin.from("appointment_status_history").insert({ business_id: businessId, appointment_id: appointmentId, from_status: appointment.status, to_status: nextStatus, actor_user_id: userId, actor_type: "user", reason: String(params.p_reason ?? "") });
+    if (historyError) return json({ error: historyError.message, code: historyError.code }, 400);
+    return json({ data: { appointment_id: appointmentId, status: nextStatus } });
+  }
+
+  if (action === "save_sandbox_call") {
+    const businessId = String(params.p_business_id ?? "");
+    const { data: member } = await admin.from("business_members").select("role,can_manage_integrations").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (!member || (member.role === "staff" && !member.can_manage_integrations)) return json({ error: "Permission denied" }, 403);
+    const now = new Date();
+    const duration = Math.max(0, Math.min(7200, Number(params.p_duration_seconds ?? 0)));
+    const { data, error } = await admin.from("calls").insert({ business_id: businessId, customer_id: params.p_customer_id ?? null, direction: "inbound", caller_e164: String(params.p_caller_e164 ?? "sandbox"), called_e164: "sandbox", started_at: new Date(now.getTime() - duration * 1000).toISOString(), answered_at: new Date(now.getTime() - duration * 1000).toISOString(), ended_at: now.toISOString(), duration_seconds: duration, status: "simulated", outcome: params.p_outcome ?? "information", summary: String(params.p_summary ?? ""), is_sandbox: true }).select().single();
+    if (error) return json({ error: error.message, code: error.code }, 400);
+    return json({ data });
   }
 
   if (action === "save_form") {

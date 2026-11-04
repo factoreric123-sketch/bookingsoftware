@@ -774,7 +774,7 @@ function Bookings({ title }: { title: string }) {
                     <select
                       value={item.status}
                       onChange={(e) =>
-                        updateAppointment(item.id, { status: e.target.value as AppointmentStatus })
+                        void updateAppointment(item.id, { status: e.target.value as AppointmentStatus })
                       }
                       className={`status-select ${item.status}`}
                     >
@@ -1406,7 +1406,7 @@ function Messages() {
 }
 
 function PhoneAi() {
-  const { workspace, updateAiReceptionist, addCallLog, addCustomer, addAppointment } =
+  const { workspace, updateAiReceptionist, addCallLog, addCustomer } =
     useAppStore();
   const [settings, setSettings] = useState(workspace.aiReceptionist);
   const [show, setShow] = useState(false);
@@ -1448,29 +1448,14 @@ function PhoneAi() {
         notes: "Created by AI receptionist sandbox.",
         tags: ["AI call"],
       });
-    const booked = await addAppointment({
-      serviceId: service.id,
-      staffId: staff.id,
-      customerId: customer.id,
-      date: call.date,
-      time: call.time,
-      duration: service.duration,
-      status: "confirmed",
-      source: "dashboard",
-      notes: "Booked during a simulated AI receptionist call.",
-    });
-    if (booked.error) {
-      setResult(booked.error);
-      return;
-    }
-    addCallLog({
+    await addCallLog({
       caller: call.caller,
+      customerId: customer.id,
       durationSeconds: 96,
       outcome: "booked",
-      ...(booked.appointment ? { appointmentId: booked.appointment.id } : {}),
-      summary: `${settings.name} disclosed that it was an AI assistant, checked live availability, and booked ${service.name} with ${staff.name} for ${call.name} on ${formatDate(call.date)} at ${prettyTime(call.time)}.`,
+      summary: `${settings.name} disclosed that it was an AI assistant and simulated booking ${service.name} with ${staff.name} for ${call.name} on ${formatDate(call.date)} at ${prettyTime(call.time)}. No appointment was reserved.`,
     });
-    setResult("Sandbox call completed and appointment created from real staff availability.");
+    setResult("Sandbox call saved. Availability was checked, but no real appointment was created.");
     setShow(false);
   };
   return (
@@ -1584,7 +1569,7 @@ function PhoneAi() {
             className="solid-action"
             onClick={() => {
               updateAiReceptionist(settings);
-              setResult("Receptionist settings saved in this preview workspace.");
+              setResult("Receptionist settings saved to your workspace.");
             }}
           >
             Save settings
@@ -1628,8 +1613,8 @@ function PhoneAi() {
         <Modal title="Simulate an AI booking call" onClose={() => setShow(false)}>
           <div className="simulation-note">
             <Bot size={18} />
-            This creates a sandbox call log and a real preview appointment. It does not place a
-            telephone call.
+            This checks live availability and saves a sandbox call log. It does not reserve an
+            appointment or place a telephone call.
           </div>
           <div className="field-pair">
             <label>
