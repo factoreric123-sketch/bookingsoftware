@@ -17,7 +17,9 @@ export type BackendAction =
   | "record_manual_payment"
   | "accept_member_invitation"
   | "get_business_analytics"
-  | "complete_onboarding";
+  | "complete_onboarding"
+  | "get_workspace_snapshot"
+  | "mutate_workspace";
 
 export class BackendError extends Error {
   constructor(message: string, readonly code?: string, readonly status?: number) {

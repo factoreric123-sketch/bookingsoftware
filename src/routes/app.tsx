@@ -15,11 +15,12 @@ const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
 function Dashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { workspace, isPreview } = useAppStore();
+  const { workspace, isPreview, isLoading } = useAppStore();
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => { if (!authLoading && !user) navigate({ to: "/login", replace: true }); }, [authLoading, navigate, user]);
-  if (authLoading || !user) return <div className="app-loading">Loading your workspace…</div>;
+  useEffect(() => { if (!authLoading && user && !isLoading && !workspace.business.id) navigate({ to: "/onboarding", replace: true }); }, [authLoading, isLoading, navigate, user, workspace.business.id]);
+  if (authLoading || !user || isLoading) return <div className="app-loading">Loading your workspace…</div>;
   return <div className="app-layout">
     <aside className={mobileOpen ? "app-sidebar mobile-open" : "app-sidebar"}><div className="app-logo"><span className="avello-logo">A</span><b>Avello</b><button onClick={() => setMobileOpen(false)}><X size={18} /></button></div><button className="business-switch"><span className="business-avatar">N</span><span><b>{workspace.business.name}</b><small>Professional plan</small></span><ChevronDown size={15} /></button><nav>{navigation.map(({ label, icon: Icon }) => <button key={label} className={section === label ? "active" : ""} onClick={() => { setSection(label); setMobileOpen(false); }}><Icon size={18} />{label}{label === "Messages" && <i>3</i>}</button>)}</nav><div className="sidebar-bottom"><button><HelpCircle size={18} />Help & support</button><div className="user-chip"><span>ET</span><div><b>Eric Thompson</b><small>Owner</small></div><MoreHorizontal size={17} /></div></div></aside>
     <div className="app-main"><header className="app-topbar"><button className="app-menu" onClick={() => setMobileOpen(true)}><Menu size={20} /></button><div className="global-search"><Search size={17} /><input placeholder="Search customers, bookings, or anything…"/><kbd>⌘ K</kbd></div><div className="top-actions"><Link to="/book/$slug" params={{ slug: workspace.business.slug }} target="_blank" className="view-booking"><ExternalLink size={15} /> Booking page</Link><button className="icon-button"><Bell size={18} /><i /></button><span className="top-avatar">ET</span></div></header>
