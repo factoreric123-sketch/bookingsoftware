@@ -22,7 +22,8 @@ This file distinguishes working product behavior from provider-dependent or sche
 - Dashboard metrics, real workspace-derived values, schedule, setup checklist, and activity chart.
 - Team directory with roles, service assignment, weekly capacity, and member creation.
 - Form builder with configurable fields, required flags, share links, response status, and persistent drafts.
-- Public form URLs with required-field validation, persisted submissions, submission counts, and automatic customer association by email.
+- Public form URLs with required-field validation, persisted submissions, accurate record-derived counts, and automatic customer association by email.
+- Form submissions dashboard with respondent/answer search, full answer inspection, CRM association, and per-form CSV export.
 - Automation configuration with triggers, actions, activation state, run counts, and explicit execution-safety boundaries.
 - Invoice creation, due dates, statuses, collection totals, and honest Stripe-offline state.
 - Analytics calculated from actual preview bookings, customers, services, sources, and paid invoices.

@@ -52,7 +52,7 @@ export const seedWorkspace: Workspace = {
     { id: "staff_morgan", name: "Morgan Chen", email: "morgan@northstar.example", role: "staff", active: true, serviceIds: ["svc_consult", "svc_review"], weeklyHours: 32 },
   ],
   forms: [
-    { id: "form_intake", name: "New client intake", description: "Collect goals and project context before the first appointment.", active: true, submissions: 12, createdAt: "2026-10-12", fields: [{ id: "fld_name", label: "Full name", type: "text", required: true }, { id: "fld_email", label: "Email", type: "email", required: true }, { id: "fld_goals", label: "What would you like to accomplish?", type: "textarea", required: true }] },
+    { id: "form_intake", name: "New client intake", description: "Collect goals and project context before the first appointment.", active: true, submissions: 0, createdAt: "2026-10-12", fields: [{ id: "fld_name", label: "Full name", type: "text", required: true }, { id: "fld_email", label: "Email", type: "email", required: true }, { id: "fld_goals", label: "What would you like to accomplish?", type: "textarea", required: true }] },
   ],
   formSubmissions: [],
   workflows: [
@@ -101,7 +101,7 @@ const minutes = (time: string) => { const [h = 0, m = 0] = time.split(":").map(N
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [workspace, setWorkspace] = useState<Workspace>(seedWorkspace);
   const [hydrated, setHydrated] = useState(false);
-  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { const parsed = JSON.parse(saved) as Partial<Workspace>; setWorkspace({ ...seedWorkspace, ...parsed, business: { ...seedWorkspace.business, ...parsed.business }, appointments: (parsed.appointments ?? seedWorkspace.appointments).map((appointment) => ({ ...appointment, manageToken: appointment.manageToken ?? uid("manage") })), blockedTimes: parsed.blockedTimes ?? [], staff: parsed.staff ?? seedWorkspace.staff, forms: parsed.forms ?? seedWorkspace.forms, formSubmissions: parsed.formSubmissions ?? [], workflows: parsed.workflows ?? seedWorkspace.workflows, invoices: parsed.invoices ?? seedWorkspace.invoices, aiReceptionist: { ...seedWorkspace.aiReceptionist, ...parsed.aiReceptionist }, callLogs: parsed.callLogs ?? [] }); } catch { localStorage.removeItem(STORAGE_KEY); } } setHydrated(true); }, []);
+  useEffect(() => { const saved = localStorage.getItem(STORAGE_KEY); if (saved) { try { const parsed = JSON.parse(saved) as Partial<Workspace>; const submissions = parsed.formSubmissions ?? []; setWorkspace({ ...seedWorkspace, ...parsed, business: { ...seedWorkspace.business, ...parsed.business }, appointments: (parsed.appointments ?? seedWorkspace.appointments).map((appointment) => ({ ...appointment, manageToken: appointment.manageToken ?? uid("manage") })), blockedTimes: parsed.blockedTimes ?? [], staff: parsed.staff ?? seedWorkspace.staff, forms: (parsed.forms ?? seedWorkspace.forms).map((form) => ({ ...form, submissions: submissions.filter((submission) => submission.formId === form.id).length })), formSubmissions: submissions, workflows: parsed.workflows ?? seedWorkspace.workflows, invoices: parsed.invoices ?? seedWorkspace.invoices, aiReceptionist: { ...seedWorkspace.aiReceptionist, ...parsed.aiReceptionist }, callLogs: parsed.callLogs ?? [] }); } catch { localStorage.removeItem(STORAGE_KEY); } } setHydrated(true); }, []);
   useEffect(() => { if (hydrated) localStorage.setItem(STORAGE_KEY, JSON.stringify(workspace)); }, [hydrated, workspace]);
 
   const store = useMemo<Store>(() => ({
