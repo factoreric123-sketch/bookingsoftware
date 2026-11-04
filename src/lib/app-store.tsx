@@ -6,7 +6,7 @@ export type Service = { id: string; name: string; description: string; duration:
 export type Customer = { id: string; name: string; email: string; phone: string; notes: string; tags: string[]; createdAt: string };
 export type AppointmentStatus = "confirmed" | "pending" | "completed" | "cancelled" | "no-show";
 export type Appointment = { id: string; serviceId: string; customerId: string; staffId?: string; date: string; time: string; duration: number; status: AppointmentStatus; source: "dashboard" | "booking-page"; notes?: string; createdAt: string; manageToken: string };
-export type Business = { id: string; name: string; slug: string; industry: string; email: string; phone: string; address: string; timezone: string; currency?: string; accent: string; setupComplete: boolean; hours: Record<string, { open: string; close: string; enabled: boolean }> };
+export type Business = { id: string; name: string; slug: string; industry: string; email: string; phone: string; address: string; timezone: string; currency?: string; defaultLocationId?: string; accent: string; setupComplete: boolean; hours: Record<string, { open: string; close: string; enabled: boolean }> };
 export type Integration = { id: string; name: string; description: string; status: "connected" | "not-configured" | "pending-approval"; category: string };
 export type Staff = { id: string; name: string; email: string; role: "owner" | "manager" | "staff"; active: boolean; serviceIds: string[]; weeklyHours: number };
 export type FormField = { id: string; label: string; type: "text" | "email" | "phone" | "textarea" | "select" | "checkbox"; required: boolean; options?: string[] };
@@ -76,13 +76,13 @@ type Store = {
   updateBusiness: (patch: Partial<Business>) => void;
   addService: (service: Omit<Service, "id">) => Service;
   updateService: (id: string, patch: Partial<Service>) => void;
-  addCustomer: (customer: Omit<Customer, "id" | "createdAt">) => Customer;
+  addCustomer: (customer: Omit<Customer, "id" | "createdAt">) => Promise<Customer>;
   updateCustomer: (id: string, patch: Partial<Customer>) => void;
-  addAppointment: (appointment: Omit<Appointment, "id" | "createdAt" | "manageToken">) => { appointment?: Appointment; error?: string };
+  addAppointment: (appointment: Omit<Appointment, "id" | "createdAt" | "manageToken">) => Promise<{ appointment?: Appointment; error?: string }>;
   updateAppointment: (id: string, patch: Partial<Appointment>) => void;
   rescheduleAppointment: (id: string, date: string, time: string) => { appointment?: Appointment; error?: string };
-  addBlockedTime: (block: Omit<BlockedTime, "id" | "createdAt">) => { block?: BlockedTime; error?: string };
-  removeBlockedTime: (id: string) => void;
+  addBlockedTime: (block: Omit<BlockedTime, "id" | "createdAt">) => Promise<{ block?: BlockedTime; error?: string }>;
+  removeBlockedTime: (id: string) => Promise<void>;
   addStaff: (staff: Omit<Staff, "id">) => Staff;
   addForm: (form: Omit<BusinessForm, "id" | "createdAt" | "submissions">) => BusinessForm;
   updateForm: (id: string, patch: Partial<BusinessForm>) => void;
@@ -93,7 +93,6 @@ type Store = {
   updateInvoice: (id: string, patch: Partial<Invoice>) => void;
   updateAiReceptionist: (patch: Partial<AiReceptionist>) => void;
   addCallLog: (log: Omit<CallLog, "id" | "startedAt" | "sandbox">) => CallLog;
-  resetDemo: () => void;
 };
 
 const AppStore = createContext<Store | null>(null);
@@ -133,7 +132,7 @@ function mapSnapshot(snapshot: any): Workspace {
   }
   const blockedTimes = (snapshot.blocked_times ?? []).map((item: any): BlockedTime => { const start = zonedParts(item.starts_at, business.timezone ?? "America/New_York"); const end = zonedParts(item.ends_at, business.timezone ?? "America/New_York"); return { id: item.id, staffId: item.staff_id ?? undefined, date: start.date, start: start.time, end: end.time, reason: item.reason, createdAt: item.created_at }; });
   return {
-    business: { id: business.id, name: business.name, slug: business.slug, industry: business.industry, email: business.email ?? "", phone: business.phone_e164 ?? "", address: [location.address_line1, location.address_line2, location.city, location.region, location.postal_code].filter(Boolean).join(", "), timezone: business.timezone, currency: business.currency, accent: business.accent_color, setupComplete: Boolean(business.setup_completed_at), hours: hourMap },
+    business: { id: business.id, name: business.name, slug: business.slug, industry: business.industry, email: business.email ?? "", phone: business.phone_e164 ?? "", address: [location.address_line1, location.address_line2, location.city, location.region, location.postal_code].filter(Boolean).join(", "), timezone: business.timezone, currency: business.currency, defaultLocationId: location.id, accent: business.accent_color, setupComplete: Boolean(business.setup_completed_at), hours: hourMap },
     services, customers, appointments, blockedTimes, staff,
     integrations: (snapshot.integrations ?? []).map((item: any): Integration => ({ id: item.id, name: String(item.provider).replaceAll("_", " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase()), description: "Provider connection", status: item.status === "connected" ? "connected" : item.status === "pending_approval" ? "pending-approval" : "not-configured", category: "Integration" })),
     forms: (snapshot.forms ?? []).map((item: any): BusinessForm => ({ id: item.id, name: item.name, description: item.description, active: item.status === "published", fields: [], submissions: (snapshot.form_submissions ?? []).filter((submission: any) => submission.form_id === item.id).length, createdAt: item.created_at })),
@@ -168,16 +167,19 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     updateBusiness: (patch) => { setWorkspace((current) => ({ ...current, business: { ...current.business, ...patch } })); void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "business", p_operation: "update", p_id: workspace.business.id, p_values: { name: patch.name, slug: patch.slug, industry: patch.industry, email: patch.email, phone_e164: patch.phone, timezone: patch.timezone, accent_color: patch.accent } }).catch(console.error); },
     addService: (input) => { const service = { ...input, id: crypto.randomUUID() }; setWorkspace((current) => ({ ...current, services: [...current.services, service] })); void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "service", p_operation: "insert", p_id: service.id, p_values: { name: service.name, description: service.description, duration_minutes: service.duration, price_minor: Math.round(service.price * 100), currency: workspace.business.currency ?? "USD", color: service.color, active: service.active } }).catch(console.error); return service; },
     updateService: (id, patch) => { setWorkspace((current) => ({ ...current, services: current.services.map((service) => service.id === id ? { ...service, ...patch } : service) })); void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "service", p_operation: "update", p_id: id, p_values: { name: patch.name, description: patch.description, duration_minutes: patch.duration, price_minor: patch.price === undefined ? undefined : Math.round(patch.price * 100), color: patch.color, active: patch.active } }).catch(console.error); },
-    addCustomer: (input) => { const customer = { ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, customers: [...current.customers, customer] })); void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "customer", p_operation: "insert", p_id: customer.id, p_values: { full_name: customer.name, email: customer.email || null, phone_e164: customer.phone || null, source: "dashboard" } }).catch(console.error); return customer; },
+    addCustomer: async (input) => { const customer = { ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString() }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "customer", p_operation: "insert", p_id: customer.id, p_values: { full_name: customer.name, email: customer.email || null, phone_e164: customer.phone || null, source: "dashboard" } }); setWorkspace((current) => ({ ...current, customers: [...current.customers, customer] })); return customer; },
     updateCustomer: (id, patch) => { setWorkspace((current) => ({ ...current, customers: current.customers.map((customer) => customer.id === id ? { ...customer, ...patch } : customer) })); void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "customer", p_operation: "update", p_id: id, p_values: { full_name: patch.name, email: patch.email, phone_e164: patch.phone } }).catch(console.error); },
-    addAppointment: (input) => {
+    addAppointment: async (input) => {
       const start = minutes(input.time); const end = start + input.duration;
       const conflict = workspace.appointments.some((item) => item.date === input.date && item.status !== "cancelled" && (!input.staffId || !item.staffId || item.staffId === input.staffId) && start < minutes(item.time) + item.duration && end > minutes(item.time));
       if (conflict) return { error: "That time is no longer available. Choose another time." };
       const blocked = workspace.blockedTimes.some((item) => item.date === input.date && (!item.staffId || !input.staffId || item.staffId === input.staffId) && start < minutes(item.end) && end > minutes(item.start));
       if (blocked) return { error: "That team member is unavailable during the selected time." };
-      const appointment = { ...input, id: uid("apt"), createdAt: new Date().toISOString(), manageToken: uid("manage") };
-      setWorkspace((current) => ({ ...current, appointments: [...current.appointments, appointment] })); return { appointment };
+      try {
+        const result = await invokeBackend<{ appointment_id: string }>("create_dashboard_booking", { p_business_id: workspace.business.id, p_service_id: input.serviceId, p_customer_id: input.customerId, p_staff_id: input.staffId ?? null, p_starts_at: new Date(`${input.date}T${input.time}:00`).toISOString(), p_notes: input.notes ?? "", p_request_key: crypto.randomUUID() });
+        const appointment = { ...input, id: result.appointment_id, createdAt: new Date().toISOString(), manageToken: "" };
+        setWorkspace((current) => ({ ...current, appointments: [...current.appointments, appointment] })); return { appointment };
+      } catch (caught) { return { error: caught instanceof Error ? caught.message : "The appointment could not be created." }; }
     },
     updateAppointment: (id, patch) => setWorkspace((current) => ({ ...current, appointments: current.appointments.map((item) => item.id === id ? { ...item, ...patch } : item) })),
     rescheduleAppointment: (id, date, time) => {
@@ -190,8 +192,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       const appointment = { ...current, date, time, status: "confirmed" as const };
       setWorkspace((state) => ({ ...state, appointments: state.appointments.map((item) => item.id === id ? appointment : item) })); return { appointment };
     },
-    addBlockedTime: (input) => { const start = minutes(input.start); const end = minutes(input.end); if (end <= start) return { error: "End time must be after start time." }; const overlap = workspace.blockedTimes.some((item) => item.date === input.date && (item.staffId ?? "all") === (input.staffId ?? "all") && start < minutes(item.end) && end > minutes(item.start)); if (overlap) return { error: "That blocked period overlaps an existing block." }; const block: BlockedTime = { ...input, id: uid("block"), createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, blockedTimes: [...current.blockedTimes, block] })); return { block }; },
-    removeBlockedTime: (id) => setWorkspace((current) => ({ ...current, blockedTimes: current.blockedTimes.filter((item) => item.id !== id) })),
+    addBlockedTime: async (input) => { const start = minutes(input.start); const end = minutes(input.end); if (end <= start) return { error: "End time must be after start time." }; const overlap = workspace.blockedTimes.some((item) => item.date === input.date && (item.staffId ?? "all") === (input.staffId ?? "all") && start < minutes(item.end) && end > minutes(item.start)); if (overlap) return { error: "That blocked period overlaps an existing block." }; try { const result = await invokeBackend<{ blocked_time_id: string }>("create_blocked_time", { p_business_id: workspace.business.id, p_location_id: workspace.business.defaultLocationId, p_staff_id: input.staffId || null, p_starts_at: new Date(`${input.date}T${input.start}:00`).toISOString(), p_ends_at: new Date(`${input.date}T${input.end}:00`).toISOString(), p_reason: input.reason }); const block: BlockedTime = { ...input, id: result.blocked_time_id, createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, blockedTimes: [...current.blockedTimes, block] })); return { block }; } catch (caught) { return { error: caught instanceof Error ? caught.message : "The time could not be blocked." }; } },
+    removeBlockedTime: async (id) => { await invokeBackend("release_blocked_time", { p_blocked_time_id: id }); setWorkspace((current) => ({ ...current, blockedTimes: current.blockedTimes.filter((item) => item.id !== id) })); },
     addStaff: (input) => { const staff = { ...input, id: uid("staff") }; setWorkspace((current) => ({ ...current, staff: [...current.staff, staff] })); return staff; },
     addForm: (input) => { const form = { ...input, id: uid("form"), createdAt: new Date().toISOString(), submissions: 0 }; setWorkspace((current) => ({ ...current, forms: [...current.forms, form] })); return form; },
     updateForm: (id, patch) => setWorkspace((current) => ({ ...current, forms: current.forms.map((form) => form.id === id ? { ...form, ...patch } : form) })),
@@ -210,7 +212,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     updateInvoice: (id, patch) => setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === id ? { ...invoice, ...patch } : invoice) })),
     updateAiReceptionist: (patch) => { setWorkspace((current) => ({ ...current, aiReceptionist: { ...current.aiReceptionist, ...patch } })); const next = { ...workspace.aiReceptionist, ...patch }; void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "ai_settings", p_operation: "update", p_values: { assistant_name: next.name, greeting: next.greeting, transfer_phone_e164: next.transferPhone || null, voice: next.voice, after_hours_behavior: next.afterHours === "offer-callback" ? "offer_callback" : "take_message", recording_enabled: next.recordingEnabled, disclosure_enabled: next.disclosureEnabled, voice_enabled: false, sms_enabled: false, sandbox_enabled: true } }).catch(console.error); },
     addCallLog: (input) => { const log = { ...input, id: uid("call"), startedAt: new Date().toISOString(), sandbox: true as const }; setWorkspace((current) => ({ ...current, callLogs: [log, ...current.callLogs] })); return log; },
-    resetDemo: () => setWorkspace(seedWorkspace),
   }), [isLoading, workspace]);
   return <AppStore.Provider value={store}>{children}</AppStore.Provider>;
 }

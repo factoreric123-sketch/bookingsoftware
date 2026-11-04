@@ -16,6 +16,7 @@ const publicActions = new Set([
   "reschedule_appointment",
   "cancel_appointment",
   "submit_public_form",
+  "get_public_form",
 ]);
 
 const authenticatedActions = new Set([
@@ -30,6 +31,7 @@ const authenticatedActions = new Set([
   "complete_onboarding",
   "get_workspace_snapshot",
   "mutate_workspace",
+  "create_dashboard_booking",
 ]);
 
 const actorActions = new Set([
@@ -115,6 +117,19 @@ Deno.serve(async (req: Request) => {
     if (action === "confirm_booking" || action === "reschedule_appointment" || action === "cancel_appointment") {
       params.p_actor_user_id = userId;
     }
+  }
+
+  if (action === "get_public_form") {
+    const identifier = String(params.p_identifier ?? "");
+    if (!/^[a-z0-9-]{1,100}$/.test(identifier) && !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(identifier)) return json({ error: "Invalid form identifier" }, 400);
+    const { data: form, error: formError } = await admin.from("forms").select("id,business_id,name,description,slug,active_version_id,accent_color,create_customer").or(`slug.eq.${identifier},id.eq.${identifier}`).eq("status", "published").maybeSingle();
+    if (formError || !form || !form.active_version_id) return json({ error: "Form not found or not published", code: "P0404" }, 404);
+    const [{ data: fields, error: fieldsError }, { data: business, error: businessError }] = await Promise.all([
+      admin.from("form_fields").select("id,field_key,label,field_type,required,placeholder,help_text,options,validation,visibility_rule,customer_mapping,sort_order").eq("business_id", form.business_id).eq("form_version_id", form.active_version_id).order("sort_order"),
+      admin.from("businesses").select("name,accent_color").eq("id", form.business_id).single(),
+    ]);
+    if (fieldsError || businessError) return json({ error: fieldsError?.message ?? businessError?.message ?? "Form unavailable" }, 400);
+    return json({ data: { form_id: form.id, version_id: form.active_version_id, name: form.name, description: form.description, slug: form.slug, accent_color: form.accent_color, create_customer: form.create_customer, business, fields: fields ?? [] } });
   }
 
   if (action === "complete_onboarding") {
@@ -273,6 +288,40 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await updateQuery.select().single();
     if (error) return json({ error: error.message, code: error.code }, 400);
     return json({ data });
+  }
+
+  if (action === "create_dashboard_booking") {
+    const businessId = String(params.p_business_id ?? "");
+    const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (!member || (member.role === "staff" && !member.can_manage_customers)) return json({ error: "Permission denied" }, 403);
+    const { data: page } = await admin.from("booking_pages").select("id").eq("business_id", businessId).eq("status", "published").limit(1).maybeSingle();
+    if (!page) return json({ error: "Publish a booking page before creating appointments" }, 409);
+    const requestKey = String(params.p_request_key ?? crypto.randomUUID());
+    const subject = await subjectHash(req, serviceKey);
+    const { data: hold, error: holdError } = await admin.rpc("create_booking_hold", {
+      p_subject_hash: subject,
+      p_booking_page_id: page.id,
+      p_service_id: params.p_service_id,
+      p_staff_id: params.p_staff_id ?? null,
+      p_session_id: null,
+      p_starts_at: params.p_starts_at,
+      p_addon_quantities: {},
+      p_seat_count: 1,
+      p_request_key: requestKey,
+    });
+    if (holdError) return json({ error: holdError.message, code: holdError.code }, holdError.code === "P0409" ? 409 : 400);
+    const { data: confirmed, error: confirmError } = await admin.rpc("confirm_booking", {
+      p_subject_hash: subject,
+      p_hold_token: hold.hold_token,
+      p_actor_user_id: userId,
+      p_customer_id: params.p_customer_id,
+      p_contact: {},
+      p_customer_notes: params.p_notes ?? "",
+      p_consent_decisions: [],
+      p_request_key: crypto.randomUUID(),
+    });
+    if (confirmError) return json({ error: confirmError.message, code: confirmError.code }, 400);
+    return json({ data: confirmed });
   }
 
   const { data, error } = await admin.rpc(action as never, params as never);

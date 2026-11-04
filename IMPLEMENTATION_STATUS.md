@@ -1,73 +1,55 @@
 # Avello implementation status
 
-This file distinguishes working product behavior from provider-dependent or schema-dependent work. The preview workspace is intentionally labeled in the UI and stores data in browser storage until the production Supabase schema is created through Lovable.
+Updated November 4, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring.
 
-## Working now
+## Functional with the connected Supabase project
 
-- Responsive marketing website with real navigation to signup, onboarding, preview dashboard, and public booking.
-- Supabase email/password signup and login through the connected project.
-- Six-step business onboarding flow.
-- Tenant-shaped domain model for businesses, services, customers, appointments, hours, and integrations.
-- Persistent preview workspace with editable business profile.
-- Services: create, list, price, duration, and active/hidden state.
-- Customers: create, search across contact details/tags, edit full profiles, persist notes/tags, view appointment/payment/form timelines, and export CSV.
-- Appointments: create, list, filter-ready table, and status updates.
-- Scheduling engine that derives availability from business hours and service duration.
-- Staff-aware availability and conflict prevention, allowing simultaneous appointments across different team members while preventing overlaps for the same person.
-- Public and dashboard bookings support assigned staff, including automatic assignment through “Anyone available.”
-- Team week calendar with appointment lanes, staff/all-team blocked time, overlap validation, removal controls, and immediate exclusion from every availability channel.
-- Public mobile-first booking page with service, date, time, customer details, and confirmation.
-- Booking distribution workspace with shareable links, direct service links, website-button HTML, and inline iframe embed code.
-- Private per-appointment management links with view, reschedule, cancel, conflict prevention, and immediate availability release.
-- Dashboard metrics, real workspace-derived values, schedule, setup checklist, and activity chart.
-- Team directory with roles, service assignment, weekly capacity, and member creation.
-- Form builder with configurable fields, required flags, share links, response status, and persistent drafts.
-- Public form URLs with required-field validation, persisted submissions, accurate record-derived counts, and automatic customer association by email.
-- Form submissions dashboard with respondent/answer search, full answer inspection, CRM association, and per-form CSV export.
-- Automation configuration with triggers, actions, activation state, run counts, and explicit execution-safety boundaries.
-- Invoice creation, due dates, statuses, collection totals, and honest Stripe-offline state.
-- Analytics calculated from actual preview bookings, customers, services, sources, and paid invoices.
-- Integrations status screen that never presents unconfigured providers as working.
-- AI receptionist sandbox with configurable identity, disclosure/recording controls, real availability-backed simulated bookings, and clearly labeled persisted test call logs.
-- Responsive desktop/mobile layouts.
+- Supabase email/password signup, login, session restoration, and protected dashboard access.
+- Six-step authenticated onboarding provisions an organization, Starter trial, business, owner memberships, first location, owner staff profile, hours, availability, first service, staff/location assignments, integrations, and a published booking page.
+- Service-role database operations are reachable only through the deployed backend-api Edge Function. Actor IDs are derived from verified access tokens.
+- Dashboard workspace snapshots are membership-authorized and loaded from Supabase. Operational records are no longer hydrated from localStorage.
+- Business, service, customer, workflow, and AI-assistant configuration mutations persist through an authorization-checked server endpoint.
+- Manual dashboard bookings use the same hold and confirmation engine as public bookings.
+- Blocked-time creation and release use the protected database operations.
+- Public booking loads a published projection, requests authoritative availability, creates a ten-minute hold, confirms idempotently, and returns the one-time appointment management token.
+- Appointment management links load a restricted projection and enforce policy, row version, conflict-safe rescheduling, and soft cancellation.
+- Public forms load the active immutable published version and submit through server validation, rate limiting, honeypot protection, explicit customer mappings, and idempotency.
+- The production schema contains 82 public tables and 10 private server-only tables with RLS enabled.
+- Database concurrency protection includes staff reservation exclusion constraints, group-capacity row locking, expiring holds, and hashed capability tokens.
+- Four unpublished subscription plans and their feature matrices are seeded without invented provider prices.
+- TypeScript, the six existing unit tests, and the production build pass.
 
-## Production schema blocked on Lovable database tooling
+## Partially connected
 
-The repository's `AGENTS.md` explicitly says database migrations must be created through Lovable rather than edited by hand. The connected Supabase project currently reports no public tables. The production adapter therefore remains pending until Lovable creates and regenerates types for:
+- Dashboard services, customers, workflows, settings, and AI configuration persist. Some detailed child records such as customer notes/tags and workflow steps still require dedicated UI adapters.
+- Forms submit publicly, while the dashboard form builder still needs full draft/version publishing mutations.
+- Invoices and manual payments have protected database operations, while remaining dashboard controls still need complete adapter wiring.
+- Analytics has a production RPC; all dashboard analytics panels still need to consume it consistently.
+- Team data loads from Supabase. Invitations, role editing, service assignment, and time-off interfaces need final production adapters.
+- Calendar data loads from Supabase and week navigation is dynamic. Additional location filtering and timezone-specific datetime entry remain.
+- Database acceptance coverage is not yet at the required 50 concurrent/RLS scenarios.
 
-- profiles, organizations, businesses, business_members
-- locations, services, service_addons
-- staff_profiles, staff_availability, staff_time_off, business_hours
-- appointments, appointment_services, appointment_holds
-- customers, customer_notes, customer_tags, custom_fields
-- booking_pages, forms, form_fields, form_submissions
-- conversations, messages, phone_numbers, calls, ai_assistant_settings
-- calendar_connections, calendar_events, integrations
-- payments, invoices, refunds
-- automation_workflows, automation_runs
-- subscription_plans, subscriptions, usage_events
-- audit_logs, webhook_events, notifications
+## Sandbox only
 
-Required database work includes UUID keys, tenant foreign keys, unique constraints, indexes, deletion policies, audit fields, RLS, role checks, idempotency keys, and secure booking-management tokens.
+- AI receptionist test conversations and call logs are simulations. They never claim a real telephone call occurred.
+- Sandbox call records must remain marked sandbox and excluded from production analytics.
 
-## Provider-dependent work not falsely implemented
+## Waiting only for external credentials or approval
 
-- Google Calendar OAuth and token refresh: requires Google OAuth credentials and callback configuration.
-- Outlook Calendar: requires a Microsoft Entra application.
-- Stripe subscriptions and Stripe Connect: requires Stripe account decisions, webhook secrets, plan IDs, and Connect configuration.
-- Twilio SMS and phone numbers: requires Twilio credentials, messaging registration, webhook URLs, and consent policy choices.
-- Live AI phone receptionist: the booking-capable sandbox works locally; real calls still require a telephony/voice provider, credentials, transfer behavior, recording consent, and retention choices.
-- Transactional email: requires a Resend-compatible provider and verified sender domain.
-- Google Book Online: requires the official partner approval process; it is marked pending approval in product UI.
+- Google Calendar and Google Auth require Google OAuth client credentials and callback configuration.
+- Outlook Calendar requires a Microsoft Entra application.
+- Stripe payments, subscriptions, and Connect require Stripe credentials, webhook secrets, price IDs, and platform account decisions.
+- Twilio SMS and telephone numbers require Twilio credentials, messaging registration, and webhook configuration.
+- Live AI voice requires an approved telephony/voice provider plus transfer, recording-consent, and retention decisions.
+- Transactional email requires a provider account and verified sender domain.
+- Google Book Online requires official partner approval.
 
-## Next implementation order
+## Remaining internal work
 
-1. Create the Phase 1 schema and RLS through Lovable, regenerate Supabase types, and replace the preview adapter.
-2. Add authenticated membership guards and server-side role enforcement.
-3. Add staff profiles, availability, time off, and multi-location scheduling.
-4. Add secure customer manage/reschedule/cancel tokens.
-5. Add messaging provider adapters, transactional events, and reminder jobs.
-6. Add Stripe/Connect, calendar providers, webhook idempotency, and usage accounting.
-7. Promote forms, automations, invoices, and analytics from the preview adapter to production tables and background jobs.
-8. Add super-admin, multi-location, and multi-brand capabilities.
-9. Add AI SMS and voice only after the scheduling engine is production-backed.
+1. Finish production adapters for team invitations/roles, form authoring/version publishing, invoices/manual payments, customer notes/tags, and automation steps.
+2. Replace every remaining local-only dashboard mutation and sandbox-derived operational value.
+3. Connect all analytics panels to get_business_analytics.
+4. Add password recovery and email-confirmation callback screens.
+5. Add the service-role integration harness and required RLS, idempotency, concurrency, DST, finance, consent, metering, and job tests.
+6. Resolve advisor findings: unindexed foreign keys and RLS initialization-plan warnings.
+7. Run end-to-end browser verification with a real owner account and a second isolated tenant.

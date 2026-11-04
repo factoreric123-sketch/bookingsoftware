@@ -19,7 +19,9 @@ export type BackendAction =
   | "get_business_analytics"
   | "complete_onboarding"
   | "get_workspace_snapshot"
-  | "mutate_workspace";
+  | "mutate_workspace"
+  | "get_public_form"
+  | "create_dashboard_booking";
 
 export class BackendError extends Error {
   constructor(message: string, readonly code?: string, readonly status?: number) {
