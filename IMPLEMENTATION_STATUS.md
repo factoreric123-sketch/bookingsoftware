@@ -5,6 +5,7 @@ Updated November 4, 2026. This document separates live production behavior, sand
 ## Functional with the connected Supabase project
 
 - Supabase email/password signup, login, session restoration, and protected dashboard access.
+- Email confirmation callbacks, password-reset requests, and password-update completion screens.
 - Six-step authenticated onboarding provisions an organization, Starter trial, business, owner memberships, first location, owner staff profile, hours, availability, first service, staff/location assignments, integrations, and a published booking page.
 - Service-role database operations are reachable only through the deployed backend-api Edge Function. Actor IDs are derived from verified access tokens.
 - Dashboard workspace snapshots are membership-authorized and loaded from Supabase. Operational records are no longer hydrated from localStorage.
@@ -21,10 +22,10 @@ Updated November 4, 2026. This document separates live production behavior, sand
 
 ## Partially connected
 
-- Dashboard services, customers, workflows, settings, and AI configuration persist. Some detailed child records such as customer notes/tags and workflow steps still require dedicated UI adapters.
-- Forms submit publicly, while the dashboard form builder still needs full draft/version publishing mutations.
-- Invoices and manual payments have protected database operations, while remaining dashboard controls still need complete adapter wiring.
-- Analytics has a production RPC; all dashboard analytics panels still need to consume it consistently.
+- Dashboard services, customers, customer notes/tags, workflows, settings, and AI configuration persist. Workflow steps still require a dedicated UI adapter.
+- Forms submit publicly, and the dashboard creates and publishes immutable first versions. Editing an existing published form into a new version still needs a dedicated authoring flow.
+- Invoice creation and manual payment recording use protected database operations. Stripe collection remains provider-dependent.
+- The analytics panel consumes the production analytics RPC for its 30-day operational metrics.
 - Team data loads from Supabase. Invitations, role editing, service assignment, and time-off interfaces need final production adapters.
 - Calendar data loads from Supabase and week navigation is dynamic. Additional location filtering and timezone-specific datetime entry remain.
 - Database acceptance coverage is not yet at the required 50 concurrent/RLS scenarios.
@@ -46,10 +47,8 @@ Updated November 4, 2026. This document separates live production behavior, sand
 
 ## Remaining internal work
 
-1. Finish production adapters for team invitations/roles, form authoring/version publishing, invoices/manual payments, customer notes/tags, and automation steps.
+1. Finish production adapters for team invitations/roles, new versions of existing forms, and automation steps.
 2. Replace every remaining local-only dashboard mutation and sandbox-derived operational value.
-3. Connect all analytics panels to get_business_analytics.
-4. Add password recovery and email-confirmation callback screens.
-5. Add the service-role integration harness and required RLS, idempotency, concurrency, DST, finance, consent, metering, and job tests.
-6. Resolve advisor findings: unindexed foreign keys and RLS initialization-plan warnings.
-7. Run end-to-end browser verification with a real owner account and a second isolated tenant.
+3. Add the service-role integration harness and required RLS, idempotency, concurrency, DST, finance, consent, metering, and job tests.
+4. Resolve advisor findings: unindexed foreign keys and RLS initialization-plan warnings.
+5. Run end-to-end browser verification with a real owner account and a second isolated tenant.
