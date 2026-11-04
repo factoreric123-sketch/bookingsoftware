@@ -32,6 +32,7 @@ const authenticatedActions = new Set([
   "get_workspace_snapshot",
   "mutate_workspace",
   "create_dashboard_booking",
+  "save_form",
 ]);
 
 const actorActions = new Set([
@@ -236,7 +237,9 @@ Deno.serve(async (req: Request) => {
       admin.from("blocked_times").select("*").eq("business_id", businessId).is("released_at", null).order("starts_at"),
       admin.from("integrations").select("*").eq("business_id", businessId).order("provider"),
       admin.from("forms").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at", { ascending: false }),
+      admin.from("form_fields").select("*").eq("business_id", businessId).order("sort_order"),
       admin.from("form_submissions").select("*").eq("business_id", businessId).order("submitted_at", { ascending: false }).limit(500),
+      admin.from("form_submission_answers").select("*").eq("business_id", businessId).limit(5000),
       admin.from("automation_workflows").select("*").eq("business_id", businessId).order("created_at", { ascending: false }),
       admin.from("invoices").select("*").eq("business_id", businessId).order("created_at", { ascending: false }).limit(500),
       admin.from("ai_assistant_settings").select("*").eq("business_id", businessId).maybeSingle(),
@@ -244,8 +247,8 @@ Deno.serve(async (req: Request) => {
     ]);
     const firstError = results.find((result) => result.error)?.error;
     if (firstError) return json({ error: firstError.message, code: firstError.code }, 400);
-    const [business, settings, locations, businessHours, services, staff, staffServices, customers, sessions, blockedTimes, integrations, forms, formSubmissions, workflows, invoices, aiSettings, calls] = results.map((result) => result.data);
-    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers, sessions, blocked_times: blockedTimes, integrations, forms, form_submissions: formSubmissions, workflows, invoices, ai_settings: aiSettings, calls } });
+    const [business, settings, locations, businessHours, services, staff, staffServices, customers, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, invoices, aiSettings, calls] = results.map((result) => result.data);
+    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers, sessions, blocked_times: blockedTimes, integrations, forms, form_fields: formFields, form_submissions: formSubmissions, form_submission_answers: formSubmissionAnswers, workflows, invoices, ai_settings: aiSettings, calls } });
   }
 
   if (action === "mutate_workspace") {
@@ -329,6 +332,44 @@ Deno.serve(async (req: Request) => {
     });
     if (confirmError) return json({ error: confirmError.message, code: confirmError.code }, 400);
     return json({ data: confirmed });
+  }
+
+  if (action === "save_form") {
+    const businessId = String(params.p_business_id ?? "");
+    const formId = String(params.p_form_id ?? crypto.randomUUID());
+    const { data: member } = await admin.from("business_members").select("role,can_manage_forms").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (!member || (member.role === "staff" && !member.can_manage_forms)) return json({ error: "Permission denied" }, 403);
+    const { data: existing } = await admin.from("forms").select("id,active_version_id").eq("business_id", businessId).eq("id", formId).maybeSingle();
+    if (existing) {
+      if (params.p_active && existing.active_version_id) {
+        const { data: version } = await admin.from("form_versions").select("published_at").eq("business_id", businessId).eq("id", existing.active_version_id).single();
+        if (version && !version.published_at) await admin.from("form_versions").update({ published_at: new Date().toISOString() }).eq("business_id", businessId).eq("id", existing.active_version_id);
+      }
+      const { data, error } = await admin.from("forms").update({ status: params.p_active ? "published" : "draft" }).eq("business_id", businessId).eq("id", formId).select().single();
+      if (error) return json({ error: error.message, code: error.code }, 400);
+      return json({ data });
+    }
+    const name = String(params.p_name ?? "Untitled form").trim();
+    const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 70) || "form";
+    const slug = `${baseSlug}-${formId.slice(0, 8)}`;
+    const { error: formError } = await admin.from("forms").insert({ id: formId, business_id: businessId, name, description: String(params.p_description ?? ""), slug, status: "draft" });
+    if (formError) return json({ error: formError.message, code: formError.code }, 400);
+    const versionId = crypto.randomUUID();
+    const { error: versionError } = await admin.from("form_versions").insert({ id: versionId, business_id: businessId, form_id: formId, version_number: 1, published_at: null, created_by_user_id: userId });
+    if (versionError) return json({ error: versionError.message, code: versionError.code }, 400);
+    const fields = Array.isArray(params.p_fields) ? params.p_fields as Array<Record<string, unknown>> : [];
+    if (fields.length) {
+      const rows = fields.map((field, index) => ({ id: typeof field.id === "string" && /^[0-9a-f-]{36}$/i.test(field.id) ? field.id : crypto.randomUUID(), business_id: businessId, form_version_id: versionId, field_key: String(field.field_key ?? `field_${index + 1}`), label: String(field.label ?? "Question"), field_type: String(field.field_type ?? "text"), required: Boolean(field.required), options: Array.isArray(field.options) ? field.options : [], validation: {}, customer_mapping: field.customer_mapping ?? null, sort_order: index }));
+      const { error: fieldError } = await admin.from("form_fields").insert(rows);
+      if (fieldError) { await admin.from("form_versions").delete().eq("id", versionId); await admin.from("forms").delete().eq("id", formId); return json({ error: fieldError.message, code: fieldError.code }, 400); }
+    }
+    if (params.p_active) {
+      const { error: publishError } = await admin.from("form_versions").update({ published_at: new Date().toISOString() }).eq("business_id", businessId).eq("id", versionId);
+      if (publishError) return json({ error: publishError.message, code: publishError.code }, 400);
+    }
+    const { data, error } = await admin.from("forms").update({ active_version_id: versionId, status: params.p_active ? "published" : "draft" }).eq("business_id", businessId).eq("id", formId).select().single();
+    if (error) return json({ error: error.message, code: error.code }, 400);
+    return json({ data: { ...data, version_id: versionId } });
   }
 
   const { data, error } = await admin.rpc(action as never, params as never);

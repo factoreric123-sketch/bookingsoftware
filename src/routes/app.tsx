@@ -1974,9 +1974,9 @@ function Forms() {
         required: false,
       },
     ]);
-  const save = () => {
+  const save = async () => {
     if (!name) return;
-    const form = addForm({
+    const form = await addForm({
       name,
       description: "Custom customer intake form",
       active: true,
