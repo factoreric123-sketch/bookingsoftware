@@ -44,7 +44,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { availableSlots, useAppStore, type AppointmentStatus } from "../lib/app-store";
+import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField } from "../lib/app-store";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
 
@@ -1942,12 +1942,13 @@ function Team() {
 function Forms() {
   const { workspace, addForm, updateForm } = useAppStore();
   const [show, setShow] = useState(false);
+  const [editingId, setEditingId] = useState("");
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
   const [selectedFormId, setSelectedFormId] = useState(workspace.forms[0]?.id ?? "");
   const [selectedSubmissionId, setSelectedSubmissionId] = useState("");
-  const [fields, setFields] = useState([
-    { id: "new_name", label: "Full name", type: "text" as const, required: true },
+  const [fields, setFields] = useState<FormField[]>([
+    { id: "new_name", label: "Full name", type: "text", required: true, customerMapping: "full_name" },
   ]);
   const addField = () =>
     setFields([
@@ -1961,6 +1962,12 @@ function Forms() {
     ]);
   const save = async () => {
     if (!name) return;
+    if (editingId) {
+      await updateForm(editingId, { name, fields });
+      setShow(false);
+      setEditingId("");
+      return;
+    }
     const form = await addForm({
       name,
       description: "Custom customer intake form",
@@ -1970,6 +1977,12 @@ function Forms() {
     setSelectedFormId(form.id);
     setShow(false);
     setName("");
+  };
+  const editForm = (form: BusinessForm) => {
+    setEditingId(form.id);
+    setName(form.name);
+    setFields(form.fields.map((field) => ({ ...field })));
+    setShow(true);
   };
   const selectedForm = workspace.forms.find((form) => form.id === selectedFormId);
   const submissions = workspace.formSubmissions
@@ -2031,7 +2044,7 @@ function Forms() {
               <h3>{form.name}</h3>
               <p>{form.description}</p>
             </div>
-            <button aria-label={`Select ${form.name}`} onClick={() => setSelectedFormId(form.id)}>
+            <button aria-label={`Edit ${form.name}`} onClick={() => editForm(form)}>
               <MoreHorizontal size={17} />
             </button>
             <div className="form-stats">
@@ -2145,7 +2158,7 @@ function Forms() {
         )}
       </section>
       {show && (
-        <Modal title="Build a form" onClose={() => setShow(false)}>
+        <Modal title={editingId ? "Edit form" : "Build a form"} onClose={() => { setShow(false); setEditingId(""); }}>
           <label>
             Form name
             <input
@@ -2199,6 +2212,25 @@ function Forms() {
                   />
                   Required
                 </label>
+                <select
+                  aria-label={`CRM mapping for ${field.label}`}
+                  value={field.customerMapping ?? ""}
+                  onChange={(e) => setFields(fields.map((item, i) => {
+                    if (i !== index) return item;
+                    if (!e.target.value) {
+                      const { customerMapping: _mapping, ...withoutMapping } = item;
+                      return withoutMapping;
+                    }
+                    return { ...item, customerMapping: e.target.value as NonNullable<FormField["customerMapping"]> };
+                  }))}
+                >
+                  <option value="">No CRM mapping</option>
+                  <option value="full_name">Customer full name</option>
+                  <option value="email">Customer email</option>
+                  <option value="phone_e164">Customer phone</option>
+                  <option value="company_name">Company name</option>
+                  <option value="address">Address</option>
+                </select>
               </div>
             ))}
           </div>
@@ -2207,7 +2239,7 @@ function Forms() {
             Add field
           </button>
           <button className="solid-action full" onClick={save}>
-            Save form
+            {editingId ? "Publish new version" : "Save form"}
           </button>
         </Modal>
       )}

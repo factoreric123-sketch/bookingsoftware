@@ -10,7 +10,8 @@ Updated November 4, 2026. This document separates live production behavior, sand
 - Service-role database operations are reachable only through the deployed backend-api Edge Function. Actor IDs are derived from verified access tokens.
 - Dashboard workspace snapshots are membership-authorized and loaded from Supabase. Operational records are no longer hydrated from localStorage.
 - Business, service, customer, workflow, and AI-assistant configuration mutations persist through an authorization-checked server endpoint.
-- Manual dashboard bookings use the same hold and confirmation engine as public bookings.
+- Manual dashboard bookings use the same hold and confirmation engine as public bookings, with business-timezone conversion performed on the server.
+- Dashboard appointment status transitions persist with actor-attributed status history, and cancellation releases the reserved staff interval.
 - Blocked-time creation and release use the protected database operations.
 - Public booking loads a published projection, requests authoritative availability, creates a ten-minute hold, confirms idempotently, and returns the one-time appointment management token.
 - Appointment management links load a restricted projection and enforce policy, row version, conflict-safe rescheduling, and soft cancellation.
@@ -23,17 +24,17 @@ Updated November 4, 2026. This document separates live production behavior, sand
 ## Partially connected
 
 - Dashboard services, customers, customer notes/tags, workflows, settings, and AI configuration persist. Workflow steps still require a dedicated UI adapter.
-- Forms submit publicly, and the dashboard creates and publishes immutable first versions. Editing an existing published form into a new version still needs a dedicated authoring flow.
+- Forms submit publicly, and the dashboard creates immutable versions for both new forms and edits. CRM identity mappings are explicitly selected per field.
 - Invoice creation and manual payment recording use protected database operations. Stripe collection remains provider-dependent.
 - The analytics panel consumes the production analytics RPC for its 30-day operational metrics.
-- Team data loads from Supabase. Invitations, role editing, service assignment, and time-off interfaces need final production adapters.
-- Calendar data loads from Supabase and week navigation is dynamic. Additional location filtering and timezone-specific datetime entry remain.
+- Team data loads from Supabase. New services are linked to their location and active staff so they are bookable. Invitations, role editing, and time-off interfaces need final production adapters.
+- Calendar data loads from Supabase and week navigation is dynamic. Additional location filtering remains.
 - Database acceptance coverage is not yet at the required 50 concurrent/RLS scenarios.
 
 ## Sandbox only
 
-- AI receptionist test conversations and call logs are simulations. They never claim a real telephone call occurred.
-- Sandbox call records must remain marked sandbox and excluded from production analytics.
+- AI receptionist test conversations and call logs are persisted simulations. They never claim a real telephone call occurred and never create or reserve a production appointment.
+- Sandbox call records are marked sandbox and excluded from production analytics.
 
 ## Waiting only for external credentials or approval
 
@@ -47,7 +48,7 @@ Updated November 4, 2026. This document separates live production behavior, sand
 
 ## Remaining internal work
 
-1. Finish production adapters for team invitations/roles, new versions of existing forms, and automation steps.
+1. Finish production adapters for team invitations/roles and automation steps.
 2. Replace every remaining local-only dashboard mutation and sandbox-derived operational value.
 3. Add the service-role integration harness and required RLS, idempotency, concurrency, DST, finance, consent, metering, and job tests.
 4. Resolve advisor findings: unindexed foreign keys and RLS initialization-plan warnings.

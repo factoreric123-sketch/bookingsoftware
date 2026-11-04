@@ -409,6 +409,21 @@ Deno.serve(async (req: Request) => {
     const { data: member } = await admin.from("business_members").select("role,can_manage_forms").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
     if (!member || (member.role === "staff" && !member.can_manage_forms)) return json({ error: "Permission denied" }, 403);
     const { data: existing } = await admin.from("forms").select("id,active_version_id").eq("business_id", businessId).eq("id", formId).maybeSingle();
+    if (existing && Array.isArray(params.p_fields)) {
+      const { data: latest } = await admin.from("form_versions").select("version_number").eq("business_id", businessId).eq("form_id", formId).order("version_number", { ascending: false }).limit(1).maybeSingle();
+      const versionId = crypto.randomUUID();
+      const { error: versionError } = await admin.from("form_versions").insert({ id: versionId, business_id: businessId, form_id: formId, version_number: Number(latest?.version_number ?? 0) + 1, published_at: params.p_active ? new Date().toISOString() : null, created_by_user_id: userId });
+      if (versionError) return json({ error: versionError.message, code: versionError.code }, 400);
+      const fields = params.p_fields as Array<Record<string, unknown>>;
+      if (fields.length) {
+        const rows = fields.map((field, index) => ({ id: crypto.randomUUID(), business_id: businessId, form_version_id: versionId, field_key: String(field.field_key ?? `field_${index + 1}`), label: String(field.label ?? "Question"), field_type: String(field.field_type ?? "text"), required: Boolean(field.required), options: Array.isArray(field.options) ? field.options : [], validation: {}, customer_mapping: field.customer_mapping ?? null, sort_order: index }));
+        const { error: fieldError } = await admin.from("form_fields").insert(rows);
+        if (fieldError) { await admin.from("form_versions").delete().eq("id", versionId); return json({ error: fieldError.message, code: fieldError.code }, 400); }
+      }
+      const { data, error } = await admin.from("forms").update({ name: String(params.p_name ?? "Untitled form").trim(), description: String(params.p_description ?? ""), active_version_id: versionId, status: params.p_active ? "published" : "draft" }).eq("business_id", businessId).eq("id", formId).select().single();
+      if (error) return json({ error: error.message, code: error.code }, 400);
+      return json({ data: { ...data, version_id: versionId } });
+    }
     if (existing) {
       if (params.p_active && existing.active_version_id) {
         const { data: version } = await admin.from("form_versions").select("published_at").eq("business_id", businessId).eq("id", existing.active_version_id).single();
