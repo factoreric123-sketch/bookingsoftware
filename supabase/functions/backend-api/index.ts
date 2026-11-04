@@ -33,6 +33,7 @@ const authenticatedActions = new Set([
   "mutate_workspace",
   "create_dashboard_booking",
   "save_form",
+  "save_customer_profile",
 ]);
 
 const actorActions = new Set([
@@ -233,6 +234,9 @@ Deno.serve(async (req: Request) => {
       admin.from("staff_profiles").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at"),
       admin.from("staff_services").select("*").eq("business_id", businessId).eq("active", true),
       admin.from("customers").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at", { ascending: false }).limit(500),
+      admin.from("customer_notes").select("*").eq("business_id", businessId).order("created_at", { ascending: false }).limit(2000),
+      admin.from("customer_tags").select("*").eq("business_id", businessId).order("name"),
+      admin.from("customer_tag_assignments").select("*").eq("business_id", businessId).limit(5000),
       admin.from("booking_sessions").select("*,appointments(*)").eq("business_id", businessId).order("starts_at", { ascending: false }).limit(500),
       admin.from("blocked_times").select("*").eq("business_id", businessId).is("released_at", null).order("starts_at"),
       admin.from("integrations").select("*").eq("business_id", businessId).order("provider"),
@@ -247,8 +251,8 @@ Deno.serve(async (req: Request) => {
     ]);
     const firstError = results.find((result) => result.error)?.error;
     if (firstError) return json({ error: firstError.message, code: firstError.code }, 400);
-    const [business, settings, locations, businessHours, services, staff, staffServices, customers, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, invoices, aiSettings, calls] = results.map((result) => result.data);
-    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers, sessions, blocked_times: blockedTimes, integrations, forms, form_fields: formFields, form_submissions: formSubmissions, form_submission_answers: formSubmissionAnswers, workflows, invoices, ai_settings: aiSettings, calls } });
+    const [business, settings, locations, businessHours, services, staff, staffServices, customers, customerNotes, customerTags, customerTagAssignments, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, invoices, aiSettings, calls] = results.map((result) => result.data);
+    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers, customer_notes: customerNotes, customer_tags: customerTags, customer_tag_assignments: customerTagAssignments, sessions, blocked_times: blockedTimes, integrations, forms, form_fields: formFields, form_submissions: formSubmissions, form_submission_answers: formSubmissionAnswers, workflows, invoices, ai_settings: aiSettings, calls } });
   }
 
   if (action === "mutate_workspace") {
@@ -370,6 +374,28 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await admin.from("forms").update({ active_version_id: versionId, status: params.p_active ? "published" : "draft" }).eq("business_id", businessId).eq("id", formId).select().single();
     if (error) return json({ error: error.message, code: error.code }, 400);
     return json({ data: { ...data, version_id: versionId } });
+  }
+
+  if (action === "save_customer_profile") {
+    const businessId = String(params.p_business_id ?? "");
+    const customerId = String(params.p_customer_id ?? "");
+    const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (!member || (member.role === "staff" && !member.can_manage_customers)) return json({ error: "Permission denied" }, 403);
+    const note = typeof params.p_note === "string" ? params.p_note.trim() : "";
+    if (note) {
+      const { data: latest } = await admin.from("customer_notes").select("body").eq("business_id", businessId).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (latest?.body !== note) await admin.from("customer_notes").insert({ business_id: businessId, customer_id: customerId, author_user_id: userId, body: note });
+    }
+    const tagNames = Array.isArray(params.p_tags) ? [...new Set(params.p_tags.map((value) => String(value).trim()).filter(Boolean))].slice(0, 25) : [];
+    const tagIds: string[] = [];
+    for (const name of tagNames) {
+      const { data: tag, error } = await admin.from("customer_tags").upsert({ business_id: businessId, name }, { onConflict: "business_id,name" }).select("id").single();
+      if (error) return json({ error: error.message, code: error.code }, 400);
+      tagIds.push(tag.id);
+    }
+    await admin.from("customer_tag_assignments").delete().eq("business_id", businessId).eq("customer_id", customerId);
+    if (tagIds.length) await admin.from("customer_tag_assignments").insert(tagIds.map((tagId) => ({ business_id: businessId, customer_id: customerId, tag_id: tagId })));
+    return json({ data: { customer_id: customerId, tags: tagNames } });
   }
 
   const { data, error } = await admin.rpc(action as never, params as never);
