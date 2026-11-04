@@ -1200,7 +1200,7 @@ function Services() {
     color: "#6d5dfc",
     active: true,
   });
-  const save = () => {
+  const save = async () => {
     if (!form.name) return;
     addService(form);
     setShow(false);
@@ -1833,9 +1833,9 @@ function Team() {
     serviceIds: [] as string[],
     weeklyHours: 40,
   });
-  const save = () => {
+  const save = async () => {
     if (!form.name || !form.email) return;
-    addStaff(form);
+    await addStaff(form);
     setShow(false);
   };
   return (

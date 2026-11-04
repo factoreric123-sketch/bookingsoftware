@@ -83,7 +83,7 @@ type Store = {
   rescheduleAppointment: (id: string, date: string, time: string) => { appointment?: Appointment; error?: string };
   addBlockedTime: (block: Omit<BlockedTime, "id" | "createdAt">) => Promise<{ block?: BlockedTime; error?: string }>;
   removeBlockedTime: (id: string) => Promise<void>;
-  addStaff: (staff: Omit<Staff, "id">) => Staff;
+  addStaff: (staff: Omit<Staff, "id">) => Promise<Staff>;
   addForm: (form: Omit<BusinessForm, "id" | "createdAt" | "submissions">) => BusinessForm;
   updateForm: (id: string, patch: Partial<BusinessForm>) => void;
   submitForm: (formId: string, answers: Record<string, string | boolean>) => FormSubmission;
@@ -194,7 +194,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     },
     addBlockedTime: async (input) => { const start = minutes(input.start); const end = minutes(input.end); if (end <= start) return { error: "End time must be after start time." }; const overlap = workspace.blockedTimes.some((item) => item.date === input.date && (item.staffId ?? "all") === (input.staffId ?? "all") && start < minutes(item.end) && end > minutes(item.start)); if (overlap) return { error: "That blocked period overlaps an existing block." }; try { const result = await invokeBackend<{ blocked_time_id: string }>("create_blocked_time", { p_business_id: workspace.business.id, p_location_id: workspace.business.defaultLocationId, p_staff_id: input.staffId || null, p_starts_at: new Date(`${input.date}T${input.start}:00`).toISOString(), p_ends_at: new Date(`${input.date}T${input.end}:00`).toISOString(), p_reason: input.reason }); const block: BlockedTime = { ...input, id: result.blocked_time_id, createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, blockedTimes: [...current.blockedTimes, block] })); return { block }; } catch (caught) { return { error: caught instanceof Error ? caught.message : "The time could not be blocked." }; } },
     removeBlockedTime: async (id) => { await invokeBackend("release_blocked_time", { p_blocked_time_id: id }); setWorkspace((current) => ({ ...current, blockedTimes: current.blockedTimes.filter((item) => item.id !== id) })); },
-    addStaff: (input) => { const staff = { ...input, id: uid("staff") }; setWorkspace((current) => ({ ...current, staff: [...current.staff, staff] })); return staff; },
+    addStaff: async (input) => { const staff = { ...input, id: crypto.randomUUID() }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "staff_profile", p_operation: "insert", p_id: staff.id, p_values: { display_name: staff.name, email: staff.email || null, active: staff.active, bookable: true, weekly_capacity_minutes: staff.weeklyHours * 60, location_id: workspace.business.defaultLocationId, service_ids: staff.serviceIds } }); setWorkspace((current) => ({ ...current, staff: [...current.staff, staff] })); return staff; },
     addForm: (input) => { const form = { ...input, id: uid("form"), createdAt: new Date().toISOString(), submissions: 0 }; setWorkspace((current) => ({ ...current, forms: [...current.forms, form] })); return form; },
     updateForm: (id, patch) => setWorkspace((current) => ({ ...current, forms: current.forms.map((form) => form.id === id ? { ...form, ...patch } : form) })),
     submitForm: (formId, answers) => {

@@ -257,6 +257,7 @@ Deno.serve(async (req: Request) => {
     const rules: Record<string, { table: string; permission: string; columns: string[] }> = {
       business: { table: "businesses", permission: "owner", columns: ["name","slug","industry","description","email","phone_e164","website_url","timezone","currency","accent_color"] },
       service: { table: "services", permission: "can_manage_services", columns: ["name","description","duration_minutes","price_minor","currency","buffer_before_minutes","buffer_after_minutes","appointment_type","capacity","delivery_mode","payment_requirement","deposit_type","deposit_value","color","active","sort_order","archived_at"] },
+      staff_profile: { table: "staff_profiles", permission: "can_manage_staff", columns: ["display_name","email","phone_e164","bio","color","active","bookable","weekly_capacity_minutes"] },
       customer: { table: "customers", permission: "can_manage_customers", columns: ["full_name","email","phone_e164","company_name","address","source","status","active","archived_at"] },
       workflow: { table: "automation_workflows", permission: "can_manage_automations", columns: ["name","trigger_type","conditions","active"] },
       ai_settings: { table: "ai_assistant_settings", permission: "owner", columns: ["assistant_name","greeting","voice","language","transfer_phone_e164","after_hours_behavior","disclosure_enabled","disclosure_text","recording_enabled","recording_consent_required","recording_retention_days","escalation_rules","voice_enabled","sms_enabled","sandbox_enabled"] },
@@ -280,6 +281,12 @@ Deno.serve(async (req: Request) => {
     if (operation === "insert") {
       const { data, error } = await admin.from(rule.table).insert({ ...values, business_id: businessId, ...(id ? { id } : {}) }).select().single();
       if (error) return json({ error: error.message, code: error.code }, 400);
+      if (entity === "staff_profile") {
+        const locationId = typeof incoming.location_id === "string" ? incoming.location_id : null;
+        const serviceIds = Array.isArray(incoming.service_ids) ? incoming.service_ids.filter((value): value is string => typeof value === "string") : [];
+        if (locationId) await admin.from("staff_locations").insert({ business_id: businessId, staff_id: data.id, location_id: locationId });
+        if (serviceIds.length) await admin.from("staff_services").insert(serviceIds.map((serviceId) => ({ business_id: businessId, staff_id: data.id, service_id: serviceId })));
+      }
       return json({ data });
     }
     if (!id && entity !== "ai_settings") return json({ error: "Record id is required" }, 400);
