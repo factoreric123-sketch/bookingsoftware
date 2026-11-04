@@ -36,6 +36,7 @@ const authenticatedActions = new Set([
   "save_customer_profile",
   "save_sandbox_call",
   "set_appointment_status",
+  "create_business_blocked_time",
 ]);
 
 const actorActions = new Set([
@@ -370,6 +371,22 @@ Deno.serve(async (req: Request) => {
     });
     if (confirmError) return json({ error: confirmError.message, code: confirmError.code }, 400);
     return json({ data: confirmed });
+  }
+
+  if (action === "create_business_blocked_time") {
+    const businessId = String(params.p_business_id ?? "");
+    const { data: business } = await admin.from("businesses").select("timezone").eq("id", businessId).single();
+    if (!business) return json({ error: "Business not found" }, 404);
+    let startsAt: string;
+    let endsAt: string;
+    try {
+      startsAt = localDateTimeToIso(params.p_local_date, params.p_local_start, business.timezone);
+      endsAt = localDateTimeToIso(params.p_local_date, params.p_local_end, business.timezone);
+    } catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid blocked time" }, 400); }
+    if (Date.parse(endsAt) <= Date.parse(startsAt)) return json({ error: "End time must be after start time" }, 400);
+    const { data, error } = await admin.rpc("create_blocked_time", { p_actor_user_id: userId, p_business_id: businessId, p_location_id: params.p_location_id, p_staff_id: params.p_staff_id ?? null, p_starts_at: startsAt, p_ends_at: endsAt, p_reason: params.p_reason ?? "" });
+    if (error) return json({ error: error.message, code: error.code }, 400);
+    return json({ data });
   }
 
   if (action === "set_appointment_status") {

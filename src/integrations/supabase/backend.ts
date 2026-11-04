@@ -22,6 +22,7 @@ export type BackendAction =
   | "mutate_workspace"
   | "get_public_form"
   | "create_dashboard_booking"
+  | "create_business_blocked_time"
   | "set_appointment_status"
   | "save_sandbox_call"
   | "save_form"
