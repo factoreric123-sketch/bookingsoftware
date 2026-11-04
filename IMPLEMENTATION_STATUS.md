@@ -48,6 +48,10 @@ Updated November 4, 2026. This document separates live production behavior, sand
 
 ## Remaining internal work
 
+### Blocking authorization defect found November 4
+
+The protected RPCs are invoked by `backend-api` using a service-role Supabase client after `getUser` verifies the caller. Several SQL functions authorize with `private.business_member_role` / `private.business_permission`, which resolve the member through `auth.uid()`. The service-role RPC request has no caller JWT context, so these checks resolve no member and reject valid owners. This affects `create_blocked_time`, `release_blocked_time`, `merge_customers`, `create_invoice`, `record_manual_payment`, `get_business_analytics`, and authenticated confirmation/management paths. The earlier status list describes wired paths, not verified successful owner transactions. Lovable must change the managed SQL contract to authorize the explicitly supplied actor UUID against active memberships and preserve service-role-only EXECUTE grants. Do not weaken RLS or grant these functions to browsers. Reverify every affected workflow with two isolated tenants after that migration.
+
 1. Finish production adapters for team invitations/roles and automation steps.
 2. Replace every remaining local-only dashboard mutation and sandbox-derived operational value.
 3. Add the service-role integration harness and required RLS, idempotency, concurrency, DST, finance, consent, metering, and job tests.
