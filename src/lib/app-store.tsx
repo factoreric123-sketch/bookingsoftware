@@ -89,8 +89,8 @@ type Store = {
   submitForm: (formId: string, answers: Record<string, string | boolean>) => FormSubmission;
   addWorkflow: (workflow: Omit<Workflow, "id" | "runs">) => Workflow;
   updateWorkflow: (id: string, patch: Partial<Workflow>) => void;
-  addInvoice: (invoice: Omit<Invoice, "id" | "number" | "createdAt">) => Invoice;
-  updateInvoice: (id: string, patch: Partial<Invoice>) => void;
+  addInvoice: (invoice: Omit<Invoice, "id" | "number" | "createdAt">) => Promise<Invoice>;
+  recordManualPayment: (invoiceId: string, amount: number) => Promise<void>;
   updateAiReceptionist: (patch: Partial<AiReceptionist>) => void;
   addCallLog: (log: Omit<CallLog, "id" | "startedAt" | "sandbox">) => CallLog;
 };
@@ -208,8 +208,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     },
     addWorkflow: (input) => { const workflow = { ...input, id: crypto.randomUUID(), runs: 0 }; setWorkspace((current) => ({ ...current, workflows: [...current.workflows, workflow] })); void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "workflow", p_operation: "insert", p_id: workflow.id, p_values: { name: workflow.name, trigger_type: workflow.trigger, conditions: [], active: workflow.active } }).catch(console.error); return workflow; },
     updateWorkflow: (id, patch) => { setWorkspace((current) => ({ ...current, workflows: current.workflows.map((workflow) => workflow.id === id ? { ...workflow, ...patch } : workflow) })); void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "workflow", p_operation: "update", p_id: id, p_values: { name: patch.name, trigger_type: patch.trigger, active: patch.active } }).catch(console.error); },
-    addInvoice: (input) => { const invoice = { ...input, id: uid("inv"), number: `INV-${1000 + workspace.invoices.length + 1}`, createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, invoices: [...current.invoices, invoice] })); return invoice; },
-    updateInvoice: (id, patch) => setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === id ? { ...invoice, ...patch } : invoice) })),
+    addInvoice: async (input) => { const result = await invokeBackend<{ invoice_id: string; invoice_number: string; total_minor: number }>("create_invoice", { p_business_id: workspace.business.id, p_customer_id: input.customerId, p_appointment_id: null, p_items: [{ description: "Services", quantity: 1, unit_price_minor: Math.round(input.amount * 100), discount_minor: 0, tax_rate_bps: 0 }], p_due_date: input.dueDate, p_notes: "", p_request_key: crypto.randomUUID() }); const invoice: Invoice = { ...input, id: result.invoice_id, number: result.invoice_number, amount: result.total_minor / 100, status: "draft", createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, invoices: [invoice, ...current.invoices] })); return invoice; },
+    recordManualPayment: async (invoiceId, amount) => { await invokeBackend("record_manual_payment", { p_invoice_id: invoiceId, p_amount_minor: Math.round(amount * 100), p_method: "manual", p_request_key: crypto.randomUUID() }); setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === invoiceId ? { ...invoice, status: "paid" } : invoice) })); },
     updateAiReceptionist: (patch) => { setWorkspace((current) => ({ ...current, aiReceptionist: { ...current.aiReceptionist, ...patch } })); const next = { ...workspace.aiReceptionist, ...patch }; void invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "ai_settings", p_operation: "update", p_values: { assistant_name: next.name, greeting: next.greeting, transfer_phone_e164: next.transferPhone || null, voice: next.voice, after_hours_behavior: next.afterHours === "offer-callback" ? "offer_callback" : "take_message", recording_enabled: next.recordingEnabled, disclosure_enabled: next.disclosureEnabled, voice_enabled: false, sms_enabled: false, sandbox_enabled: true } }).catch(console.error); },
     addCallLog: (input) => { const log = { ...input, id: uid("call"), startedAt: new Date().toISOString(), sandbox: true as const }; setWorkspace((current) => ({ ...current, callLogs: [log, ...current.callLogs] })); return log; },
   }), [isLoading, workspace]);

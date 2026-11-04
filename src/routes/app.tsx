@@ -2394,21 +2394,21 @@ function Automations() {
 }
 
 function Payments() {
-  const { workspace, addInvoice, updateInvoice } = useAppStore();
+  const { workspace, addInvoice, recordManualPayment } = useAppStore();
   const [show, setShow] = useState(false);
   const [form, setForm] = useState({
     customerId: workspace.customers[0]?.id ?? "",
     amount: 0,
     status: "draft" as const,
-    dueDate: "2026-11-15",
+    dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
   });
   const total = workspace.invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
   const paid = workspace.invoices
     .filter((invoice) => invoice.status === "paid")
     .reduce((sum, invoice) => sum + invoice.amount, 0);
-  const save = () => {
+  const save = async () => {
     if (!form.customerId || !form.amount) return;
-    addInvoice(form);
+    await addInvoice(form);
     setShow(false);
   };
   return (
@@ -2427,7 +2427,7 @@ function Payments() {
         <Metric
           label="Total invoiced"
           value={`$${total.toLocaleString()}`}
-          trend="All preview invoices"
+          trend="Authorized invoice records"
           icon={FileText}
         />
         <Metric
@@ -2470,19 +2470,7 @@ function Payments() {
               <span>
                 <b>${invoice.amount.toLocaleString()}</b>
               </span>
-              <select
-                value={invoice.status}
-                onChange={(e) =>
-                  updateInvoice(invoice.id, { status: e.target.value as typeof invoice.status })
-                }
-                className={`invoice-status ${invoice.status}`}
-              >
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="paid">Paid</option>
-                <option value="overdue">Overdue</option>
-                <option value="void">Void</option>
-              </select>
+              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button onClick={() => void recordManualPayment(invoice.id, invoice.amount)}>Record paid</button>}</span>
             </div>
           ))}
         </div>
