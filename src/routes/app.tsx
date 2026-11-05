@@ -1206,6 +1206,8 @@ function Customers() {
 function Services() {
   const { workspace, addService, updateService } = useAppStore();
   const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -1216,8 +1218,16 @@ function Services() {
   });
   const save = async () => {
     if (!form.name) return;
-    addService(form);
-    setShow(false);
+    setSaving(true);
+    setError("");
+    try {
+      await addService(form);
+      setShow(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Service could not be saved.");
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <>
@@ -1231,6 +1241,7 @@ function Services() {
           </button>
         }
       />
+      {error && <div className="booking-error" role="alert">{error}</div>}
       <div className="service-grid">
         {workspace.services.map((service) => (
           <article className="service-card" key={service.id}>
@@ -1306,8 +1317,8 @@ function Services() {
               />
             </label>
           </div>
-          <button className="solid-action full" onClick={save}>
-            Create service
+          <button className="solid-action full" disabled={saving || !form.name.trim()} onClick={save}>
+            {saving ? "Saving…" : "Create service"}
           </button>
         </Modal>
       )}

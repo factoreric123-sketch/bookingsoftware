@@ -324,12 +324,22 @@ Deno.serve(async (req: Request) => {
       if (entity === "service") {
         const locationId = typeof incoming.location_id === "string" ? incoming.location_id : null;
         const staffIds = Array.isArray(incoming.staff_ids) ? incoming.staff_ids.filter((value): value is string => typeof value === "string") : [];
-        if (!locationId) return json({ error: "A location is required for a new service" }, 400);
+        if (!locationId) {
+          await admin.from("services").delete().eq("business_id", businessId).eq("id", data.id);
+          return json({ error: "A location is required for a new service" }, 400);
+        }
         const { error: locationLinkError } = await admin.from("service_locations").insert({ business_id: businessId, service_id: data.id, location_id: locationId });
-        if (locationLinkError) return json({ error: locationLinkError.message, code: locationLinkError.code }, 400);
+        if (locationLinkError) {
+          await admin.from("services").delete().eq("business_id", businessId).eq("id", data.id);
+          return json({ error: locationLinkError.message, code: locationLinkError.code }, 400);
+        }
         if (staffIds.length) {
           const { error: staffLinkError } = await admin.from("staff_services").insert(staffIds.map((staffId) => ({ business_id: businessId, staff_id: staffId, service_id: data.id })));
-          if (staffLinkError) return json({ error: staffLinkError.message, code: staffLinkError.code }, 400);
+          if (staffLinkError) {
+            await admin.from("service_locations").delete().eq("business_id", businessId).eq("service_id", data.id);
+            await admin.from("services").delete().eq("business_id", businessId).eq("id", data.id);
+            return json({ error: staffLinkError.message, code: staffLinkError.code }, 400);
+          }
         }
       }
       return json({ data });
