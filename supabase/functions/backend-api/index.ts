@@ -267,15 +267,16 @@ Deno.serve(async (req: Request) => {
       const { data: sessions, error: sessionsError } = await admin.from("booking_sessions")
         .select("id,starts_at,ends_at,location_id,primary_service_id,appointments(id,status)")
         .eq("business_id", member.business_id).in("location_id", locationIds)
-        .gte("starts_at", new Date(Date.now() - 86400000).toISOString())
+        .gte("ends_at", new Date().toISOString())
         .order("starts_at").limit(200);
       if (sessionsError) return json({ error: sessionsError.message }, 400);
-      const serviceIds = [...new Set((sessions ?? []).map((session) => session.primary_service_id).filter((id): id is string => Boolean(id)))];
+      const activeSessions = (sessions ?? []).map((session) => ({ ...session, appointments: (session.appointments ?? []).filter((appointment) => ["pending", "confirmed", "checked_in"].includes(appointment.status)) })).filter((session) => session.appointments.length > 0);
+      const serviceIds = [...new Set(activeSessions.map((session) => session.primary_service_id).filter((id): id is string => Boolean(id)))];
       const { data: services, error: servicesError } = serviceIds.length
         ? await admin.from("services").select("id,name").eq("business_id", member.business_id).in("id", serviceIds)
         : { data: [], error: null };
       if (servicesError) return json({ error: servicesError.message }, 400);
-      return json({ data: { business, role: "manager", staff: null, sessions, customers: [], services } });
+      return json({ data: { business, role: "manager", staff: null, sessions: activeSessions, customers: [], services } });
     }
     let profile = linkedProfile;
     if (!profile && verifiedEmail) {
@@ -291,19 +292,20 @@ Deno.serve(async (req: Request) => {
     let sessionsQuery = admin.from("booking_sessions")
       .select("id,starts_at,ends_at,location_id,primary_service_id,appointments(id,customer_id,status)")
       .eq("business_id", member.business_id).eq("staff_id", profile.id)
-      .gte("starts_at", new Date(Date.now() - 86400000).toISOString())
+      .gte("ends_at", new Date().toISOString())
       .order("starts_at").limit(200);
     if (!member.all_locations) sessionsQuery = sessionsQuery.in("location_id", locationIds);
     const { data: sessions, error: sessionsError } = await sessionsQuery;
     if (sessionsError) return json({ error: sessionsError.message }, 400);
-    const customerIds = [...new Set((sessions ?? []).flatMap((session) => session.appointments ?? []).map((appointment) => appointment.customer_id).filter((id): id is string => Boolean(id)))];
-    const serviceIds = [...new Set((sessions ?? []).map((session) => session.primary_service_id).filter((id): id is string => Boolean(id)))];
+    const activeSessions = (sessions ?? []).map((session) => ({ ...session, appointments: (session.appointments ?? []).filter((appointment) => ["pending", "confirmed", "checked_in"].includes(appointment.status)) })).filter((session) => session.appointments.length > 0);
+    const customerIds = [...new Set(activeSessions.flatMap((session) => session.appointments).map((appointment) => appointment.customer_id).filter((id): id is string => Boolean(id)))];
+    const serviceIds = [...new Set(activeSessions.map((session) => session.primary_service_id).filter((id): id is string => Boolean(id)))];
     const [{ data: customers, error: customersError }, { data: services, error: servicesError }] = await Promise.all([
       customerIds.length ? admin.from("customers").select("id,full_name").eq("business_id", member.business_id).in("id", customerIds) : Promise.resolve({ data: [], error: null }),
       serviceIds.length ? admin.from("services").select("id,name").eq("business_id", member.business_id).in("id", serviceIds) : Promise.resolve({ data: [], error: null }),
     ]);
     if (customersError || servicesError) return json({ error: (customersError ?? servicesError)!.message }, 400);
-    return json({ data: { business, role: "staff", staff: profile, sessions, customers, services } });
+    return json({ data: { business, role: "staff", staff: profile, sessions: activeSessions, customers, services } });
   }
 
   if (action === "get_my_businesses") {
@@ -553,7 +555,7 @@ Deno.serve(async (req: Request) => {
     if (!["pending","confirmed","completed","cancelled","no_show"].includes(nextStatus)) return json({ error: "Unsupported appointment status" }, 400);
     const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
     if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
-    const { data: appointment } = await admin.from("appointments").select("status,session_id").eq("business_id", businessId).eq("id", appointmentId).single();
+    const { data: appointment } = await admin.from("appointments").select("status,session_id,row_version").eq("business_id", businessId).eq("id", appointmentId).single();
     if (!appointment) return json({ error: "Appointment not found" }, 404);
     if (appointment.status === nextStatus) return json({ data: { appointment_id: appointmentId, status: nextStatus } });
     if (appointment.status === "cancelled") return json({ error: "Cancelled appointments cannot be changed" }, 409);
@@ -561,12 +563,20 @@ Deno.serve(async (req: Request) => {
       const { count, error: countError } = await admin.from("appointments").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("session_id", appointment.session_id).neq("status", "cancelled");
       if (countError) return json({ error: countError.message, code: countError.code }, 400);
       if ((count ?? 0) > 1) return json({ error: "Group bookings must be cancelled through the attendee management flow" }, 409);
+      const { data, error } = await admin.rpc("cancel_appointment", {
+        p_subject_hash: await subjectHash(req, serviceKey),
+        p_appointment_id: appointmentId,
+        p_reason: String(params.p_reason ?? "Cancelled by staff"),
+        p_management_token: null,
+        p_actor_user_id: userId,
+        p_expected_row_version: appointment.row_version,
+        p_request_key: crypto.randomUUID(),
+      });
+      if (error) return json({ error: error.message, code: error.code }, error.code === "P0409" ? 409 : 400);
+      return json({ data });
     }
-    const values: Record<string, unknown> = { status: nextStatus };
-    if (nextStatus === "cancelled") Object.assign(values, { cancelled_at: new Date().toISOString(), cancelled_by_user_id: userId, cancellation_reason: String(params.p_reason ?? "Cancelled by staff") });
-    const { error: updateError } = await admin.from("appointments").update(values).eq("business_id", businessId).eq("id", appointmentId);
+    const { error: updateError } = await admin.from("appointments").update({ status: nextStatus }).eq("business_id", businessId).eq("id", appointmentId);
     if (updateError) return json({ error: updateError.message, code: updateError.code }, 400);
-    if (nextStatus === "cancelled") await admin.from("resource_reservations").update({ active: false }).eq("business_id", businessId).eq("session_id", appointment.session_id);
     const { error: historyError } = await admin.from("appointment_status_history").insert({ business_id: businessId, appointment_id: appointmentId, from_status: appointment.status, to_status: nextStatus, actor_user_id: userId, actor_type: "user", reason: String(params.p_reason ?? "") });
     if (historyError) return json({ error: historyError.message, code: historyError.code }, 400);
     return json({ data: { appointment_id: appointmentId, status: nextStatus } });
