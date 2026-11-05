@@ -156,6 +156,11 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  if (action === "get_managed_appointment") {
+    params.p_token = params.p_management_token;
+    delete params.p_management_token;
+  }
+
   if (action === "get_public_form") {
     const identifier = String(params.p_identifier ?? "");
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
