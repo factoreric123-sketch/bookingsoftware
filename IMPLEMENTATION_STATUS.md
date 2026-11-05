@@ -1,6 +1,6 @@
 # Avello implementation status
 
-Updated November 7, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring. Earlier functional lists describe wiring, not verification of every workflow; see the authorization verification report for current failures.
+Updated November 7, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring. Feature wiring does not imply full browser verification.
 
 ## Functional with the connected Supabase project
 
@@ -9,7 +9,7 @@ Updated November 7, 2026. This document separates live production behavior, sand
 - Six-step authenticated onboarding provisions an organization, Starter trial, business, owner memberships, first location, owner staff profile, hours, availability, first service, staff/location assignments, integrations, and a published booking page.
 - Service-role database operations are reachable only through the deployed backend-api Edge Function. Actor IDs are derived from verified access tokens.
 - Dashboard workspace snapshots are membership-authorized and loaded from Supabase. Operational records are no longer hydrated from localStorage.
-- Business, service, customer, workflow, and AI-assistant configuration mutations persist through an authorization-checked server endpoint.
+- Business, service, customer, workflow-draft, and AI-assistant configuration mutations persist through an authorization-checked server endpoint. Customer, business, and AI save controls wait for the server response.
 - Manual dashboard bookings use the same hold and confirmation engine as public bookings, with business-timezone conversion performed on the server.
 - Dashboard appointment status transitions persist with actor-attributed status history, and cancellation releases the reserved staff interval.
 - Blocked-time creation and release use the protected database operations.
@@ -24,11 +24,11 @@ Updated November 7, 2026. This document separates live production behavior, sand
 ## Partially connected
 
 - The Edge workspace snapshot now strips customer, form, billing, integration and call data by membership permission. Staff and location-restricted managers currently receive a 403 from the full workspace view until a scoped dashboard projection is built. Custom workspace writes now require the matching manager permission flag rather than manager role alone. Authenticated browser regression for this change remains to be run with isolated test tokens.
-- Dashboard services, customers, customer notes/tags, workflows, settings, and AI configuration persist. Workflow steps still require a dedicated UI adapter.
+- Dashboard services, customers, customer notes/tags, settings, and AI configuration persist. Workflow drafts store a create-task step and a database trigger value; activation remains disabled until a job runner exists.
 - Forms submit publicly, and the dashboard creates immutable versions for both new forms and edits. CRM identity mappings are explicitly selected per field.
 - Invoice creation and manual payment recording use protected database operations. Stripe collection remains provider-dependent.
 - The analytics panel consumes the production analytics RPC for its 30-day operational metrics.
-- Team data loads from Supabase. New services are linked to their location and active staff so they are bookable. Invitations, role editing, and time-off interfaces need final production adapters.
+- Team data loads from Supabase. Staff invitation creation and redemption are connected through service-role-only RPCs and a one-time link. Database-role regression checks passed; authenticated browser redemption still needs verification. Role editing and time-off interfaces remain.
 - Calendar data loads from Supabase and week navigation is dynamic. Additional location filtering remains.
 - Database acceptance coverage is not yet at the required 50 concurrent/RLS scenarios.
 
@@ -49,13 +49,12 @@ Updated November 7, 2026. This document separates live production behavior, sand
 
 ## Remaining internal work
 
-### Explicit-actor authorization repaired November 7; workflow failures remain
+### Authorization and booking repairs
 
-Five private explicit-actor helpers and nine affected RPC authorization branches now use the server-verified actor, retaining service-role-only execution. Two isolated tenants verified owner transactions, cross-tenant rejection, manager flags, staff/inactive rejection and anonymous capability flows. Thirteen Vitest tests pass. Rescheduling still fails on an existing reservation unique-index conflict; initial provisioning fails with `42501` while reading `auth.users`. Form slug loading was repaired in the Edge gateway and verified against the published fixture. Performance advisor execution was unavailable for this user-managed backend. Exact migrations, functions and outcomes are in `docs/authorization-verification.md`; this is not a claim of complete end-to-end workflow verification.
+Five private explicit-actor helpers and nine affected RPC authorization branches now use the server-verified actor, retaining service-role-only execution. Later migrations repaired the reservation conflict in rescheduling and the protected users-table read during provisioning; connected transactional checks passed. Published form fields reject insertion, update, and deletion once published. Invitation creation and redemption passed database-role checks. The Edge invitation flow has a production build and type check, but no authenticated browser run with two isolated accounts yet. The performance advisor remains unavailable for this externally managed project. See `docs/authorization-verification.md`, `docs/published-form-fields-verification.md`, and `docs/member-invitations-verification.md` for exact database results.
 
-1. Finish production adapters for team invitations/roles and automation steps.
+1. Finish role editing and the automation event/job runner; keep workflow drafts inactive until then.
 2. Replace every remaining local-only dashboard mutation and sandbox-derived operational value.
 3. Add the service-role integration harness and required RLS, idempotency, concurrency, DST, finance, consent, metering, and job tests.
 4. Resolve advisor findings: unindexed foreign keys and RLS initialization-plan warnings.
 5. Run end-to-end browser verification with a real owner account and a second isolated tenant.
-6. In a Lovable-managed migration, extend the published-form-field immutability trigger to reject INSERT into an already published version. The current trigger only blocks UPDATE and DELETE. Add a test proving published versions cannot gain new fields while draft versions remain editable.
