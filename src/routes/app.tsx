@@ -693,6 +693,18 @@ function Bookings({ title }: { title: string }) {
   const { workspace, addAppointment, updateAppointment } = useAppStore();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState("");
+  const changeStatus = async (id: string, status: AppointmentStatus) => {
+    setError("");
+    setUpdatingId(id);
+    try {
+      await updateAppointment(id, { status });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Appointment status could not be saved.");
+    } finally {
+      setUpdatingId("");
+    }
+  };
   const [form, setForm] = useState({
     customerId: workspace.customers[0]?.id ?? "",
     serviceId: workspace.services[0]?.id ?? "",
@@ -727,6 +739,7 @@ function Bookings({ title }: { title: string }) {
           </button>
         }
       />
+      {error && !showForm && <div className="booking-error" role="alert">{error}</div>}
       <div className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-search">
@@ -774,9 +787,8 @@ function Bookings({ title }: { title: string }) {
                   <span>
                     <select
                       value={item.status}
-                      onChange={(e) =>
-                        void updateAppointment(item.id, { status: e.target.value as AppointmentStatus })
-                      }
+                      disabled={updatingId === item.id || item.status === "cancelled"}
+                      onChange={(e) => void changeStatus(item.id, e.target.value as AppointmentStatus)}
                       className={`status-select ${item.status}`}
                     >
                       <option value="confirmed">Confirmed</option>
