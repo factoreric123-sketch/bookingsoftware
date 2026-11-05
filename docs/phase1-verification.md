@@ -27,7 +27,8 @@ This pass used the connected Supabase project and the existing isolated authoriz
 ## Still open before the full phase is signed off
 - Fresh signup and browser onboarding could not be exercised while Supabase's email-send rate limit was active. Existing onboarding database checks are documented separately in `authorization-verification.md`.
 - Invitation redemption with fresh staff and manager accounts, DST boundary cases, and the broader 50-scenario acceptance suite remain unverified. Staff browser schedule visibility was tested with a temporary isolated fixture, not a fresh invitation.
-- The booking interface was tested in the local browser against the live backend. A published Lovable-hosted browser smoke test has not been run in this pass.
+- The booking interface was tested in the local browser against the live backend. The published `bookingsoftware.lovable.app` public booking page also loaded the isolated business A service and displayed 09:00–16:30 UTC slots on Monday, November 9. A hosted authenticated dashboard smoke test remains open.
+- At a 390×844 browser viewport, the hosted public booking page retained a 350-pixel main content area within the 390-pixel body, with no horizontal document overflow. The service/back control, date choices, time slots, and reserve control remained in the accessibility tree. The browser viewport override was reset afterward. This is a narrow public-booking layout check, not a full mobile dashboard or accessibility audit.
 - The date strip now constructs dates in the booking location's timezone rather than the visitor's local timezone. A local browser test temporarily set the isolated fixture location to `Pacific/Kiritimati`: while the visitor's date was November 5, the first offered business date was Friday, November 6. The fixture location was restored to `UTC` immediately afterward. This checks date labeling, not the database's DST transition rules.
 
 ## Daylight-saving guard
