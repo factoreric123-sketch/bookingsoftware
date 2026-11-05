@@ -58,3 +58,4 @@ Five private explicit-actor helpers and nine affected RPC authorization branches
 3. Add the service-role integration harness and required RLS, idempotency, concurrency, DST, finance, consent, metering, and job tests.
 4. Resolve advisor findings: unindexed foreign keys and RLS initialization-plan warnings.
 5. Run end-to-end browser verification with a real owner account and a second isolated tenant.
+6. In a Lovable-managed migration, extend the published-form-field immutability trigger to reject INSERT into an already published version. The current trigger only blocks UPDATE and DELETE. Add a test proving published versions cannot gain new fields while draft versions remain editable.
