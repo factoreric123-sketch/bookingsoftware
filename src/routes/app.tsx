@@ -88,7 +88,8 @@ const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
 function Dashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { workspace, isPreview, isLoading, loadError } = useAppStore();
+  const { workspace, businessChoices, switchBusiness, isPreview, isLoading, loadError } = useAppStore();
+  const [switchError, setSwitchError] = useState("");
   const accountName = typeof user?.user_metadata?.["full_name"] === "string" && user.user_metadata["full_name"].trim()
     ? user.user_metadata["full_name"].trim() : user?.email ?? "Account";
   const [section, setSection] = useState<Section>("Overview");
@@ -143,10 +144,11 @@ function Dashboard() {
         <div className="business-switch">
           <span className="business-avatar">N</span>
           <span>
-            <b>{workspace.business.name}</b>
+            {businessChoices.length > 1 ? <select aria-label="Current business" value={workspace.business.id} onChange={(event) => { setSwitchError(""); void switchBusiness(event.target.value).catch((caught) => setSwitchError(caught instanceof Error ? caught.message : "Business could not be loaded.")); }}>{businessChoices.map((business) => <option key={business.id} value={business.id}>{business.name} · {business.role}</option>)}</select> : <b>{workspace.business.name}</b>}
             <small>Business workspace</small>
           </span>
         </div>
+        {switchError && <p className="booking-error" role="alert">{switchError}</p>}
         <nav>
           {visibleNavigation.map(({ label, icon: Icon }) => (
             <button

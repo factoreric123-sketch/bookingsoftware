@@ -45,7 +45,7 @@ function BookingPage() {
     if (!date || !serviceId || !page) return;
     setLoading(true);
     setError("");
-    invokeBackend<Slot[]>("get_availability", { p_booking_page_id: page.booking_page_id, p_service_id: serviceId, p_from_date: date, p_through_date: date, p_staff_id: staffId, p_addon_quantities: {}, p_seat_count: 1 })
+    invokeBackend<Slot[]>("get_availability", { p_booking_page_id: page.booking_page_id, p_service_id: serviceId, p_from_date: date, p_through_date: date, p_staff_id: staffId, p_addon_quantities: [], p_seat_count: 1 })
       .then((data) => setSlots(data ?? []))
       .catch((caught) => setError(caught instanceof Error ? caught.message : "Availability could not be loaded"))
       .finally(() => setLoading(false));
@@ -67,7 +67,7 @@ function BookingPage() {
     setLoading(true);
     setError("");
     try {
-      const created = await invokeBackend<Hold>("create_booking_hold", { p_booking_page_id: page.booking_page_id, p_service_id: serviceId, p_staff_id: slot.staff_id, p_session_id: slot.session_id, p_starts_at: slot.starts_at, p_addon_quantities: {}, p_seat_count: 1, p_request_key: holdRequestKey });
+      const created = await invokeBackend<Hold>("create_booking_hold", { p_booking_page_id: page.booking_page_id, p_service_id: serviceId, p_staff_id: slot.staff_id, p_session_id: slot.session_id, p_starts_at: slot.starts_at, p_addon_quantities: [], p_seat_count: 1, p_request_key: holdRequestKey });
       setHold(created);
       setStep("details");
     } catch (caught) {

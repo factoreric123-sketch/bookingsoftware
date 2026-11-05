@@ -73,6 +73,8 @@ export const seedWorkspace: Workspace = {
 
 type Store = {
   workspace: Workspace;
+  businessChoices: { id: string; name: string; slug: string; role: string }[];
+  switchBusiness: (id: string) => Promise<void>;
   isPreview: boolean;
   isLoading: boolean;
   loadError: string;
@@ -154,14 +156,19 @@ function mapSnapshot(snapshot: any): Workspace {
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [workspace, setWorkspace] = useState<Workspace>(() => emptyWorkspace());
+  const [businessChoices, setBusinessChoices] = useState<Store["businessChoices"]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   useEffect(() => {
     let active = true;
-    if (!user) { setWorkspace(emptyWorkspace()); setLoadError(""); setIsLoading(false); return () => { active = false; }; }
+    if (!user) { setWorkspace(emptyWorkspace()); setBusinessChoices([]); setLoadError(""); setIsLoading(false); return () => { active = false; }; }
     setIsLoading(true);
     setLoadError("");
-    invokeBackend<Record<string, any>>("get_workspace_snapshot", {}).then((snapshot) => {
+    invokeBackend<Store["businessChoices"]>("get_my_businesses", {}).then(async (choices) => {
+      if (active) setBusinessChoices(choices);
+      const preferred = sessionStorage.getItem("avello-selected-business");
+      const selected = choices.find((item) => item.id === preferred)?.id ?? choices[0]?.id;
+      const snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", selected ? { p_business_id: selected } : {});
       if (active) setWorkspace(mapSnapshot(snapshot));
     }).catch((error) => {
       if (active) setLoadError(error instanceof Error ? error.message : "Unable to load workspace.");
@@ -171,6 +178,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
   const store = useMemo<Store>(() => ({
     workspace,
+    businessChoices,
+    switchBusiness: async (id) => {
+      if (!businessChoices.some((item) => item.id === id)) throw new Error("Business access is unavailable.");
+      setIsLoading(true);
+      try {
+        const snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: id });
+        setWorkspace(mapSnapshot(snapshot));
+        sessionStorage.setItem("avello-selected-business", id);
+        setLoadError("");
+      } finally { setIsLoading(false); }
+    },
     isPreview: false,
     isLoading,
     loadError,
@@ -206,7 +224,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     recordManualPayment: async (invoiceId, amount) => { await invokeBackend("record_manual_payment", { p_invoice_id: invoiceId, p_amount_minor: Math.round(amount * 100), p_method: "manual", p_request_key: crypto.randomUUID() }); setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === invoiceId ? { ...invoice, status: "paid" } : invoice) })); },
     updateAiReceptionist: async (patch) => { const next = { ...workspace.aiReceptionist, ...patch }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "ai_settings", p_operation: "update", p_values: { assistant_name: next.name, greeting: next.greeting, transfer_phone_e164: next.transferPhone || null, voice: next.voice, after_hours_behavior: next.afterHours === "offer-callback" ? "offer_callback" : "take_message", recording_enabled: next.recordingEnabled, disclosure_enabled: next.disclosureEnabled, voice_enabled: false, sms_enabled: false, sandbox_enabled: true } }); setWorkspace((current) => ({ ...current, aiReceptionist: next })); },
     addCallLog: async (input) => { const saved = await invokeBackend<any>("save_sandbox_call", { p_business_id: workspace.business.id, p_customer_id: input.customerId ?? null, p_caller_e164: input.caller, p_duration_seconds: input.durationSeconds, p_outcome: input.outcome, p_summary: input.summary }); const log: CallLog = { ...input, id: saved.id, startedAt: saved.started_at, sandbox: true }; setWorkspace((current) => ({ ...current, callLogs: [log, ...current.callLogs] })); return log; },
-  }), [isLoading, loadError, workspace]);
+  }), [businessChoices, isLoading, loadError, workspace]);
   return <AppStore.Provider value={store}>{children}</AppStore.Provider>;
 }
 

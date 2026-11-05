@@ -31,6 +31,7 @@ const authenticatedActions = new Set([
   "get_business_analytics",
   "complete_onboarding",
   "get_workspace_snapshot",
+  "get_my_businesses",
   "get_staff_schedule",
   "mutate_workspace",
   "create_dashboard_booking",
@@ -305,6 +306,22 @@ Deno.serve(async (req: Request) => {
     return json({ data: { business, role: "staff", staff: profile, sessions, customers, services } });
   }
 
+  if (action === "get_my_businesses") {
+    const { data: memberships, error: membershipError } = await admin.from("business_members")
+      .select("business_id,role,all_locations")
+      .eq("user_id", userId!).eq("active", true).order("created_at");
+    if (membershipError) return json({ error: membershipError.message, code: membershipError.code }, 400);
+    const accessible = (memberships ?? []).filter((member) => member.role === "owner" || (member.role === "manager" && member.all_locations));
+    if (!accessible.length) return json({ data: [] });
+    const { data: businesses, error: businessError } = await admin.from("businesses")
+      .select("id,name,slug").in("id", accessible.map((member) => member.business_id));
+    if (businessError) return json({ error: businessError.message, code: businessError.code }, 400);
+    return json({ data: accessible.flatMap((member) => {
+      const business = businesses?.find((item) => item.id === member.business_id);
+      return business ? [{ ...business, role: member.role }] : [];
+    }) });
+  }
+
   if (action === "get_workspace_snapshot") {
     const requestedBusinessId = typeof params.p_business_id === "string" ? params.p_business_id : null;
     let membershipQuery = admin.from("business_members").select("business_id,role,all_locations,can_manage_services,can_manage_staff,can_manage_customers,can_manage_forms,can_manage_messages,can_manage_automations,can_manage_billing,can_view_analytics").eq("user_id", userId!).eq("active", true);
@@ -332,7 +349,7 @@ Deno.serve(async (req: Request) => {
       admin.from("booking_sessions").select("*,appointments(*)").eq("business_id", businessId).order("starts_at", { ascending: false }).limit(500),
       admin.from("blocked_times").select("*").eq("business_id", businessId).is("released_at", null).order("starts_at"),
       admin.from("integrations").select("*").eq("business_id", businessId).order("provider"),
-      admin.from("forms").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at", { ascending: false }),
+      admin.from("forms").select("*").eq("business_id", businessId).neq("status", "archived").order("created_at", { ascending: false }),
       admin.from("form_fields").select("*").eq("business_id", businessId).order("sort_order"),
       admin.from("form_submissions").select("*").eq("business_id", businessId).order("submitted_at", { ascending: false }).limit(500),
       admin.from("form_submission_answers").select("*").eq("business_id", businessId).limit(5000),
@@ -466,7 +483,7 @@ Deno.serve(async (req: Request) => {
       p_staff_id: params.p_staff_id ?? null,
       p_session_id: null,
       p_starts_at: startsAt,
-      p_addon_quantities: {},
+      p_addon_quantities: [],
       p_seat_count: 1,
       p_request_key: requestKey,
     });
