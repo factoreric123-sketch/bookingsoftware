@@ -305,6 +305,7 @@ Deno.serve(async (req: Request) => {
     const permitted = member && (member.role === "owner" || (member.role === "manager" && rule.permission !== "owner" && member[rule.permission] === true));
     if (!permitted) return json({ error: "Permission denied" }, 403);
     const values = Object.fromEntries(Object.entries(incoming).filter(([key]) => rule.columns.includes(key)));
+    if (entity === "workflow" && values.active === true) return json({ error: "Workflow activation is unavailable until the job runner is connected" }, 400);
     if (!Object.keys(values).length) return json({ error: "No supported values supplied" }, 400);
     if (entity === "ai_settings") {
       const { data: existingSettings } = await admin.from(rule.table).select("id").eq("business_id", businessId).maybeSingle();

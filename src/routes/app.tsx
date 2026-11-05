@@ -2025,6 +2025,8 @@ function Team() {
 function Forms() {
   const { workspace, addForm, updateForm } = useAppStore();
   const [show, setShow] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [savingForm, setSavingForm] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
@@ -2045,21 +2047,23 @@ function Forms() {
     ]);
   const save = async () => {
     if (!name) return;
-    if (editingId) {
-      await updateForm(editingId, { name, fields });
+    setSavingForm(true); setFormError("");
+    try {
+      if (editingId) {
+        await updateForm(editingId, { name, fields });
+        setShow(false);
+        setEditingId("");
+        return;
+      }
+      const form = await addForm({ name, description: "Custom customer intake form", active: true, fields });
+      setSelectedFormId(form.id);
       setShow(false);
-      setEditingId("");
-      return;
+      setName("");
+    } catch (caught) {
+      setFormError(caught instanceof Error ? caught.message : "Form could not be saved.");
+    } finally {
+      setSavingForm(false);
     }
-    const form = await addForm({
-      name,
-      description: "Custom customer intake form",
-      active: true,
-      fields,
-    });
-    setSelectedFormId(form.id);
-    setShow(false);
-    setName("");
   };
   const editForm = (form: BusinessForm) => {
     setEditingId(form.id);
@@ -2114,6 +2118,7 @@ function Forms() {
           </button>
         }
       />
+      {formError && !show && <p className="form-error" role="alert">{formError}</p>}
       <div className="forms-grid">
         {workspace.forms.map((form) => (
           <article
@@ -2143,7 +2148,7 @@ function Forms() {
                 <input
                   type="checkbox"
                   checked={form.active}
-                  onChange={(e) => updateForm(form.id, { active: e.target.checked })}
+                  onChange={async (e) => { try { setFormError(""); await updateForm(form.id, { active: e.target.checked }); } catch (caught) { setFormError(caught instanceof Error ? caught.message : "Form status could not be changed."); } }}
                 />
                 <i />
               </label>
@@ -2321,8 +2326,9 @@ function Forms() {
             <Plus size={15} />
             Add field
           </button>
-          <button className="solid-action full" onClick={save}>
-            {editingId ? "Publish new version" : "Save form"}
+          {formError && <p className="form-error" role="alert">{formError}</p>}
+          <button className="solid-action full" onClick={save} disabled={savingForm}>
+            {savingForm ? "Saving…" : editingId ? "Publish new version" : "Save form"}
           </button>
         </Modal>
       )}
