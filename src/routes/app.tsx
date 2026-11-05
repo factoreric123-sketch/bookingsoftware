@@ -338,9 +338,7 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
               <h2>Booking activity</h2>
               <p>Confirmed bookings over the last 7 days</p>
             </div>
-            <button className="date-filter">
-              Last 7 days <ChevronDown size={14} />
-            </button>
+            <span className="date-filter">Last 7 days</span>
           </div>
           <div className="chart-box">
             <ResponsiveContainer width="100%" height="100%">
@@ -1372,9 +1370,6 @@ function Services() {
               <span style={{ background: `${service.color}18`, color: service.color }}>
                 <Sparkles size={18} />
               </span>
-              <button>
-                <MoreHorizontal size={18} />
-              </button>
             </div>
             <h3>{service.name}</h3>
             <p>{service.description}</p>
@@ -1884,9 +1879,9 @@ function BookingTools() {
           </div>
           <h2>Book your next appointment.</h2>
           <p>Choose a service and find a time that works for you.</p>
-          <button style={{ background: workspace.business.accent }}>
+          <Link to="/book/$slug" params={{ slug: workspace.business.slug }} target="_blank" style={{ background: workspace.business.accent }}>
             Book an appointment <ArrowRight size={15} />
-          </button>
+          </Link>
           <small>Powered by Avello</small>
         </section>
       </div>
@@ -2451,9 +2446,7 @@ function Forms() {
               </div>
             ))}
           </div>
-          {selectedSubmission.customerId && (
-            <button className="secondary-action full">Associated CRM customer</button>
-          )}
+          {selectedSubmission.customerId && <p>Linked customer: {workspace.customers.find((customer) => customer.id === selectedSubmission.customerId)?.name ?? "Customer record"}</p>}
         </Modal>
       )}
     </>
@@ -2595,6 +2588,7 @@ function Automations() {
 function Payments() {
   const { workspace, addInvoice, recordManualPayment } = useAppStore();
   const [show, setShow] = useState(false);
+  const [invoiceFilter, setInvoiceFilter] = useState("all");
   const [paymentError, setPaymentError] = useState("");
   const [saving, setSaving] = useState(false);
   const [payingId, setPayingId] = useState("");
@@ -2657,9 +2651,7 @@ function Payments() {
       <div className="panel table-panel">
         <div className="table-toolbar">
           <b className="toolbar-title">Invoices</b>
-          <button>
-            All statuses <ChevronDown size={14} />
-          </button>
+          <select aria-label="Filter invoice status" value={invoiceFilter} onChange={(event) => setInvoiceFilter(event.target.value)}><option value="all">All statuses</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="overdue">Overdue</option><option value="paid">Paid</option><option value="void">Void</option></select>
         </div>
         <div className="invoice-table">
           <div className="invoice-row header">
@@ -2669,7 +2661,7 @@ function Payments() {
             <span>Amount</span>
             <span>Status</span>
           </div>
-          {workspace.invoices.map((invoice) => (
+          {workspace.invoices.filter((invoice) => invoiceFilter === "all" || invoice.status === invoiceFilter).map((invoice) => (
             <div className="invoice-row" key={invoice.id}>
               <span>
                 <b>{invoice.number}</b>
@@ -2900,12 +2892,7 @@ function BusinessSettings() {
       />
       <div className="settings-layout">
         <aside>
-          <button className="active">Business profile</button>
-          <button>Hours & availability</button>
-          <button>Team & permissions</button>
-          <button>Booking policies</button>
-          <button>Branding</button>
-          <button>Billing</button>
+          <button className="active" disabled>Business profile</button>
         </aside>
         <section className="panel settings-form">
           <h2>Business profile</h2>
