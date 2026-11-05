@@ -1208,6 +1208,18 @@ function Services() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [updatingId, setUpdatingId] = useState("");
+  const changeVisibility = async (id: string, active: boolean) => {
+    setError("");
+    setUpdatingId(id);
+    try {
+      await updateService(id, { active });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Service visibility could not be saved.");
+    } finally {
+      setUpdatingId("");
+    }
+  };
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -1270,7 +1282,8 @@ function Services() {
                 <input
                   type="checkbox"
                   checked={service.active}
-                  onChange={(e) => updateService(service.id, { active: e.target.checked })}
+                  disabled={updatingId === service.id}
+                  onChange={(e) => void changeVisibility(service.id, e.target.checked)}
                 />
                 <i />
               </label>
