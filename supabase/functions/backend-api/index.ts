@@ -240,12 +240,13 @@ Deno.serve(async (req: Request) => {
 
   if (action === "get_workspace_snapshot") {
     const requestedBusinessId = typeof params.p_business_id === "string" ? params.p_business_id : null;
-    let membershipQuery = admin.from("business_members").select("business_id,role,all_locations,can_manage_services,can_manage_staff,can_manage_customers,can_manage_forms,can_manage_automations,can_manage_integrations,can_manage_billing,can_view_analytics").eq("user_id", userId!).eq("active", true);
+    let membershipQuery = admin.from("business_members").select("business_id,role,all_locations,can_manage_services,can_manage_staff,can_manage_customers,can_manage_forms,can_manage_automations,can_manage_billing,can_view_analytics").eq("user_id", userId!).eq("active", true);
     if (requestedBusinessId) membershipQuery = membershipQuery.eq("business_id", requestedBusinessId);
     const { data: memberships, error: membershipError } = await membershipQuery.order("created_at").limit(1);
     if (membershipError) return json({ error: membershipError.message, code: membershipError.code }, 400);
     const membership = memberships?.[0];
     if (!membership) return json({ error: "No active business membership", code: "NO_BUSINESS" }, 404);
+    if (membership.role === "staff" || (membership.role === "manager" && !membership.all_locations)) return json({ error: "This workspace view requires a manager with access to all locations", code: "P0403" }, 403);
     const businessId = membership.business_id;
 
     const results = await Promise.all([
@@ -275,7 +276,10 @@ Deno.serve(async (req: Request) => {
     const firstError = results.find((result) => result.error)?.error;
     if (firstError) return json({ error: firstError.message, code: firstError.code }, 400);
     const [business, settings, locations, businessHours, services, staff, staffServices, customers, customerNotes, customerTags, customerTagAssignments, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, invoices, aiSettings, calls] = results.map((result) => result.data);
-    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers, customer_notes: customerNotes, customer_tags: customerTags, customer_tag_assignments: customerTagAssignments, sessions, blocked_times: blockedTimes, integrations, forms, form_fields: formFields, form_submissions: formSubmissions, form_submission_answers: formSubmissionAnswers, workflows, invoices, ai_settings: aiSettings, calls } });
+    const owner = membership.role === "owner";
+    const canCustomers = owner || membership.can_manage_customers;
+    const canForms = owner || membership.can_manage_forms;
+    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers: canCustomers ? customers : [], customer_notes: canCustomers ? customerNotes : [], customer_tags: canCustomers ? customerTags : [], customer_tag_assignments: canCustomers ? customerTagAssignments : [], sessions: canCustomers ? sessions : [], blocked_times: blockedTimes, integrations: owner ? integrations : [], forms: canForms ? forms : [], form_fields: canForms ? formFields : [], form_submissions: canForms ? formSubmissions : [], form_submission_answers: canForms ? formSubmissionAnswers : [], workflows: owner || membership.can_manage_automations ? workflows : [], invoices: owner || membership.can_manage_billing ? invoices : [], ai_settings: owner ? aiSettings : null, calls: owner ? calls : [] } });
   }
 
   if (action === "mutate_workspace") {
@@ -295,7 +299,7 @@ Deno.serve(async (req: Request) => {
     const rule = rules[entity];
     if (!rule || !["insert","update"].includes(operation)) return json({ error: "Unsupported workspace mutation" }, 400);
     const { data: member } = await admin.from("business_members").select("*").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
-    const permitted = member && (member.role === "owner" || (rule.permission !== "owner" && (member.role === "manager" || member[rule.permission] === true)));
+    const permitted = member && (member.role === "owner" || (member.role === "manager" && rule.permission !== "owner" && member[rule.permission] === true));
     if (!permitted) return json({ error: "Permission denied" }, 403);
     const values = Object.fromEntries(Object.entries(incoming).filter(([key]) => rule.columns.includes(key)));
     if (!Object.keys(values).length) return json({ error: "No supported values supplied" }, 400);
@@ -341,7 +345,7 @@ Deno.serve(async (req: Request) => {
   if (action === "create_dashboard_booking") {
     const businessId = String(params.p_business_id ?? "");
     const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
-    if (!member || (member.role === "staff" && !member.can_manage_customers)) return json({ error: "Permission denied" }, 403);
+    if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
     const { data: page } = await admin.from("booking_pages").select("id").eq("business_id", businessId).eq("status", "published").limit(1).maybeSingle();
     if (!page) return json({ error: "Publish a booking page before creating appointments" }, 409);
     const { data: business } = await admin.from("businesses").select("timezone").eq("id", businessId).single();
@@ -398,7 +402,7 @@ Deno.serve(async (req: Request) => {
     const nextStatus = String(params.p_status ?? "").replace("no-show", "no_show");
     if (!["pending","confirmed","completed","cancelled","no_show"].includes(nextStatus)) return json({ error: "Unsupported appointment status" }, 400);
     const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
-    if (!member || (member.role === "staff" && !member.can_manage_customers)) return json({ error: "Permission denied" }, 403);
+    if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
     const { data: appointment } = await admin.from("appointments").select("status,session_id").eq("business_id", businessId).eq("id", appointmentId).single();
     if (!appointment) return json({ error: "Appointment not found" }, 404);
     if (appointment.status === nextStatus) return json({ data: { appointment_id: appointmentId, status: nextStatus } });
@@ -420,8 +424,8 @@ Deno.serve(async (req: Request) => {
 
   if (action === "save_sandbox_call") {
     const businessId = String(params.p_business_id ?? "");
-    const { data: member } = await admin.from("business_members").select("role,can_manage_integrations").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
-    if (!member || (member.role === "staff" && !member.can_manage_integrations)) return json({ error: "Permission denied" }, 403);
+    const { data: member } = await admin.from("business_members").select("role").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (!member || member.role !== "owner") return json({ error: "Permission denied" }, 403);
     const now = new Date();
     const duration = Math.max(0, Math.min(7200, Number(params.p_duration_seconds ?? 0)));
     const { data, error } = await admin.from("calls").insert({ business_id: businessId, customer_id: params.p_customer_id ?? null, direction: "inbound", caller_e164: String(params.p_caller_e164 ?? "sandbox"), called_e164: "sandbox", started_at: new Date(now.getTime() - duration * 1000).toISOString(), answered_at: new Date(now.getTime() - duration * 1000).toISOString(), ended_at: now.toISOString(), duration_seconds: duration, status: "simulated", outcome: params.p_outcome ?? "information", summary: String(params.p_summary ?? ""), is_sandbox: true }).select().single();
@@ -433,7 +437,7 @@ Deno.serve(async (req: Request) => {
     const businessId = String(params.p_business_id ?? "");
     const formId = String(params.p_form_id ?? crypto.randomUUID());
     const { data: member } = await admin.from("business_members").select("role,can_manage_forms").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
-    if (!member || (member.role === "staff" && !member.can_manage_forms)) return json({ error: "Permission denied" }, 403);
+    if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_forms))) return json({ error: "Permission denied" }, 403);
     const { data: existing } = await admin.from("forms").select("id,active_version_id").eq("business_id", businessId).eq("id", formId).maybeSingle();
     if (existing && Array.isArray(params.p_fields)) {
       const { data: latest } = await admin.from("form_versions").select("version_number").eq("business_id", businessId).eq("form_id", formId).order("version_number", { ascending: false }).limit(1).maybeSingle();
@@ -486,7 +490,7 @@ Deno.serve(async (req: Request) => {
     const businessId = String(params.p_business_id ?? "");
     const customerId = String(params.p_customer_id ?? "");
     const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
-    if (!member || (member.role === "staff" && !member.can_manage_customers)) return json({ error: "Permission denied" }, 403);
+    if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
     const note = typeof params.p_note === "string" ? params.p_note.trim() : "";
     if (note) {
       const { data: latest } = await admin.from("customer_notes").select("body").eq("business_id", businessId).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
