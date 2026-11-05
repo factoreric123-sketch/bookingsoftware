@@ -13,7 +13,6 @@ import {
 import {
   Activity,
   ArrowRight,
-  Bell,
   Bot,
   CalendarDays,
   Check,
@@ -25,7 +24,6 @@ import {
   ExternalLink,
   FileText,
   FormInput,
-  HelpCircle,
   Inbox,
   LayoutDashboard,
   Link2,
@@ -90,6 +88,8 @@ function Dashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { workspace, isPreview, isLoading } = useAppStore();
+  const accountName = typeof user?.user_metadata?.["full_name"] === "string" && user.user_metadata["full_name"].trim()
+    ? user.user_metadata["full_name"].trim() : user?.email ?? "Account";
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
   useEffect(() => {
@@ -117,7 +117,7 @@ function Dashboard() {
           <span className="business-avatar">N</span>
           <span>
             <b>{workspace.business.name}</b>
-            <small>Professional plan</small>
+            <small>Business workspace</small>
           </span>
           <ChevronDown size={15} />
         </button>
@@ -133,20 +133,15 @@ function Dashboard() {
             >
               <Icon size={18} />
               {label}
-              {label === "Messages" && <i>3</i>}
             </button>
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <button>
-            <HelpCircle size={18} />
-            Help & support
-          </button>
           <div className="user-chip">
-            <span>ET</span>
+            <span>{initials(accountName)}</span>
             <div>
-              <b>Eric Thompson</b>
-              <small>Owner</small>
+              <b>{accountName}</b>
+              <small>{user.email}</small>
             </div>
             <MoreHorizontal size={17} />
           </div>
@@ -157,11 +152,6 @@ function Dashboard() {
           <button className="app-menu" onClick={() => setMobileOpen(true)}>
             <Menu size={20} />
           </button>
-          <div className="global-search">
-            <Search size={17} />
-            <input placeholder="Search customers, bookings, or anything…" />
-            <kbd>⌘ K</kbd>
-          </div>
           <div className="top-actions">
             <Link
               to="/book/$slug"
@@ -171,11 +161,7 @@ function Dashboard() {
             >
               <ExternalLink size={15} /> Booking page
             </Link>
-            <button className="icon-button">
-              <Bell size={18} />
-              <i />
-            </button>
-            <span className="top-avatar">ET</span>
+            <span className="top-avatar">{initials(accountName)}</span>
           </div>
         </header>
         {isPreview && (
