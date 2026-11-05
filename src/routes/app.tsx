@@ -1848,6 +1848,7 @@ function BookingTools() {
 function Team() {
   const { workspace, addStaff } = useAppStore();
   const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -1858,14 +1859,19 @@ function Team() {
   });
   const save = async () => {
     if (!form.name || !form.email) return;
-    await addStaff(form);
-    setShow(false);
+    setError("");
+    try {
+      await addStaff(form);
+      setShow(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Team profile could not be saved.");
+    }
   };
   return (
     <>
       <PageHeader
         title="Team"
-        copy="Assign services, roles, and working capacity without sharing owner access."
+        copy="Create bookable staff profiles and assign services and weekly capacity. Account invitations are not yet available."
         action={
           <button className="solid-action" onClick={() => setShow(true)}>
             <UserPlus size={16} />
@@ -1910,6 +1916,7 @@ function Team() {
       </div>
       {show && (
         <Modal title="Add team member" onClose={() => setShow(false)}>
+          {error && <div className="booking-error" role="alert">{error}</div>}
           <label>
             Full name
             <input
@@ -1928,16 +1935,7 @@ function Team() {
             />
           </label>
           <div className="field-pair">
-            <label>
-              Role
-              <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value as "staff" })}
-              >
-                <option value="staff">Staff</option>
-                <option value="manager">Manager</option>
-              </select>
-            </label>
+            <p>This creates a scheduling profile. Login access and manager permissions require an invitation.</p>
             <label>
               Weekly hours
               <input
