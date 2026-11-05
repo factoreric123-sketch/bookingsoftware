@@ -84,6 +84,7 @@ function localDateTimeToIso(date: unknown, time: unknown, timeZone: string) {
   const local = `${String(date ?? "")}T${String(time ?? "")}:00`;
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/.test(local)) throw new Error("A valid local date and time are required");
   const target = new Date(`${local}Z`);
+  if (!Number.isFinite(target.getTime()) || target.toISOString().slice(0, 19) !== local) throw new Error("A valid local date and time are required");
   let candidate = target.getTime();
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date(candidate));
@@ -94,6 +95,11 @@ function localDateTimeToIso(date: unknown, time: unknown, timeZone: string) {
   const check = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(candidate));
   const value = (type: string) => check.find((part) => part.type === type)?.value ?? "";
   if (`${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}:00` !== local) throw new Error("That local time does not exist in the business timezone");
+  for (const minutes of [-120, -90, -60, -30, 30, 60, 90, 120]) {
+    const other = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(candidate + minutes * 60_000));
+    const part = (type: string) => other.find((item) => item.type === type)?.value ?? "";
+    if (`${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}:00` === local) throw new Error("That local time occurs twice in the business timezone; choose another time");
+  }
   return new Date(candidate).toISOString();
 }
 

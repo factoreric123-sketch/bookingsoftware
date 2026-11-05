@@ -30,4 +30,9 @@ This pass used the connected Supabase project and the existing isolated authoriz
 - The booking interface was tested in the local browser against the live backend. A published Lovable-hosted browser smoke test has not been run in this pass.
 - The date strip now constructs dates in the booking location's timezone rather than the visitor's local timezone. A local browser test temporarily set the isolated fixture location to `Pacific/Kiritimati`: while the visitor's date was November 5, the first offered business date was Friday, November 6. The fixture location was restored to `UTC` immediately afterward. This checks date labeling, not the database's DST transition rules.
 
-Edge `backend-api` version 59 contains the snapshot repair, dashboard empty-add-on fix, membership listing, scoped-schedule filtering, and transactional dashboard cancellation. Its `verify_jwt=false` setting is retained for public actions; the function verifies bearer tokens for authenticated actions.
+## Daylight-saving guard
+
+- Edge `backend-api` version 61 rejects invalid calendar dates, spring-forward local times that do not exist, and fall-back local times that occur twice. Four focused tests exercise the deployed converter's source for ordinary conversion and each rejection case in `America/New_York` and `UTC`.
+- The isolated DST test left business A's timezone at `UTC` and zero active DST test blocks. The test account still has a password hash. The full connected DST booking path remains to be verified.
+
+Edge `backend-api` version 61 contains the snapshot repair, dashboard empty-add-on fix, membership listing, scoped-schedule filtering, transactional dashboard cancellation, and daylight-saving guard. Its `verify_jwt=false` setting is retained for public actions; the function verifies bearer tokens for authenticated actions.
