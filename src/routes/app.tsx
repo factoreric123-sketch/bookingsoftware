@@ -711,6 +711,7 @@ function Bookings({ title }: { title: string }) {
   const { workspace, addAppointment, updateAppointment, rescheduleAppointment } = useAppStore();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -740,17 +741,12 @@ function Bookings({ title }: { title: string }) {
   const submit = async () => {
     const service = workspace.services.find((s) => s.id === form.serviceId);
     if (!service) return;
-    const result = await addAppointment({
-      ...form,
-      duration: service.duration,
-      status: "confirmed",
-      source: "dashboard",
-    });
-    if (result.error) setError(result.error);
-    else {
-      setShowForm(false);
-      setError("");
-    }
+    setSubmitting(true); setError("");
+    try {
+      const result = await addAppointment({ ...form, duration: service.duration, status: "confirmed", source: "dashboard" });
+      if (result.error) setError(result.error);
+      else { setShowForm(false); setError(result.warning ?? ""); }
+    } finally { setSubmitting(false); }
   };
   const selectedReschedule = workspace.appointments.find((item) => item.id === reschedulingId);
   const monthParts = new Intl.DateTimeFormat("en-US", { timeZone: workspace.business.timezone, year: "numeric", month: "2-digit" }).formatToParts(new Date());
@@ -923,8 +919,8 @@ function Bookings({ title }: { title: string }) {
             </label>
           </div>
           {error && <p className="form-error">{error}</p>}
-          <button className="solid-action full" onClick={submit}>
-            Create booking
+          <button className="solid-action full" onClick={submit} disabled={submitting || !form.customerId || !form.serviceId || !form.staffId || !form.date || !form.time}>
+            {submitting ? "Creating…" : "Create booking"}
           </button>
         </Modal>
       )}
