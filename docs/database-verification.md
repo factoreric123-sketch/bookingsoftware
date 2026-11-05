@@ -8,6 +8,8 @@ Published-field immutability follow-up on 2026-11-07: migration `20261107220124_
 
 ## Applied migrations (in order)
 
+Invitation acceptance follow-up on 2026-11-07: migration `20261107221116_4e629aee-00a2-4546-9700-62c51a84f816.sql` fixes service-role acceptance using a private confirmed-email boolean helper without broad auth-directory access. The original `42501` failure was reproduced; all 22 database-role regression assertions passed with rolled-back fixtures. Advisor findings remain the same 11 pre-existing items. See `member-invitations-verification.md` for exact results and limits.
+
 1. Foundation: private schema, shared update/immutability trigger, timezone validation, profiles (+ auth signup trigger and backfill), private.platform_admins, organizations, organization_members, businesses, business_settings, business_members, locations, member_locations, member_invitations, last-owner protection.
 2. Files/hours/staff/services: storage_assets, circular business FKs, business_hours (overlap guard), staff_profiles, staff_locations, staff_availability, staff_time_off, service_categories, services, service_locations, staff_services, service_addons, storage.objects RLS.
 3. CRM: customers (normalized email, merge-cycle guard), customer_users, customer_notes, customer_tags(+assignments), customer_groups(+members), custom_fields, custom_field_values.
