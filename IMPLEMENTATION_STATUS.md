@@ -9,10 +9,10 @@ Updated November 7, 2026. This document separates live production behavior, sand
 - Six-step authenticated onboarding provisions an organization, Starter trial, business, owner memberships, first location, owner staff profile, hours, availability, first service, staff/location assignments, integrations, and a published booking page.
 - Service-role database operations are reachable only through the deployed backend-api Edge Function. Actor IDs are derived from verified access tokens.
 - Dashboard workspace snapshots are membership-authorized and loaded from Supabase. Operational records are no longer hydrated from localStorage.
-- Business, service, customer, workflow-draft, and AI-assistant configuration mutations persist through an authorization-checked server endpoint. Customer, business, and AI save controls wait for the server response.
+- Business, service, customer, workflow-draft, and AI-assistant configuration mutations persist through an authorization-checked server endpoint. Service creation, editing, and visibility changes are available in the dashboard; duration and price can be edited precisely. Customer, business, and AI save controls wait for the server response.
 - Manual dashboard bookings use the same hold and confirmation engine as public bookings, with business-timezone conversion performed on the server.
 - Dashboard appointment status transitions persist with actor-attributed status history, and cancellation releases the reserved staff interval. Dashboard rescheduling now uses the protected RPC with business-timezone conversion and row-version conflict checks; see `docs/dashboard-reschedule-verification.md` for its verification limit.
-- Blocked-time creation and release use the protected database operations.
+- Blocked-time creation and release use the protected database operations; the calendar reports release failures.
 - Public booking loads a published projection, requests authoritative availability, creates a ten-minute hold, confirms idempotently, and returns the one-time appointment management token.
 - Appointment management links load a restricted projection and enforce policy, row version, conflict-safe rescheduling, and soft cancellation.
 - Public forms load the active immutable published version and submit through server validation, rate limiting, honeypot protection, explicit customer mappings, and idempotency.
