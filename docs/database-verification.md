@@ -6,6 +6,8 @@ Follow-up verification on 2026-11-07: see `authorization-verification.md` for th
 
 Published-field immutability follow-up on 2026-11-07: migration `20261107220124_ef6831d1-670b-40f7-9112-fd13e29a16fb.sql` extends the existing field trigger to INSERT and safely separates NEW/OLD handling. The original gap was reproduced before repair; all 14 connected transactional regression assertions passed and all fixtures rolled back. Security advisor reported only the same 11 pre-existing findings. See `published-form-fields-verification.md` for exact results and Edge `save_form` source-order compatibility evidence.
 
+Team invitation creation follow-up on 2026-11-07: migration `20261107220736_c6958f42-ece3-4a0c-8170-07ca2117968f.sql` adds the service-role-only SECURITY INVOKER creation RPC. Thirty rollback-only assertion expectations passed, including reproduction of the existing acceptance failure under service_role (`42501`, auth.users SELECT denied). Matching-actor redemption succeeded only as the migration role; production service-role redemption remains blocked and acceptance was not modified. See `member-invitations-verification.md` for exact outcomes and limits.
+
 ## Applied migrations (in order)
 
 Invitation acceptance follow-up on 2026-11-07: migration `20261107221116_4e629aee-00a2-4546-9700-62c51a84f816.sql` fixes service-role acceptance using a private confirmed-email boolean helper without broad auth-directory access. The original `42501` failure was reproduced; all 22 database-role regression assertions passed with rolled-back fixtures. Advisor findings remain the same 11 pre-existing items. See `member-invitations-verification.md` for exact results and limits.
