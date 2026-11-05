@@ -42,6 +42,14 @@ export class BackendError extends Error {
 export async function invokeBackend<T>(action: BackendAction, params: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("backend-api", { body: { action, params } });
   const result = (data ?? {}) as { data?: T; error?: string; code?: string };
-  if (error || result.error) throw new BackendError(result.error ?? error?.message ?? "The request failed", result.code);
+  if (error) {
+    const response = error.context instanceof Response ? error.context : null;
+    let body: { error?: string; code?: string } = result;
+    if (response) {
+      try { body = await response.json(); } catch { /* Preserve the transport error. */ }
+    }
+    throw new BackendError(body.error ?? error.message ?? "The request failed", body.code, response?.status);
+  }
+  if (result.error) throw new BackendError(result.error, result.code);
   return result.data as T;
 }

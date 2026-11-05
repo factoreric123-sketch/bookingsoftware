@@ -2,7 +2,7 @@ import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, Loader2, MapPin, ShieldCheck, UserRound } from "lucide-react";
-import { invokeBackend } from "../integrations/supabase/backend";
+import { BackendError, invokeBackend } from "../integrations/supabase/backend";
 
 export const Route = createFileRoute("/book/$slug")({ head: () => pageHead("Avello \u2014 Book an appointment", "Choose a service and available appointment time through Avello."), component: BookingPage });
 
@@ -16,7 +16,7 @@ type Step = "service" | "date" | "details" | "confirmed";
 
 const money = (minor: number, currency: string) => new Intl.NumberFormat("en-US", { style: "currency", currency }).format(minor / 100);
 const shortDate = (value: string, timeZone?: string) => new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", month: "short", day: "numeric" }).format(new Date(value));
-const time = (value: string, timeZone?: string) => new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit" }).format(new Date(value));
+const time = (value: string, timeZone?: string) => new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(new Date(value));
 const dateInZone = (value: Date, timeZone: string) => {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
   const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
@@ -43,7 +43,7 @@ function BookingPage() {
 
   useEffect(() => {
     setLoading(true);
-    invokeBackend<PublicPage>("get_public_booking_page", { p_slug: slug }).then(setPage).catch((caught) => setError(caught instanceof Error ? caught.message : "Booking page unavailable")).finally(() => setLoading(false));
+    invokeBackend<PublicPage>("get_public_booking_page", { p_slug: slug }).then(setPage).catch((caught) => setError(caught instanceof BackendError && caught.code === "P0404" ? "This booking page is not available." : caught instanceof Error ? caught.message : "Booking page unavailable")).finally(() => setLoading(false));
   }, [slug]);
 
   useEffect(() => {
