@@ -98,10 +98,10 @@ function Dashboard() {
   }, [authLoading, navigate, user]);
   useEffect(() => {
     if (!authLoading && user && !isLoading && !workspace.business.id) {
-      void supabase.from("business_members").select("role").eq("active", true).order("created_at").limit(1)
+      void supabase.from("business_members").select("role,all_locations").eq("active", true).order("created_at").limit(1)
         .then(({ data, error }) => {
           if (error) { setHasMembership(true); return; }
-          if (data?.[0]?.role === "staff") void navigate({ to: "/staff", replace: true });
+          if (data?.[0]?.role === "staff" || (data?.[0]?.role === "manager" && !data[0].all_locations)) void navigate({ to: "/staff", replace: true });
           else if (!data?.length) void navigate({ to: "/onboarding", replace: true });
           else setHasMembership(true);
         });
@@ -110,7 +110,7 @@ function Dashboard() {
   if (authLoading || !user || isLoading)
     return <div className="app-loading">Loading your workspace…</div>;
   if (!workspace.business.id) return <main className="dashboard-content" style={{ maxWidth: 760, margin: "auto" }}>
-    {hasMembership ? <section className="panel"><h1>Workspace unavailable</h1><p>{loadError || "This account has a membership, but the full dashboard could not load."}</p><p>Location-restricted managers currently need a scoped manager dashboard.</p></section> : <p>Checking your workspace access…</p>}
+    {hasMembership ? <section className="panel"><h1>Workspace unavailable</h1><p>{loadError || "This account has a membership, but the full dashboard could not load."}</p></section> : <p>Checking your workspace access…</p>}
   </main>;
   return (
     <div className="app-layout">

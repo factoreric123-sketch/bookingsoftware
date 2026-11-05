@@ -10,11 +10,11 @@ export const Route = createFileRoute("/login")({ head: () => pageHead("Avello \u
 async function nextAuthenticatedRoute() {
   const { data } = await supabase
     .from("business_members")
-    .select("role")
+    .select("role,all_locations")
     .eq("active", true)
     .order("created_at")
     .limit(1);
-  return data?.[0]?.role === "staff" ? "/staff" : data?.length ? "/app" : "/onboarding";
+  return data?.[0]?.role === "staff" || (data?.[0]?.role === "manager" && !data[0].all_locations) ? "/staff" : data?.length ? "/app" : "/onboarding";
 }
 
 function Login() {

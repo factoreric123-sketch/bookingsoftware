@@ -248,10 +248,10 @@ Deno.serve(async (req: Request) => {
   if (action === "get_staff_schedule") {
     const { data: member, error: memberError } = await admin.from("business_members")
       .select("id,business_id,role,all_locations")
-      .eq("user_id", userId!).eq("active", true).eq("role", "staff")
+      .eq("user_id", userId!).eq("active", true).in("role", ["staff", "manager"])
       .order("created_at").limit(1).maybeSingle();
     if (memberError) return json({ error: memberError.message }, 400);
-    if (!member) return json({ error: "Active staff membership required" }, 403);
+    if (!member || (member.role === "manager" && member.all_locations)) return json({ error: "A scoped staff or manager membership is required" }, 403);
     const [{ data: business, error: businessError }, { data: linkedProfile, error: profileError }, { data: allowedLocations, error: locationsError }] = await Promise.all([
       admin.from("businesses").select("id,name,timezone,slug").eq("id", member.business_id).single(),
       admin.from("staff_profiles").select("id,display_name").eq("business_id", member.business_id).eq("user_id", userId!).eq("active", true).is("archived_at", null).maybeSingle(),
@@ -260,7 +260,21 @@ Deno.serve(async (req: Request) => {
     const firstError = businessError ?? profileError ?? locationsError;
     if (firstError) return json({ error: firstError.message }, 400);
     const locationIds = (allowedLocations ?? []).map((row) => row.location_id);
-    if (!member.all_locations && !locationIds.length) return json({ error: "No location assigned to this staff account" }, 403);
+    if (!member.all_locations && !locationIds.length) return json({ error: "No location assigned to this account" }, 403);
+    if (member.role === "manager") {
+      const { data: sessions, error: sessionsError } = await admin.from("booking_sessions")
+        .select("id,starts_at,ends_at,location_id,primary_service_id,appointments(id,status)")
+        .eq("business_id", member.business_id).in("location_id", locationIds)
+        .gte("starts_at", new Date(Date.now() - 86400000).toISOString())
+        .order("starts_at").limit(200);
+      if (sessionsError) return json({ error: sessionsError.message }, 400);
+      const serviceIds = [...new Set((sessions ?? []).map((session) => session.primary_service_id).filter((id): id is string => Boolean(id)))];
+      const { data: services, error: servicesError } = serviceIds.length
+        ? await admin.from("services").select("id,name").eq("business_id", member.business_id).in("id", serviceIds)
+        : { data: [], error: null };
+      if (servicesError) return json({ error: servicesError.message }, 400);
+      return json({ data: { business, role: "manager", staff: null, sessions, customers: [], services } });
+    }
     let profile = linkedProfile;
     if (!profile && verifiedEmail) {
       const { data: candidates, error: candidatesError } = await admin.from("staff_profiles")
@@ -271,7 +285,7 @@ Deno.serve(async (req: Request) => {
       const matches = (candidates ?? []).filter((candidate) => candidate.email?.trim().toLowerCase() === verifiedEmail);
       if (matches.length === 1) profile = matches[0];
     }
-    if (!profile) return json({ data: { business, staff: null, sessions: [], customers: [], services: [] } });
+    if (!profile) return json({ data: { business, role: "staff", staff: null, sessions: [], customers: [], services: [] } });
     let sessionsQuery = admin.from("booking_sessions")
       .select("id,starts_at,ends_at,location_id,primary_service_id,appointments(id,customer_id,status)")
       .eq("business_id", member.business_id).eq("staff_id", profile.id)
@@ -287,7 +301,7 @@ Deno.serve(async (req: Request) => {
       serviceIds.length ? admin.from("services").select("id,name").eq("business_id", member.business_id).in("id", serviceIds) : Promise.resolve({ data: [], error: null }),
     ]);
     if (customersError || servicesError) return json({ error: (customersError ?? servicesError)!.message }, 400);
-    return json({ data: { business, staff: profile, sessions, customers, services } });
+    return json({ data: { business, role: "staff", staff: profile, sessions, customers, services } });
   }
 
   if (action === "get_workspace_snapshot") {
