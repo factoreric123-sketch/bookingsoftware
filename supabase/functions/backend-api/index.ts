@@ -504,6 +504,23 @@ Deno.serve(async (req: Request) => {
     return json({ data: { customer_id: customerId, tags: tagNames } });
   }
 
+  if (action === "reschedule_appointment" && typeof params.p_local_date === "string" && typeof params.p_local_time === "string") {
+    const { data: managed, error: managedError } = await admin.rpc("get_managed_appointment", {
+      p_subject_hash: params.p_subject_hash,
+      p_token: params.p_management_token,
+    });
+    if (managedError || !managed || managed.appointment_id !== params.p_appointment_id) {
+      return json({ error: managedError?.message ?? "Management link does not match this appointment", code: managedError?.code ?? "P0403" }, 403);
+    }
+    try {
+      params.p_new_starts_at = localDateTimeToIso(params.p_local_date, params.p_local_time, managed.timezone);
+    } catch (error) {
+      return json({ error: error instanceof Error ? error.message : "Invalid appointment time" }, 400);
+    }
+    delete params.p_local_date;
+    delete params.p_local_time;
+  }
+
   const { data, error } = await admin.rpc(action as never, params as never);
   if (error) {
     console.error("backend operation failed", { action, code: error.code });
