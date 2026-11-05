@@ -896,6 +896,8 @@ function Customers() {
   const [draft, setDraft] = useState({ name: "", email: "", phone: "", notes: "", tags: "" });
   const [profileError, setProfileError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [createError, setCreateError] = useState("");
+  const [creating, setCreating] = useState(false);
   const filtered = workspace.customers.filter((customer) =>
     `${customer.name} ${customer.email} ${customer.phone} ${customer.tags.join(" ")}`
       .toLowerCase()
@@ -903,9 +905,17 @@ function Customers() {
   );
   const save = async () => {
     if (!form.name || !form.email) return;
-    await addCustomer(form);
-    setShow(false);
-    setForm({ name: "", email: "", phone: "", notes: "", tags: ["New"] });
+    setCreating(true);
+    setCreateError("");
+    try {
+      await addCustomer(form);
+      setShow(false);
+      setForm({ name: "", email: "", phone: "", notes: "", tags: ["New"] });
+    } catch (caught) {
+      setCreateError(caught instanceof Error ? caught.message : "Customer could not be saved.");
+    } finally {
+      setCreating(false);
+    }
   };
   const openProfile = (id: string) => {
     const customer = workspace.customers.find((item) => item.id === id);
@@ -1008,7 +1018,7 @@ function Customers() {
         title="Customers"
         copy="Search, edit, and understand every customer relationship."
         action={
-          <button className="solid-action" onClick={() => setShow(true)}>
+          <button className="solid-action" onClick={() => { setCreateError(""); setShow(true); }}>
             <Plus size={16} />
             Add customer
           </button>
@@ -1125,8 +1135,9 @@ function Customers() {
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </label>
-          <button className="solid-action full" onClick={save}>
-            Save customer
+          {createError && <p className="form-error" role="alert">{createError}</p>}
+          <button className="solid-action full" onClick={save} disabled={creating || !form.name.trim() || !form.email.trim()}>
+            {creating ? "Saving…" : "Save customer"}
           </button>
         </Modal>
       )}
