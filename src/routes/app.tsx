@@ -912,7 +912,9 @@ function Customers() {
       setShow(false);
       setForm({ name: "", email: "", phone: "", notes: "", tags: ["New"] });
     } catch (caught) {
-      setCreateError(caught instanceof Error ? caught.message : "Customer could not be saved.");
+      const message = caught instanceof Error ? caught.message : "Customer could not be saved.";
+      setCreateError(message);
+      if (message.startsWith("Customer was created,")) setShow(false);
     } finally {
       setCreating(false);
     }
@@ -1024,6 +1026,7 @@ function Customers() {
           </button>
         }
       />
+      {createError && !show && <p className="form-error" role="alert">{createError}</p>}
       <div className="panel customer-panel">
         <div className="table-toolbar">
           <div className="table-search">
