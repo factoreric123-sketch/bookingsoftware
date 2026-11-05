@@ -708,10 +708,17 @@ function CalendarWorkspace() {
 }
 
 function Bookings({ title }: { title: string }) {
-  const { workspace, addAppointment, updateAppointment } = useAppStore();
+  const { workspace, addAppointment, updateAppointment, rescheduleAppointment } = useAppStore();
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("month");
+  const [reschedulingId, setReschedulingId] = useState("");
+  const [rescheduleDate, setRescheduleDate] = useState("");
+  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [rescheduling, setRescheduling] = useState(false);
   const changeStatus = async (id: string, status: AppointmentStatus) => {
     setError("");
     setUpdatingId(id);
@@ -745,6 +752,29 @@ function Bookings({ title }: { title: string }) {
       setError("");
     }
   };
+  const selectedReschedule = workspace.appointments.find((item) => item.id === reschedulingId);
+  const monthParts = new Intl.DateTimeFormat("en-US", { timeZone: workspace.business.timezone, year: "numeric", month: "2-digit" }).formatToParts(new Date());
+  const currentMonth = `${monthParts.find((part) => part.type === "year")?.value}-${monthParts.find((part) => part.type === "month")?.value}`;
+  const visibleAppointments = workspace.appointments.filter((item) => {
+    const customer = workspace.customers.find((entry) => entry.id === item.customerId);
+    const service = workspace.services.find((entry) => entry.id === item.serviceId);
+    const matchesSearch = `${customer?.name ?? ""} ${customer?.email ?? ""} ${service?.name ?? ""}`.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || item.status === statusFilter;
+    const matchesDate = dateFilter === "all" || item.date.slice(0, 7) === currentMonth;
+    return matchesSearch && matchesStatus && matchesDate;
+  });
+  const saveReschedule = async () => {
+    if (!selectedReschedule?.rowVersion || !rescheduleDate || !rescheduleTime) return;
+    setRescheduling(true); setError("");
+    try {
+      await rescheduleAppointment(selectedReschedule.id, rescheduleDate, rescheduleTime, selectedReschedule.rowVersion);
+      setReschedulingId("");
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Appointment could not be rescheduled.";
+      setError(message);
+      if (message.startsWith("Reschedule outcome")) setReschedulingId("");
+    } finally { setRescheduling(false); }
+  };
   return (
     <>
       <PageHeader
@@ -762,14 +792,10 @@ function Bookings({ title }: { title: string }) {
         <div className="table-toolbar">
           <div className="table-search">
             <Search size={16} />
-            <input placeholder="Search bookings…" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search bookings…" />
           </div>
-          <button>
-            All statuses <ChevronDown size={14} />
-          </button>
-          <button>
-            This month <ChevronDown size={14} />
-          </button>
+          <select aria-label="Filter booking status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="confirmed">Confirmed</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no-show">No-show</option></select>
+          <select aria-label="Filter booking date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}><option value="month">This month</option><option value="all">All dates</option></select>
         </div>
         <div className="data-table">
           <div className="data-row header">
@@ -780,7 +806,7 @@ function Bookings({ title }: { title: string }) {
             <span>Source</span>
             <span />
           </div>
-          {[...workspace.appointments]
+          {[...visibleAppointments]
             .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
             .map((item) => {
               const customer = workspace.customers.find((c) => c.id === item.customerId);
@@ -817,8 +843,8 @@ function Bookings({ title }: { title: string }) {
                     </select>
                   </span>
                   <span>{item.source === "booking-page" ? "Booking page" : "Dashboard"}</span>
-                  <button>
-                    <MoreHorizontal size={17} />
+                  <button disabled={(item.status !== "pending" && item.status !== "confirmed") || !item.rowVersion} onClick={() => { setReschedulingId(item.id); setRescheduleDate(item.date); setRescheduleTime(item.time); setError(""); }}>
+                    Reschedule
                   </button>
                 </div>
               );
@@ -902,6 +928,15 @@ function Bookings({ title }: { title: string }) {
           </button>
         </Modal>
       )}
+      {selectedReschedule && <Modal title="Reschedule appointment" onClose={() => { if (!rescheduling) setReschedulingId(""); }}>
+        <p>Choose a new time for {workspace.customers.find((customer) => customer.id === selectedReschedule.customerId)?.name ?? "this customer"}. The current booking stays in place if the new time is unavailable.</p>
+        <div className="field-pair">
+          <label>Date<input type="date" value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} /></label>
+          <label>Time<input type="time" value={rescheduleTime} onChange={(event) => setRescheduleTime(event.target.value)} /></label>
+        </div>
+        {error && <p className="form-error" role="alert">{error}</p>}
+        <button className="solid-action full" onClick={saveReschedule} disabled={rescheduling || !rescheduleDate || !rescheduleTime || (rescheduleDate === selectedReschedule.date && rescheduleTime === selectedReschedule.time)}>{rescheduling ? "Rescheduling…" : "Save new time"}</button>
+      </Modal>}
     </>
   );
 }

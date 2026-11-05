@@ -34,6 +34,7 @@ const authenticatedActions = new Set([
   "get_staff_schedule",
   "mutate_workspace",
   "create_dashboard_booking",
+  "reschedule_dashboard_booking",
   "save_form",
   "save_customer_profile",
   "save_sandbox_call",
@@ -482,6 +483,34 @@ Deno.serve(async (req: Request) => {
     });
     if (confirmError) return json({ error: confirmError.message, code: confirmError.code }, 400);
     return json({ data: confirmed });
+  }
+
+  if (action === "reschedule_dashboard_booking") {
+    const businessId = String(params.p_business_id ?? "");
+    const appointmentId = String(params.p_appointment_id ?? "");
+    const rowVersion = Number(params.p_expected_row_version);
+    if (!Number.isSafeInteger(rowVersion) || rowVersion < 1) return json({ error: "A current appointment version is required" }, 400);
+    const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
+    const [{ data: business }, { data: appointment }] = await Promise.all([
+      admin.from("businesses").select("timezone").eq("id", businessId).single(),
+      admin.from("appointments").select("id").eq("business_id", businessId).eq("id", appointmentId).maybeSingle(),
+    ]);
+    if (!business || !appointment) return json({ error: "Appointment not found" }, 404);
+    let startsAt: string;
+    try { startsAt = localDateTimeToIso(params.p_local_date, params.p_local_time, business.timezone); }
+    catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid appointment time" }, 400); }
+    const { data, error } = await admin.rpc("reschedule_appointment", {
+      p_subject_hash: await subjectHash(req, serviceKey),
+      p_appointment_id: appointmentId,
+      p_new_starts_at: startsAt,
+      p_management_token: null,
+      p_actor_user_id: userId,
+      p_expected_row_version: rowVersion,
+      p_request_key: params.p_request_key,
+    });
+    if (error) return json({ error: error.message, code: error.code }, error.code === "P0409" ? 409 : 400);
+    return json({ data });
   }
 
   if (action === "create_business_blocked_time") {

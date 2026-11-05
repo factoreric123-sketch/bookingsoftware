@@ -11,7 +11,7 @@ Updated November 7, 2026. This document separates live production behavior, sand
 - Dashboard workspace snapshots are membership-authorized and loaded from Supabase. Operational records are no longer hydrated from localStorage.
 - Business, service, customer, workflow-draft, and AI-assistant configuration mutations persist through an authorization-checked server endpoint. Customer, business, and AI save controls wait for the server response.
 - Manual dashboard bookings use the same hold and confirmation engine as public bookings, with business-timezone conversion performed on the server.
-- Dashboard appointment status transitions persist with actor-attributed status history, and cancellation releases the reserved staff interval.
+- Dashboard appointment status transitions persist with actor-attributed status history, and cancellation releases the reserved staff interval. Dashboard rescheduling now uses the protected RPC with business-timezone conversion and row-version conflict checks; see `docs/dashboard-reschedule-verification.md` for its verification limit.
 - Blocked-time creation and release use the protected database operations.
 - Public booking loads a published projection, requests authoritative availability, creates a ten-minute hold, confirms idempotently, and returns the one-time appointment management token.
 - Appointment management links load a restricted projection and enforce policy, row version, conflict-safe rescheduling, and soft cancellation.
