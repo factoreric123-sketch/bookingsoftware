@@ -27,6 +27,7 @@ import {
   Inbox,
   LayoutDashboard,
   Link2,
+  LogOut,
   Mail,
   Menu,
   MessageSquareText,
@@ -86,7 +87,7 @@ const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
 
 function Dashboard() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const { workspace, isPreview, isLoading, loadError } = useAppStore();
   const accountName = typeof user?.user_metadata?.["full_name"] === "string" && user.user_metadata["full_name"].trim()
     ? user.user_metadata["full_name"].trim() : user?.email ?? "Account";
@@ -145,6 +146,10 @@ function Dashboard() {
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <button onClick={() => void signOut()}>
+            <LogOut size={18} />
+            Sign out
+          </button>
           <div className="user-chip">
             <span>{initials(accountName)}</span>
             <div>
