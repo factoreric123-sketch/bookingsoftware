@@ -87,22 +87,31 @@ const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
 function Dashboard() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const { workspace, isPreview, isLoading } = useAppStore();
+  const { workspace, isPreview, isLoading, loadError } = useAppStore();
   const accountName = typeof user?.user_metadata?.["full_name"] === "string" && user.user_metadata["full_name"].trim()
     ? user.user_metadata["full_name"].trim() : user?.email ?? "Account";
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [hasMembership, setHasMembership] = useState<boolean | null>(null);
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/login", replace: true });
   }, [authLoading, navigate, user]);
   useEffect(() => {
     if (!authLoading && user && !isLoading && !workspace.business.id) {
       void supabase.from("business_members").select("role").eq("active", true).order("created_at").limit(1)
-        .then(({ data }) => navigate({ to: data?.[0]?.role === "staff" ? "/staff" : "/onboarding", replace: true }));
+        .then(({ data, error }) => {
+          if (error) { setHasMembership(true); return; }
+          if (data?.[0]?.role === "staff") void navigate({ to: "/staff", replace: true });
+          else if (!data?.length) void navigate({ to: "/onboarding", replace: true });
+          else setHasMembership(true);
+        });
     }
   }, [authLoading, isLoading, navigate, user, workspace.business.id]);
   if (authLoading || !user || isLoading)
     return <div className="app-loading">Loading your workspace…</div>;
+  if (!workspace.business.id) return <main className="dashboard-content" style={{ maxWidth: 760, margin: "auto" }}>
+    {hasMembership ? <section className="panel"><h1>Workspace unavailable</h1><p>{loadError || "This account has a membership, but the full dashboard could not load."}</p><p>Location-restricted managers currently need a scoped manager dashboard.</p></section> : <p>Checking your workspace access…</p>}
+  </main>;
   return (
     <div className="app-layout">
       <aside className={mobileOpen ? "app-sidebar mobile-open" : "app-sidebar"}>

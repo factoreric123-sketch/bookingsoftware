@@ -73,6 +73,7 @@ type Store = {
   workspace: Workspace;
   isPreview: boolean;
   isLoading: boolean;
+  loadError: string;
   updateBusiness: (patch: Partial<Business>) => Promise<void>;
   addService: (service: Omit<Service, "id">) => Promise<Service>;
   updateService: (id: string, patch: Partial<Service>) => Promise<void>;
@@ -145,14 +146,16 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [workspace, setWorkspace] = useState<Workspace>(() => emptyWorkspace());
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   useEffect(() => {
     let active = true;
-    if (!user) { setWorkspace(emptyWorkspace()); setIsLoading(false); return () => { active = false; }; }
+    if (!user) { setWorkspace(emptyWorkspace()); setLoadError(""); setIsLoading(false); return () => { active = false; }; }
     setIsLoading(true);
+    setLoadError("");
     invokeBackend<Record<string, any>>("get_workspace_snapshot", {}).then((snapshot) => {
       if (active) setWorkspace(mapSnapshot(snapshot));
     }).catch((error) => {
-      if (active && !(error instanceof Error && error.message.includes("No active business membership"))) console.error("Unable to load workspace", error);
+      if (active) setLoadError(error instanceof Error ? error.message : "Unable to load workspace.");
     }).finally(() => { if (active) setIsLoading(false); });
     return () => { active = false; };
   }, [user]);
@@ -161,6 +164,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     workspace,
     isPreview: false,
     isLoading,
+    loadError,
     updateBusiness: async (patch) => { await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "business", p_operation: "update", p_id: workspace.business.id, p_values: { name: patch.name, industry: patch.industry, email: patch.email, phone_e164: patch.phone } }); setWorkspace((current) => ({ ...current, business: { ...current.business, ...patch } })); },
     addService: async (input) => { const service = { ...input, id: crypto.randomUUID() }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "service", p_operation: "insert", p_id: service.id, p_values: { name: service.name, description: service.description, duration_minutes: service.duration, price_minor: Math.round(service.price * 100), currency: workspace.business.currency ?? "USD", color: service.color, active: service.active, location_id: workspace.business.defaultLocationId, staff_ids: workspace.staff.filter((member) => member.active).map((member) => member.id) } }); setWorkspace((current) => ({ ...current, services: [...current.services, service] })); return service; },
     updateService: async (id, patch) => { await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "service", p_operation: "update", p_id: id, p_values: { name: patch.name, description: patch.description, duration_minutes: patch.duration, price_minor: patch.price === undefined ? undefined : Math.round(patch.price * 100), color: patch.color, active: patch.active } }); setWorkspace((current) => ({ ...current, services: current.services.map((service) => service.id === id ? { ...service, ...patch } : service) })); },
@@ -189,7 +193,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     recordManualPayment: async (invoiceId, amount) => { await invokeBackend("record_manual_payment", { p_invoice_id: invoiceId, p_amount_minor: Math.round(amount * 100), p_method: "manual", p_request_key: crypto.randomUUID() }); setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === invoiceId ? { ...invoice, status: "paid" } : invoice) })); },
     updateAiReceptionist: async (patch) => { const next = { ...workspace.aiReceptionist, ...patch }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "ai_settings", p_operation: "update", p_values: { assistant_name: next.name, greeting: next.greeting, transfer_phone_e164: next.transferPhone || null, voice: next.voice, after_hours_behavior: next.afterHours === "offer-callback" ? "offer_callback" : "take_message", recording_enabled: next.recordingEnabled, disclosure_enabled: next.disclosureEnabled, voice_enabled: false, sms_enabled: false, sandbox_enabled: true } }); setWorkspace((current) => ({ ...current, aiReceptionist: next })); },
     addCallLog: async (input) => { const saved = await invokeBackend<any>("save_sandbox_call", { p_business_id: workspace.business.id, p_customer_id: input.customerId ?? null, p_caller_e164: input.caller, p_duration_seconds: input.durationSeconds, p_outcome: input.outcome, p_summary: input.summary }); const log: CallLog = { ...input, id: saved.id, startedAt: saved.started_at, sandbox: true }; setWorkspace((current) => ({ ...current, callLogs: [log, ...current.callLogs] })); return log; },
-  }), [isLoading, workspace]);
+  }), [isLoading, loadError, workspace]);
   return <AppStore.Provider value={store}>{children}</AppStore.Provider>;
 }
 
