@@ -2313,18 +2313,36 @@ function Forms() {
 }
 
 function Automations() {
-  const { workspace, addWorkflow, updateWorkflow } = useAppStore();
+  const { workspace, addWorkflow } = useAppStore();
   const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     name: "",
-    trigger: "New booking",
-    action: "Create follow-up task",
+    trigger: "booking_created",
+    action: "create_task",
     active: false,
   });
-  const save = () => {
+  const triggerOptions = [
+    { value: "booking_created", label: "New booking" },
+    { value: "booking_cancelled", label: "Booking cancelled" },
+    { value: "appointment_completed", label: "Appointment completed" },
+    { value: "customer_created", label: "New customer" },
+    { value: "form_submitted", label: "Form submitted" },
+    { value: "payment_failed", label: "Failed payment" },
+  ];
+  const save = async () => {
     if (!form.name) return;
-    addWorkflow(form);
-    setShow(false);
+    setSaving(true);
+    setError("");
+    try {
+      await addWorkflow(form);
+      setShow(false);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Workflow could not be saved.");
+    } finally {
+      setSaving(false);
+    }
   };
   return (
     <>
@@ -2338,6 +2356,7 @@ function Automations() {
           </button>
         }
       />
+      {error && <div className="booking-error" role="alert">{error}</div>}
       <div className="automation-list">
         {workspace.workflows.map((workflow) => (
           <article className="automation-card" key={workflow.id}>
@@ -2354,14 +2373,14 @@ function Automations() {
               <div className="flow-line">
                 <span>
                   <small>WHEN</small>
-                  {workflow.trigger}
+                  {triggerOptions.find((option) => option.value === workflow.trigger)?.label ?? workflow.trigger}
                 </span>
                 <i>
                   <ArrowRight size={15} />
                 </i>
                 <span>
                   <small>THEN</small>
-                  {workflow.action}
+                  {workflow.action === "create_task" ? "Create follow-up task" : workflow.action}
                 </span>
               </div>
               <p>
@@ -2370,11 +2389,7 @@ function Automations() {
               </p>
             </div>
             <label className="switch">
-              <input
-                type="checkbox"
-                checked={workflow.active}
-                onChange={(e) => updateWorkflow(workflow.id, { active: e.target.checked })}
-              />
+              <input type="checkbox" checked={workflow.active} disabled aria-label="Workflow activation requires a job runner" />
               <i />
             </label>
           </article>
@@ -2385,14 +2400,13 @@ function Automations() {
         <div>
           <h3>Execution safety</h3>
           <p>
-            Activating a preview workflow saves its configuration only. Provider actions are not
-            executed until the production job runner, idempotency store, and verified email/SMS
-            credentials exist.
+            Workflows are saved as drafts. Execution starts after a production job runner is connected.
           </p>
         </div>
       </div>
       {show && (
         <Modal title="Create automation" onClose={() => setShow(false)}>
+          {error && <div className="booking-error" role="alert">{error}</div>}
           <label>
             Workflow name
             <input
@@ -2407,15 +2421,8 @@ function Automations() {
               value={form.trigger}
               onChange={(e) => setForm({ ...form, trigger: e.target.value })}
             >
-              {[
-                "New booking",
-                "Booking cancelled",
-                "Appointment completed",
-                "New customer",
-                "Form submitted",
-                "Failed payment",
-              ].map((item) => (
-                <option key={item}>{item}</option>
+              {triggerOptions.map((item) => (
+                <option key={item.value} value={item.value}>{item.label}</option>
               ))}
             </select>
           </label>
@@ -2425,20 +2432,11 @@ function Automations() {
               value={form.action}
               onChange={(e) => setForm({ ...form, action: e.target.value })}
             >
-              {[
-                "Create follow-up task",
-                "Add customer tag",
-                "Notify business owner",
-                "Send confirmation email",
-                "Send SMS reminder",
-                "Send review request",
-              ].map((item) => (
-                <option key={item}>{item}</option>
-              ))}
+              <option value="create_task">Create follow-up task</option>
             </select>
           </label>
-          <button className="solid-action full" onClick={save}>
-            Save as draft
+          <button className="solid-action full" disabled={saving || !form.name.trim()} onClick={save}>
+            {saving ? "Saving…" : "Save as draft"}
           </button>
         </Modal>
       )}

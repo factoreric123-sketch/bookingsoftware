@@ -269,17 +269,18 @@ Deno.serve(async (req: Request) => {
       admin.from("form_submissions").select("*").eq("business_id", businessId).order("submitted_at", { ascending: false }).limit(500),
       admin.from("form_submission_answers").select("*").eq("business_id", businessId).limit(5000),
       admin.from("automation_workflows").select("*").eq("business_id", businessId).order("created_at", { ascending: false }),
+      admin.from("automation_steps").select("workflow_id,action_type,task_title,step_order").eq("business_id", businessId).order("step_order"),
       admin.from("invoices").select("*").eq("business_id", businessId).order("created_at", { ascending: false }).limit(500),
       admin.from("ai_assistant_settings").select("*").eq("business_id", businessId).maybeSingle(),
       admin.from("calls").select("*").eq("business_id", businessId).order("started_at", { ascending: false }).limit(100),
     ]);
     const firstError = results.find((result) => result.error)?.error;
     if (firstError) return json({ error: firstError.message, code: firstError.code }, 400);
-    const [business, settings, locations, businessHours, services, staff, staffServices, customers, customerNotes, customerTags, customerTagAssignments, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, invoices, aiSettings, calls] = results.map((result) => result.data);
+    const [business, settings, locations, businessHours, services, staff, staffServices, customers, customerNotes, customerTags, customerTagAssignments, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, workflowSteps, invoices, aiSettings, calls] = results.map((result) => result.data);
     const owner = membership.role === "owner";
     const canCustomers = owner || membership.can_manage_customers;
     const canForms = owner || membership.can_manage_forms;
-    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers: canCustomers ? customers : [], customer_notes: canCustomers ? customerNotes : [], customer_tags: canCustomers ? customerTags : [], customer_tag_assignments: canCustomers ? customerTagAssignments : [], sessions: canCustomers ? sessions : [], blocked_times: blockedTimes, integrations: owner ? integrations : [], forms: canForms ? forms : [], form_fields: canForms ? formFields : [], form_submissions: canForms ? formSubmissions : [], form_submission_answers: canForms ? formSubmissionAnswers : [], workflows: owner || membership.can_manage_automations ? workflows : [], invoices: owner || membership.can_manage_billing ? invoices : [], ai_settings: owner ? aiSettings : null, calls: owner ? calls : [] } });
+    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers: canCustomers ? customers : [], customer_notes: canCustomers ? customerNotes : [], customer_tags: canCustomers ? customerTags : [], customer_tag_assignments: canCustomers ? customerTagAssignments : [], sessions: canCustomers ? sessions : [], blocked_times: blockedTimes, integrations: owner ? integrations : [], forms: canForms ? forms : [], form_fields: canForms ? formFields : [], form_submissions: canForms ? formSubmissions : [], form_submission_answers: canForms ? formSubmissionAnswers : [], workflows: owner || membership.can_manage_automations ? workflows : [], workflow_steps: owner || membership.can_manage_automations ? workflowSteps : [], invoices: owner || membership.can_manage_billing ? invoices : [], ai_settings: owner ? aiSettings : null, calls: owner ? calls : [] } });
   }
 
   if (action === "mutate_workspace") {
@@ -353,6 +354,18 @@ Deno.serve(async (req: Request) => {
             await admin.from("services").delete().eq("business_id", businessId).eq("id", data.id);
             return json({ error: staffLinkError.message, code: staffLinkError.code }, 400);
           }
+        }
+      }
+      if (entity === "workflow") {
+        const actionType = incoming.action_type;
+        if (actionType !== "create_task") {
+          await admin.from("automation_workflows").delete().eq("business_id", businessId).eq("id", data.id);
+          return json({ error: "Only create-task workflow drafts are available before the job runner is connected" }, 400);
+        }
+        const { error: stepError } = await admin.from("automation_steps").insert({ business_id: businessId, workflow_id: data.id, step_order: 1, action_type: "create_task", task_title: String(incoming.task_title ?? `Follow up: ${values.name ?? "Booking"}`) });
+        if (stepError) {
+          await admin.from("automation_workflows").delete().eq("business_id", businessId).eq("id", data.id);
+          return json({ error: stepError.message, code: stepError.code }, 400);
         }
       }
       return json({ data });
