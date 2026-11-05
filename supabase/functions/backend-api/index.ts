@@ -143,9 +143,12 @@ Deno.serve(async (req: Request) => {
 
   if (action === "get_public_form") {
     const identifier = String(params.p_identifier ?? "");
-    if (!/^[a-z0-9-]{1,100}$/.test(identifier) && !/^[0-9a-f]{8}-[0-9a-f-]{27,36}$/i.test(identifier)) return json({ error: "Invalid form identifier" }, 400);
-    const { data: form, error: formError } = await admin.from("forms").select("id,business_id,name,description,slug,active_version_id,accent_color,create_customer").or(`slug.eq.${identifier},id.eq.${identifier}`).eq("status", "published").maybeSingle();
-    if (formError || !form || !form.active_version_id) return json({ error: "Form not found or not published", code: "P0404" }, 404);
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+    if (!isUuid && !/^[a-z0-9-]{1,100}$/.test(identifier)) return json({ error: "Invalid form identifier" }, 400);
+    const query = admin.from("forms").select("id,business_id,name,description,slug,active_version_id,accent_color,create_customer").eq("status", "published");
+    const { data: form, error: formError } = await (isUuid ? query.eq("id", identifier) : query.eq("slug", identifier)).maybeSingle();
+    if (formError) return json({ error: formError.message, code: formError.code }, 400);
+    if (!form || !form.active_version_id) return json({ error: "Form not found or not published", code: "P0404" }, 404);
     const [{ data: fields, error: fieldsError }, { data: business, error: businessError }] = await Promise.all([
       admin.from("form_fields").select("id,field_key,label,field_type,required,placeholder,help_text,options,validation,visibility_rule,customer_mapping,sort_order").eq("business_id", form.business_id).eq("form_version_id", form.active_version_id).order("sort_order"),
       admin.from("businesses").select("name,accent_color").eq("id", form.business_id).single(),

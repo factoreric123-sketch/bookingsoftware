@@ -48,7 +48,7 @@ Baseline: owner A analytics failed with `P0403`, “analytics permission require
 
 - Authenticated and anonymous-token rescheduling reach the repaired authorization branch but fail with `resource_reservations_session_uidx` duplicate-key conflict (HTTP 409). Existing logic deactivates a reservation and inserts another, while the unique index includes inactive rows. Transaction logic/indexes were not changed as part of this authorization contract. Cancellation by a valid anonymous management token passed.
 - The attempted “wrong tenant reschedule” used user B, who is also a manager in A; that is not a valid cross-tenant test. Do not count it as tenant-isolation evidence for rescheduling.
-- Public form UUID loading and submission pass; loading the same fixture by slug returns HTTP 404 despite published state. Separate identifier-resolution issue.
+- Public form UUID loading and submission pass. Slug loading was repaired in `backend-api` by querying `slug` and UUID `id` separately; the published fixture slug returned HTTP 200 with the expected form ID after deployment.
 - Initial test provisioning returned `42501`, “permission denied for table users”; explicit isolated fixtures were used instead. Provisioning is not verified by this task.
 - Customer merge authorization was updated, but a complete merge transaction was not exercised.
 - Signed-in dashboard browser flows were not verified; owner operations were tested through the real deployed endpoint with real verified test-user access tokens.
