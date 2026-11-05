@@ -27,6 +27,7 @@ const authenticatedActions = new Set([
   "create_invoice",
   "record_manual_payment",
   "accept_member_invitation",
+  "create_member_invitation",
   "get_business_analytics",
   "complete_onboarding",
   "get_workspace_snapshot",
@@ -47,6 +48,7 @@ const actorActions = new Set([
   "create_invoice",
   "record_manual_payment",
   "accept_member_invitation",
+  "create_member_invitation",
   "get_business_analytics",
 ]);
 

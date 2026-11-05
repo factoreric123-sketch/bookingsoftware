@@ -1865,6 +1865,10 @@ function Team() {
   const { workspace, addStaff } = useAppStore();
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviting, setInviting] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -1883,11 +1887,31 @@ function Team() {
       setError(caught instanceof Error ? caught.message : "Team profile could not be saved.");
     }
   };
+  const createInvitation = async () => {
+    if (!inviteEmail.trim()) return;
+    setInviting(true);
+    setInviteError("");
+    setInviteLink("");
+    try {
+      const result = await invokeBackend<{ token: string }>("create_member_invitation", {
+        p_business_id: workspace.business.id,
+        p_email: inviteEmail.trim(),
+        p_role: "staff",
+        p_location_ids: workspace.business.defaultLocationId ? [workspace.business.defaultLocationId] : [],
+        p_permissions: {},
+      });
+      setInviteLink(`${location.origin}/invite/${encodeURIComponent(result.token)}`);
+    } catch (caught) {
+      setInviteError(caught instanceof Error ? caught.message : "Invitation could not be created.");
+    } finally {
+      setInviting(false);
+    }
+  };
   return (
     <>
       <PageHeader
         title="Team"
-        copy="Create bookable staff profiles and assign services and weekly capacity. Account invitations are not yet available."
+        copy="Create bookable staff profiles and invite staff to access the workspace."
         action={
           <button className="solid-action" onClick={() => setShow(true)}>
             <UserPlus size={16} />
@@ -1895,6 +1919,14 @@ function Team() {
           </button>
         }
       />
+      <section className="panel settings-form">
+        <h2>Invite a staff member</h2>
+        <p>Create a private invitation link for a staff account. The link expires after seven days and can be used once.</p>
+        <label>Email address<input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="morgan@business.com" /></label>
+        <button className="solid-action" onClick={createInvitation} disabled={inviting || !inviteEmail.trim()}>{inviting ? "Creating…" : "Create invitation link"}</button>
+        {inviteError && <p className="form-error" role="alert">{inviteError}</p>}
+        {inviteLink && <div role="status"><p>Share this link securely with {inviteEmail}. It is shown once.</p><input readOnly value={inviteLink} aria-label="Invitation link" /><button onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy link</button></div>}
+      </section>
       <div className="team-grid">
         {workspace.staff.map((member) => (
           <article className="team-card" key={member.id}>

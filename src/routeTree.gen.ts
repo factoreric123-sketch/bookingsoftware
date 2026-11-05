@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as BookSlugRouteImport } from './routes/book.$slug'
 import { Route as FormsFormIdRouteImport } from './routes/forms.$formId'
+import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as ManageTokenRouteImport } from './routes/manage.$token'
 
 const IndexRoute = IndexRouteImport.update({
@@ -59,6 +60,11 @@ const FormsFormIdRoute = FormsFormIdRouteImport.update({
   path: '/forms/$formId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ManageTokenRoute = ManageTokenRouteImport.update({
   id: '/manage/$token',
   path: '/manage/$token',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/auth/callback': typeof AuthCallbackRoute
   '/book/$slug': typeof BookSlugRoute
   '/forms/$formId': typeof FormsFormIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/manage/$token': typeof ManageTokenRoute
 }
 export interface FileRoutesByTo {
@@ -85,6 +92,7 @@ export interface FileRoutesByTo {
   '/auth/callback': typeof AuthCallbackRoute
   '/book/$slug': typeof BookSlugRoute
   '/forms/$formId': typeof FormsFormIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/manage/$token': typeof ManageTokenRoute
 }
 export interface FileRoutesById {
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/auth/callback': typeof AuthCallbackRoute
   '/book/$slug': typeof BookSlugRoute
   '/forms/$formId': typeof FormsFormIdRoute
+  '/invite/$token': typeof InviteTokenRoute
   '/manage/$token': typeof ManageTokenRoute
 }
 export interface FileRouteTypes {
@@ -110,6 +119,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/book/$slug'
     | '/forms/$formId'
+    | '/invite/$token'
     | '/manage/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/book/$slug'
     | '/forms/$formId'
+    | '/invite/$token'
     | '/manage/$token'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/auth/callback'
     | '/book/$slug'
     | '/forms/$formId'
+    | '/invite/$token'
     | '/manage/$token'
   fileRoutesById: FileRoutesById
 }
@@ -144,6 +156,7 @@ export interface RootRouteChildren {
   AuthCallbackRoute: typeof AuthCallbackRoute
   BookSlugRoute: typeof BookSlugRoute
   FormsFormIdRoute: typeof FormsFormIdRoute
+  InviteTokenRoute: typeof InviteTokenRoute
   ManageTokenRoute: typeof ManageTokenRoute
 }
 
@@ -205,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FormsFormIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/manage/$token': {
       id: '/manage/$token'
       path: '/manage/$token'
@@ -224,6 +244,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthCallbackRoute: AuthCallbackRoute,
   BookSlugRoute: BookSlugRoute,
   FormsFormIdRoute: FormsFormIdRoute,
+  InviteTokenRoute: InviteTokenRoute,
   ManageTokenRoute: ManageTokenRoute,
 }
 export const routeTree = rootRouteImport
