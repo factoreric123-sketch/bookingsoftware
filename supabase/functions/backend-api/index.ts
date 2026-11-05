@@ -322,6 +322,7 @@ Deno.serve(async (req: Request) => {
       admin.from("business_hours").select("*").eq("business_id", businessId).order("iso_weekday"),
       admin.from("services").select("*").eq("business_id", businessId).is("archived_at", null).order("sort_order"),
       admin.from("staff_profiles").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at"),
+      admin.from("business_members").select("user_id,role").eq("business_id", businessId).eq("active", true),
       admin.from("staff_services").select("*").eq("business_id", businessId).eq("active", true),
       admin.from("customers").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at", { ascending: false }).limit(500),
       admin.from("customer_notes").select("*").eq("business_id", businessId).order("created_at", { ascending: false }).limit(2000),
@@ -342,11 +343,11 @@ Deno.serve(async (req: Request) => {
     ]);
     const firstError = results.find((result) => result.error)?.error;
     if (firstError) return json({ error: firstError.message, code: firstError.code }, 400);
-    const [business, settings, locations, businessHours, services, staff, staffServices, customers, customerNotes, customerTags, customerTagAssignments, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, workflowSteps, invoices, aiSettings, calls] = results.map((result) => result.data);
+    const [business, settings, locations, businessHours, services, staff, teamMembers, staffServices, customers, customerNotes, customerTags, customerTagAssignments, sessions, blockedTimes, integrations, forms, formFields, formSubmissions, formSubmissionAnswers, workflows, workflowSteps, invoices, aiSettings, calls] = results.map((result) => result.data);
     const owner = membership.role === "owner";
     const canCustomers = owner || membership.can_manage_customers;
     const canForms = owner || membership.can_manage_forms;
-    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, staff_services: staffServices, customers: canCustomers ? customers : [], customer_notes: canCustomers ? customerNotes : [], customer_tags: canCustomers ? customerTags : [], customer_tag_assignments: canCustomers ? customerTagAssignments : [], sessions: canCustomers ? sessions : [], blocked_times: blockedTimes, integrations: owner ? integrations : [], forms: canForms ? forms : [], form_fields: canForms ? formFields : [], form_submissions: canForms ? formSubmissions : [], form_submission_answers: canForms ? formSubmissionAnswers : [], workflows: owner || membership.can_manage_automations ? workflows : [], workflow_steps: owner || membership.can_manage_automations ? workflowSteps : [], invoices: owner || membership.can_manage_billing ? invoices : [], ai_settings: owner ? aiSettings : null, calls: owner ? calls : [] } });
+    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, team_members: owner || membership.can_manage_staff ? teamMembers : [], staff_services: staffServices, customers: canCustomers ? customers : [], customer_notes: canCustomers ? customerNotes : [], customer_tags: canCustomers ? customerTags : [], customer_tag_assignments: canCustomers ? customerTagAssignments : [], sessions: canCustomers ? sessions : [], blocked_times: blockedTimes, integrations: owner ? integrations : [], forms: canForms ? forms : [], form_fields: canForms ? formFields : [], form_submissions: canForms ? formSubmissions : [], form_submission_answers: canForms ? formSubmissionAnswers : [], workflows: owner || membership.can_manage_automations ? workflows : [], workflow_steps: owner || membership.can_manage_automations ? workflowSteps : [], invoices: owner || membership.can_manage_billing ? invoices : [], ai_settings: owner ? aiSettings : null, calls: owner ? calls : [] } });
   }
 
   if (action === "mutate_workspace") {
