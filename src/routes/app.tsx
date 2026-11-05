@@ -2495,6 +2495,9 @@ function Automations() {
 function Payments() {
   const { workspace, addInvoice, recordManualPayment } = useAppStore();
   const [show, setShow] = useState(false);
+  const [paymentError, setPaymentError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [payingId, setPayingId] = useState("");
   const [form, setForm] = useState({
     customerId: workspace.customers[0]?.id ?? "",
     amount: 0,
@@ -2506,9 +2509,17 @@ function Payments() {
     .filter((invoice) => invoice.status === "paid")
     .reduce((sum, invoice) => sum + invoice.amount, 0);
   const save = async () => {
-    if (!form.customerId || !form.amount) return;
-    await addInvoice(form);
-    setShow(false);
+    if (!form.customerId || form.amount <= 0) return;
+    setSaving(true); setPaymentError("");
+    try { await addInvoice(form); setShow(false); }
+    catch (caught) { setPaymentError(caught instanceof Error ? caught.message : "Invoice could not be created."); }
+    finally { setSaving(false); }
+  };
+  const markPaid = async (id: string, amount: number) => {
+    setPayingId(id); setPaymentError("");
+    try { await recordManualPayment(id, amount); }
+    catch (caught) { setPaymentError(caught instanceof Error ? caught.message : "Payment could not be recorded."); }
+    finally { setPayingId(""); }
   };
   return (
     <>
@@ -2569,11 +2580,12 @@ function Payments() {
               <span>
                 <b>${invoice.amount.toLocaleString()}</b>
               </span>
-              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button onClick={() => void recordManualPayment(invoice.id, invoice.amount)}>Record paid</button>}</span>
+              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button disabled={payingId === invoice.id} onClick={() => void markPaid(invoice.id, invoice.amount)}>{payingId === invoice.id ? "Recording…" : "Record paid"}</button>}</span>
             </div>
           ))}
         </div>
       </div>
+      {paymentError && !show && <p role="alert" className="form-error">{paymentError}</p>}
       <div className="panel provider-note">
         <CreditCard size={21} />
         <div>
@@ -2619,8 +2631,9 @@ function Payments() {
               />
             </label>
           </div>
-          <button className="solid-action full" onClick={save}>
-            Save draft invoice
+          {paymentError && <p role="alert" className="form-error">{paymentError}</p>}
+          <button className="solid-action full" onClick={save} disabled={saving || !form.customerId || form.amount <= 0}>
+            {saving ? "Saving…" : "Save draft invoice"}
           </button>
         </Modal>
       )}
