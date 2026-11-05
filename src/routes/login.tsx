@@ -8,11 +8,13 @@ import { useAuth } from "../lib/auth-context";
 export const Route = createFileRoute("/login")({ head: () => pageHead("Avello \u2014 Sign in", "Sign in or create your Avello business account."), component: Login });
 
 async function nextAuthenticatedRoute() {
-  const { count } = await supabase
+  const { data } = await supabase
     .from("business_members")
-    .select("id", { count: "exact", head: true })
-    .eq("active", true);
-  return count ? "/app" : "/onboarding";
+    .select("role")
+    .eq("active", true)
+    .order("created_at")
+    .limit(1);
+  return data?.[0]?.role === "staff" ? "/staff" : data?.length ? "/app" : "/onboarding";
 }
 
 function Login() {
@@ -41,7 +43,7 @@ function Login() {
         options: { data: { full_name: form.name } },
       });
       if (signUpError) setError(signUpError.message);
-      else if (data.session) await navigate({ to: "/onboarding" });
+      else if (data.session) await navigate({ to: await nextAuthenticatedRoute() });
       else setMessage("Account created. Verify your email, then sign in to finish setup.");
     } else {
       const { error: signInError } = await supabase.auth.signInWithPassword({

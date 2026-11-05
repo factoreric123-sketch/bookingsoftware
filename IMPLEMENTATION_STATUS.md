@@ -28,7 +28,7 @@ Updated November 7, 2026. This document separates live production behavior, sand
 - Forms submit publicly, and the dashboard creates immutable versions for both new forms and edits. CRM identity mappings are explicitly selected per field.
 - Invoice creation and manual payment recording use protected database operations. Stripe collection remains provider-dependent.
 - The analytics panel consumes the production analytics RPC for its 30-day operational metrics.
-- Team data loads from Supabase. Staff invitation creation and redemption are connected through service-role-only RPCs and a one-time link. Database-role regression checks passed; authenticated browser redemption still needs verification. Role editing and time-off interfaces remain.
+- Team data loads from Supabase. Staff invitation creation and redemption are connected through service-role-only RPCs and a one-time link. Invited staff have a scoped schedule route showing only appointments assigned to their linked profile and invited locations; a unique verified-email profile match is used when a profile has no user link. Database-role regression checks passed; authenticated browser redemption and schedule visibility still need verification with isolated accounts. Role editing and time-off interfaces remain.
 - Calendar data loads from Supabase and week navigation is dynamic. Additional location filtering remains.
 - Database acceptance coverage is not yet at the required 50 concurrent/RLS scenarios.
 

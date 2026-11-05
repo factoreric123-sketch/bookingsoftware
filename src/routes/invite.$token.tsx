@@ -40,7 +40,7 @@ function Invitation() {
     setBusy(true); setError("");
     try {
       await invokeBackend("accept_member_invitation", { p_token: token });
-      await navigate({ to: "/app" });
+      await navigate({ to: "/staff" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Invitation could not be accepted.");
     } finally { setBusy(false); }

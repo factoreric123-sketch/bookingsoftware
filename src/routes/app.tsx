@@ -48,6 +48,7 @@ import {
 import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField } from "../lib/app-store";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
+import { supabase } from "../integrations/supabase/client";
 
 export const Route = createFileRoute("/app")({ head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."), component: Dashboard });
 type Section =
@@ -95,8 +96,10 @@ function Dashboard() {
     if (!authLoading && !user) navigate({ to: "/login", replace: true });
   }, [authLoading, navigate, user]);
   useEffect(() => {
-    if (!authLoading && user && !isLoading && !workspace.business.id)
-      navigate({ to: "/onboarding", replace: true });
+    if (!authLoading && user && !isLoading && !workspace.business.id) {
+      void supabase.from("business_members").select("role").eq("active", true).order("created_at").limit(1)
+        .then(({ data }) => navigate({ to: data?.[0]?.role === "staff" ? "/staff" : "/onboarding", replace: true }));
+    }
   }, [authLoading, isLoading, navigate, user, workspace.business.id]);
   if (authLoading || !user || isLoading)
     return <div className="app-loading">Loading your workspace…</div>;

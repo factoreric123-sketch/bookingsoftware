@@ -14,8 +14,8 @@ function AuthCallback() {
     if (!code) { setError("The authentication link is missing its authorization code."); return; }
     supabase.auth.exchangeCodeForSession(code).then(async ({ error: exchangeError }) => {
       if (exchangeError) { setError(exchangeError.message); return; }
-      const { count } = await supabase.from("business_members").select("id", { count: "exact", head: true }).eq("active", true);
-      await navigate({ to: count ? "/app" : "/onboarding", replace: true });
+      const { data } = await supabase.from("business_members").select("role").eq("active", true).order("created_at").limit(1);
+      await navigate({ to: data?.[0]?.role === "staff" ? "/staff" : data?.length ? "/app" : "/onboarding", replace: true });
     });
   }, [navigate]);
   return <div className="auth-page"><main className="auth-form-wrap"><div className="auth-form"><span className="mobile-auth-logo">A</span><h2>{error ? "Authentication failed" : "Finishing sign in"}</h2>{error ? <div className="auth-error">{error}</div> : <p><Loader2 className="spin" size={18}/> Verifying your secure link…</p>}</div></main></div>;
