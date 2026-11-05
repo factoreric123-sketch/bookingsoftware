@@ -24,7 +24,7 @@ Updated November 7, 2026. This document separates live production behavior, sand
 ## Partially connected
 
 - The Edge workspace snapshot strips customer, form, billing, integration and call data by membership permission. Staff and location-restricted managers use a separate scoped schedule. The manager schedule lists only sessions in assigned locations and omits customer identities; the staff schedule lists only bookings assigned to the matched profile. Custom workspace writes require the matching manager permission flag. Authenticated browser regression remains to be run with isolated test tokens.
-- Dashboard services, customers, customer notes/tags, settings, and AI configuration persist. Workflow drafts store a create-task step and a database trigger value; activation remains disabled until a job runner exists.
+- Dashboard services, customers, customer notes/tags, settings, and AI configuration persist. Customer profiles can merge into another customer through the protected RPC, with a confirmed destination and workspace refresh; see `docs/customer-merge-verification.md` for the rollback-only check. Workflow drafts store a create-task step and a database trigger value; activation remains disabled until a job runner exists.
 - Forms submit publicly, and the dashboard creates immutable versions for both new forms and edits. CRM identity mappings are explicitly selected per field.
 - Invoice creation and manual payment recording use protected database operations. Stripe collection remains provider-dependent.
 - The analytics panel consumes the production analytics RPC for its 30-day operational metrics.

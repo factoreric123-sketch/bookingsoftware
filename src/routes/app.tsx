@@ -907,7 +907,7 @@ function Bookings({ title }: { title: string }) {
 }
 
 function Customers() {
-  const { workspace, addCustomer, updateCustomer } = useAppStore();
+  const { workspace, addCustomer, updateCustomer, mergeCustomer } = useAppStore();
   const [show, setShow] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
@@ -916,6 +916,10 @@ function Customers() {
   const [draft, setDraft] = useState({ name: "", email: "", phone: "", notes: "", tags: "" });
   const [profileError, setProfileError] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
+  const [mergeDestinationId, setMergeDestinationId] = useState("");
+  const [mergeConfirmed, setMergeConfirmed] = useState(false);
+  const [merging, setMerging] = useState(false);
+  const [mergeNotice, setMergeNotice] = useState("");
   const [createError, setCreateError] = useState("");
   const [creating, setCreating] = useState(false);
   const filtered = workspace.customers.filter((customer) =>
@@ -951,6 +955,24 @@ function Customers() {
     });
     setSelectedId(id);
     setProfileError("");
+    setMergeDestinationId("");
+    setMergeConfirmed(false);
+  };
+  const mergeProfile = async () => {
+    if (!selected || !mergeDestinationId || !mergeConfirmed) return;
+    setMerging(true);
+    setProfileError("");
+    try {
+      await mergeCustomer(selected.id, mergeDestinationId);
+      setSelectedId("");
+      setMergeNotice("Customer records merged. Related history now belongs to the destination customer.");
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Customer merge failed.";
+      if (message.startsWith("Merge outcome")) { setSelectedId(""); setMergeNotice(message); }
+      else setProfileError(message);
+    } finally {
+      setMerging(false);
+    }
   };
   const saveProfile = async () => {
     if (!selected || !draft.name) return;
@@ -1047,6 +1069,7 @@ function Customers() {
         }
       />
       {createError && !show && <p className="form-error" role="alert">{createError}</p>}
+      {mergeNotice && <p role="status">{mergeNotice}</p>}
       <div className="panel customer-panel">
         <div className="table-toolbar">
           <div className="table-search">
@@ -1241,6 +1264,18 @@ function Customers() {
           <button className="solid-action full" onClick={saveProfile} disabled={savingProfile}>
             {savingProfile ? "Saving…" : "Save customer profile"}
           </button>
+          {workspace.customers.length > 1 && <section className="customer-history">
+            <h3>Merge duplicate customer</h3>
+            <p>Move this customer's appointments, invoices, forms, notes, and other history into another customer record.</p>
+            <label>Keep this customer
+              <select value={mergeDestinationId} onChange={(event) => { setMergeDestinationId(event.target.value); setMergeConfirmed(false); }}>
+                <option value="">Select destination</option>
+                {workspace.customers.filter((customer) => customer.id !== selected.id).map((customer) => <option key={customer.id} value={customer.id}>{customer.name} · {customer.email || customer.phone}</option>)}
+              </select>
+            </label>
+            <label><input type="checkbox" checked={mergeConfirmed} onChange={(event) => setMergeConfirmed(event.target.checked)} /> I understand this customer will be marked merged and its history moved.</label>
+            <button className="secondary-action" onClick={mergeProfile} disabled={!mergeDestinationId || !mergeConfirmed || merging}>{merging ? "Merging…" : "Merge into selected customer"}</button>
+          </section>}
         </Modal>
       )}
     </>
