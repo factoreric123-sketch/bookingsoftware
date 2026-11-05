@@ -39,8 +39,10 @@ function Invitation() {
   const accept = async () => {
     setBusy(true); setError("");
     try {
-      await invokeBackend("accept_member_invitation", { p_token: token });
-      await navigate({ to: "/staff" });
+      const accepted = await invokeBackend<{ business_id: string; role: "staff" | "manager" }>("accept_member_invitation", { p_token: token });
+      const { data: membership } = await supabase.from("business_members")
+        .select("role,all_locations").eq("business_id", accepted.business_id).eq("active", true).maybeSingle();
+      await navigate({ to: accepted.role === "manager" && membership?.all_locations !== false ? "/app" : "/staff" });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Invitation could not be accepted.");
     } finally { setBusy(false); }

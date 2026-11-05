@@ -94,6 +94,23 @@ function Dashboard() {
   const [section, setSection] = useState<Section>("Overview");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hasMembership, setHasMembership] = useState<boolean | null>(null);
+  const canView = (label: Section) => {
+    if (workspace.memberRole === "owner") return true;
+    const permission = workspace.memberPermissions;
+    if (["Calendar", "Bookings", "Customers"].includes(label)) return permission["can_manage_customers"] === true;
+    if (label === "Services") return permission["can_manage_services"] === true;
+    if (label === "Team") return permission["can_manage_staff"] === true;
+    if (label === "Messages") return permission["can_manage_messages"] === true;
+    if (label === "Forms") return permission["can_manage_forms"] === true;
+    if (label === "Automations") return permission["can_manage_automations"] === true;
+    if (label === "Payments") return permission["can_manage_billing"] === true;
+    if (label === "Analytics") return permission["can_view_analytics"] === true;
+    return label === "Booking Page";
+  };
+  const visibleNavigation = navigation.filter((item) => canView(item.label));
+  useEffect(() => {
+    if (workspace.business.id && !canView(section)) setSection(visibleNavigation[0]?.label ?? "Booking Page");
+  }, [section, workspace.business.id, workspace.memberRole, workspace.memberPermissions]);
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/login", replace: true });
   }, [authLoading, navigate, user]);
@@ -131,7 +148,7 @@ function Dashboard() {
           </span>
         </div>
         <nav>
-          {navigation.map(({ label, icon: Icon }) => (
+          {visibleNavigation.map(({ label, icon: Icon }) => (
             <button
               key={label}
               className={section === label ? "active" : ""}
@@ -186,7 +203,7 @@ function Dashboard() {
           </div>
         )}
         <main className="dashboard-content">
-          <SectionView section={section} onNavigate={setSection} />
+          <SectionView section={canView(section) ? section : visibleNavigation[0]?.label ?? "Booking Page"} onNavigate={(target) => { if (canView(target)) setSection(target); }} />
         </main>
       </div>
     </div>
@@ -1859,9 +1876,21 @@ function Team() {
   const [error, setError] = useState("");
   const [savingStaff, setSavingStaff] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<"staff" | "manager">("staff");
+  const [invitePermissions, setInvitePermissions] = useState<Record<string, boolean>>({});
   const [inviteLink, setInviteLink] = useState("");
   const [inviteError, setInviteError] = useState("");
   const [inviting, setInviting] = useState(false);
+  const managerFlags = [
+    ["can_manage_customers", "Manage customers"],
+    ["can_manage_services", "Manage services"],
+    ["can_manage_staff", "Invite staff"],
+    ["can_manage_forms", "Manage forms"],
+    ["can_manage_messages", "Manage messages"],
+    ["can_manage_automations", "Manage automations"],
+    ["can_view_analytics", "View analytics"],
+    ["can_manage_billing", "Manage billing"],
+  ] as const;
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -1893,9 +1922,9 @@ function Team() {
       const result = await invokeBackend<{ token: string }>("create_member_invitation", {
         p_business_id: workspace.business.id,
         p_email: inviteEmail.trim(),
-        p_role: "staff",
-        p_location_ids: workspace.business.defaultLocationId ? [workspace.business.defaultLocationId] : [],
-        p_permissions: {},
+        p_role: inviteRole,
+        p_location_ids: inviteRole === "manager" ? [] : workspace.business.defaultLocationId ? [workspace.business.defaultLocationId] : [],
+        p_permissions: inviteRole === "manager" ? invitePermissions : {},
       });
       setInviteLink(`${location.origin}/invite/${encodeURIComponent(result.token)}`);
     } catch (caught) {
@@ -1908,7 +1937,7 @@ function Team() {
     <>
       <PageHeader
         title="Team"
-        copy="Create bookable staff profiles and invite staff to access the workspace."
+        copy="Create bookable staff profiles and invite team members to access the workspace."
         action={
           <button className="solid-action" onClick={() => setShow(true)}>
             <UserPlus size={16} />
@@ -1917,9 +1946,11 @@ function Team() {
         }
       />
       <section className="panel settings-form">
-        <h2>Invite a staff member</h2>
-        <p>Create a private invitation link for a staff account. The link expires after seven days and can be used once.</p>
+        <h2>Invite a team member</h2>
+        <p>Create a private invitation link. It expires after seven days and can be used once.</p>
         <label>Email address<input type="email" value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="morgan@business.com" /></label>
+        {workspace.memberRole === "owner" && <label>Account role<select value={inviteRole} onChange={(event) => { setInviteRole(event.target.value as "staff" | "manager"); setInvitePermissions({}); }}><option value="staff">Staff</option><option value="manager">Manager</option></select></label>}
+        {inviteRole === "manager" && <fieldset className="service-checks"><legend>Manager permissions</legend><p>This invitation grants access to all business locations. Select only the permissions this manager needs.</p>{managerFlags.map(([key, label]) => <label key={key}><input type="checkbox" checked={invitePermissions[key] === true} onChange={(event) => setInvitePermissions((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</fieldset>}
         <button className="solid-action" onClick={createInvitation} disabled={inviting || !inviteEmail.trim()}>{inviting ? "Creating…" : "Create invitation link"}</button>
         {inviteError && <p className="form-error" role="alert">{inviteError}</p>}
         {inviteLink && <div role="status"><p>Share this link securely with {inviteEmail}. It is shown once.</p><input readOnly value={inviteLink} aria-label="Invitation link" /><button onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy link</button></div>}

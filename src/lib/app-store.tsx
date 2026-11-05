@@ -18,12 +18,14 @@ export type Invoice = { id: string; customerId: string; number: string; amount: 
 export type AiReceptionist = { name: string; greeting: string; transferPhone: string; voice: string; afterHours: "take-message" | "offer-callback"; recordingEnabled: boolean; disclosureEnabled: boolean };
 export type CallLog = { id: string; caller: string; startedAt: string; durationSeconds: number; outcome: "booked" | "message" | "transferred"; summary: string; appointmentId?: string; sandbox: true };
 export type BlockedTime = { id: string; staffId?: string; date: string; start: string; end: string; reason: string; createdAt: string };
-export type Workspace = { business: Business; services: Service[]; customers: Customer[]; appointments: Appointment[]; blockedTimes: BlockedTime[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
+export type Workspace = { business: Business; memberRole: "owner" | "manager" | "staff"; memberPermissions: Record<string, boolean>; services: Service[]; customers: Customer[]; appointments: Appointment[]; blockedTimes: BlockedTime[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const defaultHours = Object.fromEntries(days.map((day, index) => [day, { open: "09:00", close: "17:00", enabled: index < 5 }])) as Business["hours"];
 
 export const seedWorkspace: Workspace = {
+  memberRole: "owner",
+  memberPermissions: {},
   business: { id: "biz_demo", name: "Northstar Studio", slug: "northstar-studio", industry: "Professional services", email: "hello@northstar.example", phone: "(555) 014-0184", address: "128 Market Street, Brooklyn, NY", timezone: "America/New_York", accent: "#6d5dfc", setupComplete: true, hours: defaultHours },
   services: [
     { id: "svc_strategy", name: "Strategy session", description: "A focused planning session for your next project.", duration: 60, price: 150, color: "#6d5dfc", active: true },
@@ -99,6 +101,8 @@ const minutes = (time: string) => { const [h = 0, m = 0] = time.split(":").map(N
 
 function emptyWorkspace(): Workspace {
   return {
+    memberRole: "staff",
+    memberPermissions: {},
     business: { id: "", name: "", slug: "", industry: "", email: "", phone: "", address: "", timezone: "America/New_York", accent: "#6d5dfc", setupComplete: false, hours: defaultHours },
     services: [], customers: [], appointments: [], blockedTimes: [], integrations: [], staff: [], forms: [], formSubmissions: [], workflows: [], invoices: [],
     aiReceptionist: { name: "Ava", greeting: "", transferPhone: "", voice: "Warm and professional", afterHours: "take-message", recordingEnabled: false, disclosureEnabled: true },
@@ -130,6 +134,8 @@ function mapSnapshot(snapshot: any): Workspace {
   }
   const blockedTimes = (snapshot.blocked_times ?? []).map((item: any): BlockedTime => { const start = zonedParts(item.starts_at, business.timezone ?? "America/New_York"); const end = zonedParts(item.ends_at, business.timezone ?? "America/New_York"); return { id: item.id, staffId: item.staff_id ?? undefined, date: start.date, start: start.time, end: end.time, reason: item.reason, createdAt: item.created_at }; });
   return {
+    memberRole: snapshot.membership?.role ?? "staff",
+    memberPermissions: Object.fromEntries(Object.entries(snapshot.membership ?? {}).filter(([key]) => key.startsWith("can_")).map(([key, value]) => [key, value === true])),
     business: { id: business.id, name: business.name, slug: business.slug, industry: business.industry, email: business.email ?? "", phone: business.phone_e164 ?? "", address: [location.address_line1, location.address_line2, location.city, location.region, location.postal_code].filter(Boolean).join(", "), timezone: business.timezone, currency: business.currency, defaultLocationId: location.id, accent: business.accent_color, setupComplete: Boolean(business.setup_completed_at), hours: hourMap },
     services, customers, appointments, blockedTimes, staff,
     integrations: (snapshot.integrations ?? []).map((item: any): Integration => ({ id: item.id, name: String(item.provider).replaceAll("_", " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase()), description: "Provider connection", status: item.status === "connected" ? "connected" : item.status === "pending_approval" ? "pending-approval" : "not-configured", category: "Integration" })),

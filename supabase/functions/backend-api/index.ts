@@ -306,7 +306,7 @@ Deno.serve(async (req: Request) => {
 
   if (action === "get_workspace_snapshot") {
     const requestedBusinessId = typeof params.p_business_id === "string" ? params.p_business_id : null;
-    let membershipQuery = admin.from("business_members").select("business_id,role,all_locations,can_manage_services,can_manage_staff,can_manage_customers,can_manage_forms,can_manage_automations,can_manage_billing,can_view_analytics").eq("user_id", userId!).eq("active", true);
+    let membershipQuery = admin.from("business_members").select("business_id,role,all_locations,can_manage_services,can_manage_staff,can_manage_customers,can_manage_forms,can_manage_messages,can_manage_automations,can_manage_billing,can_view_analytics").eq("user_id", userId!).eq("active", true);
     if (requestedBusinessId) membershipQuery = membershipQuery.eq("business_id", requestedBusinessId);
     const { data: memberships, error: membershipError } = await membershipQuery.order("created_at").limit(1);
     if (membershipError) return json({ error: membershipError.message, code: membershipError.code }, 400);
