@@ -896,6 +896,8 @@ function Customers() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "", tags: ["New"] });
   const selected = workspace.customers.find((customer) => customer.id === selectedId);
   const [draft, setDraft] = useState({ name: "", email: "", phone: "", notes: "", tags: "" });
+  const [profileError, setProfileError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const filtered = workspace.customers.filter((customer) =>
     `${customer.name} ${customer.email} ${customer.phone} ${customer.tags.join(" ")}`
       .toLowerCase()
@@ -918,10 +920,14 @@ function Customers() {
       tags: customer.tags.join(", "),
     });
     setSelectedId(id);
+    setProfileError("");
   };
-  const saveProfile = () => {
+  const saveProfile = async () => {
     if (!selected || !draft.name) return;
-    updateCustomer(selected.id, {
+    setSavingProfile(true);
+    setProfileError("");
+    try {
+      await updateCustomer(selected.id, {
       name: draft.name,
       email: draft.email,
       phone: draft.phone,
@@ -930,8 +936,13 @@ function Customers() {
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean),
-    });
-    setSelectedId("");
+      });
+      setSelectedId("");
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "Unable to save customer profile.");
+    } finally {
+      setSavingProfile(false);
+    }
   };
   const exportCsv = () => {
     const quote = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
@@ -1194,8 +1205,9 @@ function Customers() {
               <p>No activity recorded yet.</p>
             )}
           </div>
-          <button className="solid-action full" onClick={saveProfile}>
-            Save customer profile
+          {profileError && <p role="alert" className="form-error">{profileError}</p>}
+          <button className="solid-action full" onClick={saveProfile} disabled={savingProfile}>
+            {savingProfile ? "Saving…" : "Save customer profile"}
           </button>
         </Modal>
       )}
