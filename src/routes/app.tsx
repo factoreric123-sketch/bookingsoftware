@@ -2700,7 +2700,22 @@ function Analytics() {
 function BusinessSettings() {
   const { workspace, updateBusiness } = useAppStore();
   const [business, setBusiness] = useState(workspace.business);
-  const save = () => updateBusiness(business);
+  const [saveError, setSaveError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const save = async () => {
+    setSaving(true);
+    setSaved(false);
+    setSaveError("");
+    try {
+      await updateBusiness({ name: business.name, industry: business.industry, email: business.email, phone: business.phone });
+      setSaved(true);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to save business profile.");
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <>
       <PageHeader
@@ -2741,12 +2756,7 @@ function BusinessSettings() {
               <span>avello.app/book/</span>
               <input
                 value={business.slug}
-                onChange={(e) =>
-                  setBusiness({
-                    ...business,
-                    slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
-                  })
-                }
+                readOnly
               />
             </div>
           </label>
@@ -2770,14 +2780,16 @@ function BusinessSettings() {
             Address
             <input
               value={business.address}
-              onChange={(e) => setBusiness({ ...business, address: e.target.value })}
+              readOnly
             />
           </label>
           <div className="settings-actions">
-            <button className="solid-action" onClick={save}>
-              Save changes
+            <button className="solid-action" onClick={save} disabled={saving}>
+              {saving ? "Saving…" : "Save changes"}
             </button>
           </div>
+          {saveError && <p role="alert" className="form-error">{saveError}</p>}
+          {saved && <p role="status">Business profile saved.</p>}
         </section>
       </div>
     </>
