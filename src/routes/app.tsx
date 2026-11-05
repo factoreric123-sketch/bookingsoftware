@@ -1616,9 +1616,13 @@ function PhoneAi() {
           </div>
           <button
             className="solid-action"
-            onClick={() => {
-              updateAiReceptionist(settings);
-              setResult("Receptionist settings saved to your workspace.");
+            onClick={async () => {
+              try {
+                await updateAiReceptionist(settings);
+                setResult("Receptionist settings saved to your workspace.");
+              } catch (error) {
+                setResult(error instanceof Error ? error.message : "Unable to save receptionist settings.");
+              }
             }}
           >
             Save settings
