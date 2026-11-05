@@ -1374,7 +1374,7 @@ function Integrations() {
                   : "Not configured"}
             </div>
             <button className="secondary-action" disabled>
-              {item.status === "pending-approval" ? "View requirements" : "Configure in Lovable"}
+              {item.status === "pending-approval" ? "Partner approval pending" : "Provider credentials required"}
             </button>
           </article>
         ))}
@@ -1395,51 +1395,28 @@ function Integrations() {
 }
 
 function Messages() {
-  const { workspace } = useAppStore();
-  const [selected, setSelected] = useState(workspace.customers[0]?.id);
   return (
     <>
       <PageHeader
         title="Messages"
-        copy="One inbox for customer conversations and booking updates."
+        copy="Customer conversations will appear here after a messaging provider is connected."
       />
       <div className="inbox-shell">
         <aside>
-          <div className="table-search">
-            <Search size={16} />
-            <input placeholder="Search conversations" />
-          </div>
-          {workspace.customers.map((c, i) => (
-            <button
-              className={selected === c.id ? "active" : ""}
-              onClick={() => setSelected(c.id)}
-              key={c.id}
-            >
-              <span>{initials(c.name)}</span>
-              <div>
-                <b>{c.name}</b>
-                <small>
-                  {i === 0 ? "Thanks, that time works perfectly." : "No provider connected yet"}
-                </small>
-              </div>
-              {i === 0 && <i>2</i>}
-            </button>
-          ))}
+          <p>No conversations yet.</p>
         </aside>
         <section>
           <div className="conversation-head">
-            <span>{initials(workspace.customers.find((c) => c.id === selected)?.name ?? "")}</span>
             <div>
-              <b>{workspace.customers.find((c) => c.id === selected)?.name}</b>
-              <small>SMS unavailable · Twilio not configured</small>
+              <b>Messaging unavailable</b>
+              <small>SMS provider not configured</small>
             </div>
           </div>
           <div className="message-empty">
             <Inbox size={34} />
-            <h3>Conversation preview</h3>
+            <h3>No messages to show</h3>
             <p>
-              Connect Twilio in Lovable to send and receive real messages. Avello will never claim a
-              message was delivered without a provider event.
+              Connect a messaging provider to send and receive real messages. Delivery will be shown only after a provider event.
             </p>
           </div>
           <div className="composer">
