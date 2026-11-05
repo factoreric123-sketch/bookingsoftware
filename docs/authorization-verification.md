@@ -57,3 +57,8 @@ Baseline: owner A analytics failed with `P0403`, “analytics permission require
 - Isolated test users, tenants and transaction records remain under conspicuous authorization-verification names. No production user records were modified by these fixtures; cleanup has not been performed.
 
 The authorization mismatch is repaired and tested for the listed cases, but the full workflow verification is **not complete** because of the failures and unavailable advisor above.
+
+## Next Lovable-managed migration
+
+1. In `public.reschedule_appointment`, preserve the current validation, row-version, policy, idempotency, and event logic. For an individual session, update the existing `resource_reservations` row identified by `(business_id, session_id, staff_id)` with the new buffered `starts_at` and `ends_at` instead of deactivating it and inserting a duplicate. The unique index `resource_reservations_session_uidx` covers inactive rows too. Verify successful reschedule, a competing booking conflict, rollback to the original slot after failure, and token/actor isolation.
+2. In `public.provision_business`, remove the `auth.users` read used only to derive `v_display_name`. Read `public.profiles.full_name` by the verified actor UUID and fall back to `Owner`. Keep the existing function signature, service-role-only EXECUTE grant, transactional provisioning, and idempotency. Verify fresh owner onboarding with a new user and a second tenant. Also enforce organization admin role (owner/admin), not merely active organization membership, when `p_organization_id` is supplied.
