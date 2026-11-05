@@ -515,6 +515,14 @@ function CalendarWorkspace() {
     setError("");
     setShow(false);
   };
+  const removeBlock = async (id: string) => {
+    setError("");
+    try {
+      await removeBlockedTime(id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Blocked time could not be removed.");
+    }
+  };
   return (
     <>
       <PageHeader
@@ -536,6 +544,7 @@ function CalendarWorkspace() {
         </div>
         <span>Week view</span>
       </div>
+      {error && <div className="booking-error" role="alert">{error}</div>}
       <div className="team-calendar panel">
         <div className="calendar-head">
           <span>Team member</span>
@@ -596,7 +605,7 @@ function CalendarWorkspace() {
                         <small>{item.reason}</small>
                         <button
                           aria-label={`Remove ${item.reason}`}
-                          onClick={() => removeBlockedTime(item.id)}
+                          onClick={() => void removeBlock(item.id)}
                         >
                           <X size={10} />
                         </button>
@@ -634,7 +643,7 @@ function CalendarWorkspace() {
                     · {formatDate(item.date)} · {prettyTime(item.start)}–{prettyTime(item.end)}
                   </small>
                 </div>
-                <button onClick={() => removeBlockedTime(item.id)}>Remove</button>
+                <button onClick={() => void removeBlock(item.id)}>Remove</button>
               </div>
             ))
         )}
