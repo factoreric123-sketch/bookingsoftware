@@ -1958,8 +1958,9 @@ function BookingTools() {
 }
 
 function Team() {
-  const { workspace, addStaff } = useAppStore();
+  const { workspace, addStaff, updateStaff } = useAppStore();
   const [show, setShow] = useState(false);
+  const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
   const [savingStaff, setSavingStaff] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -1987,18 +1988,32 @@ function Team() {
     weeklyHours: 40,
   });
   const save = async () => {
-    if (!form.name || !form.email) return;
+    if (!form.name.trim() || !form.email.trim() || form.weeklyHours < 0) return;
     setError("");
     setSavingStaff(true);
     try {
-      await addStaff(form);
+      if (editingId) await updateStaff(editingId, form);
+      else await addStaff(form);
       setShow(false);
+      setEditingId("");
       setForm({ name: "", email: "", role: "staff", active: true, serviceIds: [], weeklyHours: 40 });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Team profile could not be saved.");
     } finally {
       setSavingStaff(false);
     }
+  };
+  const openCreate = () => {
+    setEditingId("");
+    setError("");
+    setForm({ name: "", email: "", role: "staff", active: true, serviceIds: [], weeklyHours: 40 });
+    setShow(true);
+  };
+  const openEdit = (member: (typeof workspace.staff)[number]) => {
+    setEditingId(member.id);
+    setError("");
+    setForm({ name: member.name, email: member.email, role: "staff", active: member.active, serviceIds: member.serviceIds, weeklyHours: member.weeklyHours });
+    setShow(true);
   };
   const createInvitation = async () => {
     if (!inviteEmail.trim()) return;
@@ -2026,7 +2041,7 @@ function Team() {
         title="Team"
         copy="Create bookable staff profiles and invite team members to access the workspace."
         action={
-          <button className="solid-action" onClick={() => setShow(true)}>
+          <button className="solid-action" onClick={openCreate}>
             <UserPlus size={16} />
             Add team member
           </button>
@@ -2074,11 +2089,12 @@ function Team() {
                 </span>
               ))}
             </div>
+            <button type="button" className="secondary-action" onClick={() => openEdit(member)}>Edit profile</button>
           </article>
         ))}
       </div>
       {show && (
-        <Modal title="Add team member" onClose={() => setShow(false)}>
+        <Modal title={editingId ? "Edit team profile" : "Add team member"} onClose={() => setShow(false)}>
           {error && <div className="booking-error" role="alert">{error}</div>}
           <label>
             Full name
@@ -2098,17 +2114,19 @@ function Team() {
             />
           </label>
           <div className="field-pair">
-            <p>This creates a scheduling profile. Login access and manager permissions require an invitation.</p>
+            <p>{editingId ? "This changes the scheduling profile. Account login and manager permissions are managed separately." : "This creates a scheduling profile. Login access and manager permissions require an invitation."}</p>
             <label>
               Weekly hours
               <input
                 type="number"
+                min="0"
                 value={form.weeklyHours}
                 onChange={(e) => setForm({ ...form, weeklyHours: Number(e.target.value) })}
               />
             </label>
           </div>
-          <fieldset className="service-checks">
+          {editingId && <label>Active profile<input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /></label>}
+          {!editingId && <fieldset className="service-checks">
             <legend>Assigned services</legend>
             {workspace.services.map((service) => (
               <label key={service.id}>
@@ -2127,9 +2145,10 @@ function Team() {
                 {service.name}
               </label>
             ))}
-          </fieldset>
-          <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || !form.email.trim()}>
-            {savingStaff ? "Saving…" : "Add member"}
+          </fieldset>}
+          {editingId && <p>Service assignments stay as shown on the profile card.</p>}
+          <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || !form.email.trim() || form.weeklyHours < 0}>
+            {savingStaff ? "Saving…" : editingId ? "Save profile" : "Add member"}
           </button>
         </Modal>
       )}
