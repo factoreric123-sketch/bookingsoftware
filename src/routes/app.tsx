@@ -1854,6 +1854,7 @@ function Team() {
   const { workspace, addStaff } = useAppStore();
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
+  const [savingStaff, setSavingStaff] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [inviteError, setInviteError] = useState("");
@@ -1869,11 +1870,15 @@ function Team() {
   const save = async () => {
     if (!form.name || !form.email) return;
     setError("");
+    setSavingStaff(true);
     try {
       await addStaff(form);
       setShow(false);
+      setForm({ name: "", email: "", role: "staff", active: true, serviceIds: [], weeklyHours: 40 });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Team profile could not be saved.");
+    } finally {
+      setSavingStaff(false);
     }
   };
   const createInvitation = async () => {
@@ -2002,8 +2007,8 @@ function Team() {
               </label>
             ))}
           </fieldset>
-          <button className="solid-action full" onClick={save}>
-            Add member
+          <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || !form.email.trim()}>
+            {savingStaff ? "Saving…" : "Add member"}
           </button>
         </Modal>
       )}
