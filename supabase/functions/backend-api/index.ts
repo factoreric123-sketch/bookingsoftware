@@ -318,8 +318,21 @@ Deno.serve(async (req: Request) => {
       if (entity === "staff_profile") {
         const locationId = typeof incoming.location_id === "string" ? incoming.location_id : null;
         const serviceIds = Array.isArray(incoming.service_ids) ? incoming.service_ids.filter((value): value is string => typeof value === "string") : [];
-        if (locationId) await admin.from("staff_locations").insert({ business_id: businessId, staff_id: data.id, location_id: locationId });
-        if (serviceIds.length) await admin.from("staff_services").insert(serviceIds.map((serviceId) => ({ business_id: businessId, staff_id: data.id, service_id: serviceId })));
+        if (locationId) {
+          const { error: linkError } = await admin.from("staff_locations").insert({ business_id: businessId, staff_id: data.id, location_id: locationId });
+          if (linkError) {
+            await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
+            return json({ error: linkError.message, code: linkError.code }, 400);
+          }
+        }
+        if (serviceIds.length) {
+          const { error: serviceError } = await admin.from("staff_services").insert(serviceIds.map((serviceId) => ({ business_id: businessId, staff_id: data.id, service_id: serviceId })));
+          if (serviceError) {
+            await admin.from("staff_locations").delete().eq("business_id", businessId).eq("staff_id", data.id);
+            await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
+            return json({ error: serviceError.message, code: serviceError.code }, 400);
+          }
+        }
       }
       if (entity === "service") {
         const locationId = typeof incoming.location_id === "string" ? incoming.location_id : null;
@@ -504,7 +517,10 @@ Deno.serve(async (req: Request) => {
     const note = typeof params.p_note === "string" ? params.p_note.trim() : "";
     if (note) {
       const { data: latest } = await admin.from("customer_notes").select("body").eq("business_id", businessId).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (latest?.body !== note) await admin.from("customer_notes").insert({ business_id: businessId, customer_id: customerId, author_user_id: userId, body: note });
+      if (latest?.body !== note) {
+        const { error: noteError } = await admin.from("customer_notes").insert({ business_id: businessId, customer_id: customerId, author_user_id: userId, body: note });
+        if (noteError) return json({ error: noteError.message, code: noteError.code }, 400);
+      }
     }
     const tagNames = Array.isArray(params.p_tags) ? [...new Set(params.p_tags.map((value) => String(value).trim()).filter(Boolean))].slice(0, 25) : [];
     const tagIds: string[] = [];
@@ -513,8 +529,19 @@ Deno.serve(async (req: Request) => {
       if (error) return json({ error: error.message, code: error.code }, 400);
       tagIds.push(tag.id);
     }
-    await admin.from("customer_tag_assignments").delete().eq("business_id", businessId).eq("customer_id", customerId);
-    if (tagIds.length) await admin.from("customer_tag_assignments").insert(tagIds.map((tagId) => ({ business_id: businessId, customer_id: customerId, tag_id: tagId })));
+    const { data: oldAssignments, error: readError } = await admin.from("customer_tag_assignments").select("id,tag_id").eq("business_id", businessId).eq("customer_id", customerId);
+    if (readError) return json({ error: readError.message, code: readError.code }, 400);
+    const existingTagIds = new Set((oldAssignments ?? []).map((assignment) => assignment.tag_id));
+    const newTagIds = tagIds.filter((tagId) => !existingTagIds.has(tagId));
+    if (newTagIds.length) {
+      const { error: insertError } = await admin.from("customer_tag_assignments").insert(newTagIds.map((tagId) => ({ business_id: businessId, customer_id: customerId, tag_id: tagId })));
+      if (insertError) return json({ error: insertError.message, code: insertError.code }, 400);
+    }
+    const removedIds = (oldAssignments ?? []).filter((assignment) => !tagIds.includes(assignment.tag_id)).map((assignment) => assignment.id);
+    if (removedIds.length) {
+      const { error: deleteError } = await admin.from("customer_tag_assignments").delete().eq("business_id", businessId).eq("customer_id", customerId).in("id", removedIds);
+      if (deleteError) return json({ error: deleteError.message, code: deleteError.code }, 400);
+    }
     return json({ data: { customer_id: customerId, tags: tagNames } });
   }
 
