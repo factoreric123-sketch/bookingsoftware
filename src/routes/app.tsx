@@ -1314,6 +1314,7 @@ function Customers() {
 function Services() {
   const { workspace, addService, updateService } = useAppStore();
   const [show, setShow] = useState(false);
+  const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState("");
@@ -1336,13 +1337,27 @@ function Services() {
     color: "#6d5dfc",
     active: true,
   });
+  const openCreate = () => {
+    setEditingId("");
+    setError("");
+    setForm({ name: "", description: "", duration: 60, price: 100, color: "#6d5dfc", active: true });
+    setShow(true);
+  };
+  const openEdit = (service: (typeof workspace.services)[number]) => {
+    setEditingId(service.id);
+    setError("");
+    setForm({ name: service.name, description: service.description, duration: service.duration, price: service.price, color: service.color, active: service.active });
+    setShow(true);
+  };
   const save = async () => {
-    if (!form.name) return;
+    if (!form.name.trim() || form.duration <= 0 || form.price < 0) return;
     setSaving(true);
     setError("");
     try {
-      await addService(form);
+      if (editingId) await updateService(editingId, form);
+      else await addService(form);
       setShow(false);
+      setEditingId("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Service could not be saved.");
     } finally {
@@ -1355,7 +1370,7 @@ function Services() {
         title="Services"
         copy="Control what customers can book, how long it takes, and what it costs."
         action={
-          <button className="solid-action" onClick={() => setShow(true)}>
+          <button className="solid-action" onClick={openCreate}>
             <Plus size={16} />
             Create service
           </button>
@@ -1393,12 +1408,13 @@ function Services() {
                 <i />
               </label>
               <span>{service.active ? "Bookable" : "Hidden"}</span>
+              <button type="button" className="text-action" onClick={() => openEdit(service)}>Edit service</button>
             </div>
           </article>
         ))}
       </div>
       {show && (
-        <Modal title="Create service" onClose={() => setShow(false)}>
+        <Modal title={editingId ? "Edit service" : "Create service"} onClose={() => setShow(false)}>
           <label>
             Service name
             <input
@@ -1435,8 +1451,8 @@ function Services() {
               />
             </label>
           </div>
-          <button className="solid-action full" disabled={saving || !form.name.trim()} onClick={save}>
-            {saving ? "Saving…" : "Create service"}
+          <button className="solid-action full" disabled={saving || !form.name.trim() || form.duration <= 0 || form.price < 0} onClick={save}>
+            {saving ? "Saving…" : editingId ? "Save service" : "Create service"}
           </button>
         </Modal>
       )}
