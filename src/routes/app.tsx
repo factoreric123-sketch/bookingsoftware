@@ -2659,13 +2659,40 @@ function Analytics() {
   const serviceCounts: Array<{ name: string; count: number }> = (analytics?.booking_value_by_service ?? []).map((item: any) => ({ name: item.service_name, count: Number(item.total_minor) / 100 }));
   const bookingSources: Array<{ source: string; count: number }> = analytics?.booking_sources ?? [];
   const max = Math.max(1, ...serviceCounts.map((item) => item.count));
+  const exportCsv = () => {
+    if (!analytics) return;
+    const safeCell = (value: string | number) => {
+      const text = String(value);
+      const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      return `"${safe.replaceAll('"', '""')}"`;
+    };
+    const rows: Array<Array<string | number>> = [
+      ["Metric", "Value"],
+      ["Total bookings", analytics.booking_count ?? 0],
+      ["Cancelled bookings", analytics.cancelled_count ?? 0],
+      ["Completed bookings", completedCount],
+      ["Collected revenue", revenue],
+      ["Repeat customers", analytics.repeat_customers ?? 0],
+      [], ["Service", "Booking value"],
+      ...serviceCounts.map((item) => [item.name, item.count]),
+      [], ["Booking source", "Count"],
+      ...bookingSources.map((item) => [item.source, item.count]),
+    ];
+    const blob = new Blob([rows.map((row) => row.map(safeCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `avello-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
   return (
     <>
       <PageHeader
         title="Analytics"
         copy="Metrics are calculated only from workspace records—no fabricated production data."
         action={
-          <button className="secondary-action">
+          <button className="secondary-action" onClick={exportCsv} disabled={!analytics}>
             <FileText size={15} />
             Export CSV
           </button>
