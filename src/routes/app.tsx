@@ -122,14 +122,13 @@ function Dashboard() {
             <X size={18} />
           </button>
         </div>
-        <button className="business-switch">
+        <div className="business-switch">
           <span className="business-avatar">N</span>
           <span>
             <b>{workspace.business.name}</b>
             <small>Business workspace</small>
           </span>
-          <ChevronDown size={15} />
-        </button>
+        </div>
         <nav>
           {navigation.map(({ label, icon: Icon }) => (
             <button
@@ -152,7 +151,6 @@ function Dashboard() {
               <b>{accountName}</b>
               <small>{user.email}</small>
             </div>
-            <MoreHorizontal size={17} />
           </div>
         </div>
       </aside>
@@ -2827,15 +2825,16 @@ function BusinessSettings() {
             </label>
           </div>
           <label>
-            Booking page URL
+            Booking page slug
             <div className="input-prefix">
-              <span>avello.app/book/</span>
+              <span>/book/</span>
               <input
                 value={business.slug}
                 readOnly
               />
             </div>
           </label>
+          <p>The booking slug is read only here. Open Booking Page to copy the current public link.</p>
           <div className="field-pair">
             <label>
               Email
@@ -2859,6 +2858,7 @@ function BusinessSettings() {
               readOnly
             />
           </label>
+          <p>The address comes from your booking location and is read only in this profile.</p>
           <div className="settings-actions">
             <button className="solid-action" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save changes"}
