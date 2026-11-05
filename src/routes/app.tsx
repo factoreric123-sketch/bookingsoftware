@@ -1432,20 +1432,21 @@ function Services() {
           </label>
           <div className="field-pair">
             <label>
-              Duration
-              <select
+              Duration (minutes)
+              <input
+                type="number"
+                min="1"
+                step="1"
                 value={form.duration}
                 onChange={(e) => setForm({ ...form, duration: Number(e.target.value) })}
-              >
-                <option value="30">30 minutes</option>
-                <option value="60">60 minutes</option>
-                <option value="90">90 minutes</option>
-              </select>
+              />
             </label>
             <label>
               Price
               <input
                 type="number"
+                min="0"
+                step="0.01"
                 value={form.price}
                 onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
               />
