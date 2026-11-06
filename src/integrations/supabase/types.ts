@@ -562,6 +562,299 @@ export type Database = {
           },
         ]
       }
+      automation_runs: {
+        Row: {
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          event_id: string
+          id: string
+          row_version: number
+          started_at: string | null
+          status: string
+          updated_at: string
+          workflow_id: string
+          workflow_version: number
+        }
+        Insert: {
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          event_id: string
+          id?: string
+          row_version?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          workflow_id: string
+          workflow_version: number
+        }
+        Update: {
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          event_id?: string
+          id?: string
+          row_version?: number
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          workflow_id?: string
+          workflow_version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_runs_business_id_workflow_id_fkey"
+            columns: ["business_id", "workflow_id"]
+            isOneToOne: false
+            referencedRelation: "automation_workflows"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      automation_step_runs: {
+        Row: {
+          attempt_count: number
+          automation_run_id: string
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          due_at: string
+          error_message: string | null
+          id: string
+          message_id: string | null
+          next_attempt_at: string | null
+          row_version: number
+          status: string
+          step_order: number
+          step_snapshot: Json
+          task_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          automation_run_id: string
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          due_at: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          next_attempt_at?: string | null
+          row_version?: number
+          status?: string
+          step_order: number
+          step_snapshot: Json
+          task_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          automation_run_id?: string
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          due_at?: string
+          error_message?: string | null
+          id?: string
+          message_id?: string | null
+          next_attempt_at?: string | null
+          row_version?: number
+          status?: string
+          step_order?: number
+          step_snapshot?: Json
+          task_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_step_runs_business_id_automation_run_id_fkey"
+            columns: ["business_id", "automation_run_id"]
+            isOneToOne: false
+            referencedRelation: "automation_runs"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "automation_step_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_step_runs_business_id_message_id_fkey"
+            columns: ["business_id", "message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "automation_step_runs_business_id_task_id_fkey"
+            columns: ["business_id", "task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      automation_steps: {
+        Row: {
+          action_type: string
+          assigned_staff_id: string | null
+          business_id: string
+          created_at: string
+          delay_minutes: number
+          form_id: string | null
+          id: string
+          row_version: number
+          step_order: number
+          tag_id: string | null
+          task_description: string | null
+          task_title: string | null
+          template_id: string | null
+          updated_at: string
+          workflow_id: string
+        }
+        Insert: {
+          action_type: string
+          assigned_staff_id?: string | null
+          business_id: string
+          created_at?: string
+          delay_minutes?: number
+          form_id?: string | null
+          id?: string
+          row_version?: number
+          step_order: number
+          tag_id?: string | null
+          task_description?: string | null
+          task_title?: string | null
+          template_id?: string | null
+          updated_at?: string
+          workflow_id: string
+        }
+        Update: {
+          action_type?: string
+          assigned_staff_id?: string | null
+          business_id?: string
+          created_at?: string
+          delay_minutes?: number
+          form_id?: string | null
+          id?: string
+          row_version?: number
+          step_order?: number
+          tag_id?: string | null
+          task_description?: string | null
+          task_title?: string | null
+          template_id?: string | null
+          updated_at?: string
+          workflow_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_steps_business_id_assigned_staff_id_fkey"
+            columns: ["business_id", "assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "automation_steps_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "automation_steps_business_id_form_id_fkey"
+            columns: ["business_id", "form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "automation_steps_business_id_tag_id_fkey"
+            columns: ["business_id", "tag_id"]
+            isOneToOne: false
+            referencedRelation: "customer_tags"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "automation_steps_business_id_template_id_fkey"
+            columns: ["business_id", "template_id"]
+            isOneToOne: false
+            referencedRelation: "message_templates"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "automation_steps_business_id_workflow_id_fkey"
+            columns: ["business_id", "workflow_id"]
+            isOneToOne: false
+            referencedRelation: "automation_workflows"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      automation_workflows: {
+        Row: {
+          active: boolean
+          business_id: string
+          conditions: Json
+          created_at: string
+          created_by_user_id: string | null
+          id: string
+          name: string
+          row_version: number
+          trigger_type: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          conditions?: Json
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          name: string
+          row_version?: number
+          trigger_type: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          conditions?: Json
+          created_at?: string
+          created_by_user_id?: string | null
+          id?: string
+          name?: string
+          row_version?: number
+          trigger_type?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_workflows_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocked_times: {
         Row: {
           business_id: string
@@ -4576,6 +4869,89 @@ export type Database = {
             foreignKeyName: "stripe_connect_accounts_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          appointment_id: string | null
+          assigned_staff_id: string | null
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          created_by_user_id: string | null
+          customer_id: string | null
+          description: string
+          due_at: string | null
+          id: string
+          row_version: number
+          source: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          assigned_staff_id?: string | null
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          customer_id?: string | null
+          description?: string
+          due_at?: string | null
+          id?: string
+          row_version?: number
+          source: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          assigned_staff_id?: string | null
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string | null
+          customer_id?: string | null
+          description?: string
+          due_at?: string | null
+          id?: string
+          row_version?: number
+          source?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_business_id_appointment_id_fkey"
+            columns: ["business_id", "appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "tasks_business_id_assigned_staff_id_fkey"
+            columns: ["business_id", "assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "tasks_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "tasks_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
             referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
