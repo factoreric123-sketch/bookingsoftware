@@ -30,6 +30,8 @@ const availability = { p_booking_page_id: b.booking_page_id, p_service_id: servi
 const slots = requireOk(await call("get_availability", availability), "B availability");
 if (!slots.length) throw new Error("No available slot on the requested date");
 const slot = slots[0];
+const invalidLink = await call("get_managed_appointment", { p_management_token: crypto.randomUUID() });
+if (invalidLink.body.code !== "P0403") throw new Error("An unknown management token was accepted");
 const holdInput = { p_booking_page_id: b.booking_page_id, p_service_id: serviceId, p_staff_id: slot.staff_id, p_session_id: slot.session_id, p_starts_at: slot.starts_at, p_addon_quantities: [], p_seat_count: 1 };
 let confirmed;
 try {
@@ -52,11 +54,13 @@ try {
   if (repeat.appointment_id !== confirmed.appointment_id) throw new Error("Confirmation replay created another appointment");
   const managed = requireOk(await call("get_managed_appointment", { p_management_token: confirmed.management_token }), "Management link");
   if (managed.appointment_id !== confirmed.appointment_id) throw new Error("Management link opened another appointment");
-  console.log(JSON.stringify({ tenantIsolation: true, concurrentHold: true, idempotentConfirmation: true, managementLink: true, appointmentId: confirmed.appointment_id }));
+  console.log(JSON.stringify({ tenantIsolation: true, invalidTokenDenied: true, concurrentHold: true, idempotentConfirmation: true, managementLink: true, appointmentId: confirmed.appointment_id }));
 } finally {
   if (confirmed) {
     const managed = requireOk(await call("get_managed_appointment", { p_management_token: confirmed.management_token }), "Cleanup lookup");
     requireOk(await call("cancel_appointment", { p_appointment_id: confirmed.appointment_id, p_reason: "Verification cleanup", p_management_token: confirmed.management_token, p_expected_row_version: managed.row_version, p_request_key: crypto.randomUUID() }), "Cleanup cancellation");
-    console.log("Cancellation: passed");
+    const restored = requireOk(await call("get_availability", availability), "Availability after cancellation");
+    if (!restored.some((item) => item.starts_at === slot.starts_at && item.staff_id === slot.staff_id)) throw new Error("Cancellation did not release the time slot");
+    console.log("Cancellation and slot release: passed");
   }
 }
