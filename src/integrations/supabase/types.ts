@@ -1657,6 +1657,121 @@ export type Database = {
           },
         ]
       }
+      coupon_redemptions: {
+        Row: {
+          appointment_id: string
+          business_id: string
+          coupon_id: string
+          created_at: string
+          customer_id: string
+          discount_minor: number
+          id: string
+        }
+        Insert: {
+          appointment_id: string
+          business_id: string
+          coupon_id: string
+          created_at?: string
+          customer_id: string
+          discount_minor: number
+          id?: string
+        }
+        Update: {
+          appointment_id?: string
+          business_id?: string
+          coupon_id?: string
+          created_at?: string
+          customer_id?: string
+          discount_minor?: number
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupon_redemptions_business_id_appointment_id_fkey"
+            columns: ["business_id", "appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_business_id_coupon_id_fkey"
+            columns: ["business_id", "coupon_id"]
+            isOneToOne: false
+            referencedRelation: "coupons"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "coupon_redemptions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          active: boolean
+          business_id: string
+          code: string
+          created_at: string
+          currency: string | null
+          discount_type: string
+          id: string
+          maximum_redemptions: number | null
+          row_version: number
+          updated_at: string
+          valid_from: string | null
+          valid_until: string | null
+          value: number
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          code: string
+          created_at?: string
+          currency?: string | null
+          discount_type: string
+          id?: string
+          maximum_redemptions?: number | null
+          row_version?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          value: number
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          code?: string
+          created_at?: string
+          currency?: string | null
+          discount_type?: string
+          id?: string
+          maximum_redemptions?: number | null
+          row_version?: number
+          updated_at?: string
+          valid_from?: string | null
+          valid_until?: string | null
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       custom_field_values: {
         Row: {
           appointment_id: string | null
@@ -2662,6 +2777,173 @@ export type Database = {
           },
         ]
       }
+      invoice_items: {
+        Row: {
+          business_id: string
+          created_at: string
+          description: string
+          discount_minor: number
+          id: string
+          invoice_id: string
+          line_total_minor: number
+          quantity: number
+          row_version: number
+          service_id: string | null
+          sort_order: number
+          tax_rate_bps: number
+          unit_price_minor: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          description: string
+          discount_minor?: number
+          id?: string
+          invoice_id: string
+          line_total_minor: number
+          quantity?: number
+          row_version?: number
+          service_id?: string | null
+          sort_order?: number
+          tax_rate_bps?: number
+          unit_price_minor: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          description?: string
+          discount_minor?: number
+          id?: string
+          invoice_id?: string
+          line_total_minor?: number
+          quantity?: number
+          row_version?: number
+          service_id?: string | null
+          sort_order?: number
+          tax_rate_bps?: number
+          unit_price_minor?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoice_items_business_id_invoice_id_fkey"
+            columns: ["business_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "invoice_items_business_id_service_id_fkey"
+            columns: ["business_id", "service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          appointment_id: string | null
+          business_id: string
+          created_at: string
+          created_by_user_id: string | null
+          currency: string
+          customer_id: string
+          discount_minor: number
+          due_date: string | null
+          id: string
+          invoice_number: string
+          issued_at: string | null
+          notes: string
+          paid_minor: number
+          provider_invoice_id: string | null
+          row_version: number
+          status: string
+          subtotal_minor: number
+          tax_minor: number
+          total_minor: number
+          updated_at: string
+          voided_at: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          business_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          currency: string
+          customer_id: string
+          discount_minor?: number
+          due_date?: string | null
+          id?: string
+          invoice_number: string
+          issued_at?: string | null
+          notes?: string
+          paid_minor?: number
+          provider_invoice_id?: string | null
+          row_version?: number
+          status?: string
+          subtotal_minor?: number
+          tax_minor?: number
+          total_minor?: number
+          updated_at?: string
+          voided_at?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          business_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          currency?: string
+          customer_id?: string
+          discount_minor?: number
+          due_date?: string | null
+          id?: string
+          invoice_number?: string
+          issued_at?: string | null
+          notes?: string
+          paid_minor?: number
+          provider_invoice_id?: string | null
+          row_version?: number
+          status?: string
+          subtotal_minor?: number
+          tax_minor?: number
+          total_minor?: number
+          updated_at?: string
+          voided_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_business_id_appointment_id_fkey"
+            columns: ["business_id", "appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "invoices_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "invoices_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           active: boolean
@@ -3114,6 +3396,163 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_allocations: {
+        Row: {
+          amount_minor: number
+          business_id: string
+          created_at: string
+          id: string
+          invoice_id: string
+          payment_id: string
+        }
+        Insert: {
+          amount_minor: number
+          business_id: string
+          created_at?: string
+          id?: string
+          invoice_id: string
+          payment_id: string
+        }
+        Update: {
+          amount_minor?: number
+          business_id?: string
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          payment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_allocations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_business_id_invoice_id_fkey"
+            columns: ["business_id", "invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "payment_allocations_business_id_payment_id_fkey"
+            columns: ["business_id", "payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount_minor: number
+          appointment_id: string | null
+          business_id: string
+          created_at: string
+          currency: string
+          customer_id: string
+          id: string
+          idempotency_key: string
+          integration_id: string | null
+          is_sandbox: boolean
+          method: string
+          paid_at: string | null
+          provider: string
+          provider_charge_id: string | null
+          provider_payment_id: string | null
+          recorded_by_user_id: string | null
+          refunded_minor: number
+          row_version: number
+          status: string
+          stripe_connect_account_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          appointment_id?: string | null
+          business_id: string
+          created_at?: string
+          currency: string
+          customer_id: string
+          id?: string
+          idempotency_key: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          method: string
+          paid_at?: string | null
+          provider: string
+          provider_charge_id?: string | null
+          provider_payment_id?: string | null
+          recorded_by_user_id?: string | null
+          refunded_minor?: number
+          row_version?: number
+          status?: string
+          stripe_connect_account_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          appointment_id?: string | null
+          business_id?: string
+          created_at?: string
+          currency?: string
+          customer_id?: string
+          id?: string
+          idempotency_key?: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          method?: string
+          paid_at?: string | null
+          provider?: string
+          provider_charge_id?: string | null
+          provider_payment_id?: string | null
+          recorded_by_user_id?: string | null
+          refunded_minor?: number
+          row_version?: number
+          status?: string
+          stripe_connect_account_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_business_id_appointment_id_fkey"
+            columns: ["business_id", "appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "payments_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "payments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_business_id_integration_id_fkey"
+            columns: ["business_id", "integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "payments_business_id_stripe_connect_account_id_fkey"
+            columns: ["business_id", "stripe_connect_account_id"]
+            isOneToOne: false
+            referencedRelation: "stripe_connect_accounts"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
       phone_numbers: {
         Row: {
           business_id: string
@@ -3316,6 +3755,69 @@ export type Database = {
             columns: ["business_id", "staff_id"]
             isOneToOne: false
             referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      refunds: {
+        Row: {
+          amount_minor: number
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          payment_id: string
+          provider_refund_id: string | null
+          reason: string
+          requested_by_user_id: string | null
+          row_version: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          payment_id: string
+          provider_refund_id?: string | null
+          reason?: string
+          requested_by_user_id?: string | null
+          row_version?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          payment_id?: string
+          provider_refund_id?: string | null
+          reason?: string
+          requested_by_user_id?: string | null
+          row_version?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refunds_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refunds_business_id_payment_id_fkey"
+            columns: ["business_id", "payment_id"]
+            isOneToOne: false
+            referencedRelation: "payments"
             referencedColumns: ["business_id", "id"]
           },
         ]
@@ -4024,6 +4526,56 @@ export type Database = {
             foreignKeyName: "storage_assets_business_id_fkey"
             columns: ["business_id"]
             isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_connect_accounts: {
+        Row: {
+          business_id: string
+          charges_enabled: boolean
+          created_at: string
+          details_submitted: boolean
+          id: string
+          last_verified_at: string | null
+          onboarding_status: string
+          payouts_enabled: boolean
+          row_version: number
+          stripe_account_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          charges_enabled?: boolean
+          created_at?: string
+          details_submitted?: boolean
+          id?: string
+          last_verified_at?: string | null
+          onboarding_status?: string
+          payouts_enabled?: boolean
+          row_version?: number
+          stripe_account_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          charges_enabled?: boolean
+          created_at?: string
+          details_submitted?: boolean
+          id?: string
+          last_verified_at?: string | null
+          onboarding_status?: string
+          payouts_enabled?: boolean
+          row_version?: number
+          stripe_account_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_connect_accounts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
             referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
