@@ -5496,7 +5496,34 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_availability: {
+        Args: {
+          p_addon_quantities: Json
+          p_booking_page_id: string
+          p_from_date: string
+          p_seat_count: number
+          p_service_id: string
+          p_staff_id: string
+          p_through_date: string
+        }
+        Returns: Json
+      }
+      get_public_booking_page: { Args: { p_slug: string }; Returns: Json }
+      provision_business: {
+        Args: {
+          p_actor_user_id: string
+          p_business_name: string
+          p_business_slug: string
+          p_currency: string
+          p_industry: string
+          p_location_name: string
+          p_organization_id: string
+          p_organization_name: string
+          p_request_key: string
+          p_timezone: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
