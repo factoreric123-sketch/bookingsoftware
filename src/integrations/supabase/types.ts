@@ -14,6 +14,196 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_allowed_services: {
+        Row: {
+          ai_settings_id: string
+          business_id: string
+          created_at: string
+          id: string
+          row_version: number
+          service_id: string
+          updated_at: string
+        }
+        Insert: {
+          ai_settings_id: string
+          business_id: string
+          created_at?: string
+          id?: string
+          row_version?: number
+          service_id: string
+          updated_at?: string
+        }
+        Update: {
+          ai_settings_id?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          row_version?: number
+          service_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_allowed_services_business_id_ai_settings_id_fkey"
+            columns: ["business_id", "ai_settings_id"]
+            isOneToOne: false
+            referencedRelation: "ai_assistant_settings"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "ai_allowed_services_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_allowed_services_business_id_service_id_fkey"
+            columns: ["business_id", "service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      ai_assistant_settings: {
+        Row: {
+          after_hours_behavior: string
+          assistant_name: string
+          business_id: string
+          created_at: string
+          disclosure_enabled: boolean
+          escalation_conditions: Json
+          greeting: string
+          id: string
+          language_code: string
+          location_id: string
+          recording_consent_text: string
+          recording_enabled: boolean
+          recording_retention_days: number
+          row_version: number
+          sandbox_enabled: boolean
+          sms_enabled: boolean
+          transfer_phone_e164: string | null
+          updated_at: string
+          voice_enabled: boolean
+          voice_identifier: string | null
+        }
+        Insert: {
+          after_hours_behavior?: string
+          assistant_name?: string
+          business_id: string
+          created_at?: string
+          disclosure_enabled?: boolean
+          escalation_conditions?: Json
+          greeting?: string
+          id?: string
+          language_code?: string
+          location_id: string
+          recording_consent_text?: string
+          recording_enabled?: boolean
+          recording_retention_days?: number
+          row_version?: number
+          sandbox_enabled?: boolean
+          sms_enabled?: boolean
+          transfer_phone_e164?: string | null
+          updated_at?: string
+          voice_enabled?: boolean
+          voice_identifier?: string | null
+        }
+        Update: {
+          after_hours_behavior?: string
+          assistant_name?: string
+          business_id?: string
+          created_at?: string
+          disclosure_enabled?: boolean
+          escalation_conditions?: Json
+          greeting?: string
+          id?: string
+          language_code?: string
+          location_id?: string
+          recording_consent_text?: string
+          recording_enabled?: boolean
+          recording_retention_days?: number
+          row_version?: number
+          sandbox_enabled?: boolean
+          sms_enabled?: boolean
+          transfer_phone_e164?: string | null
+          updated_at?: string
+          voice_enabled?: boolean
+          voice_identifier?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_assistant_settings_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_assistant_settings_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: true
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      ai_knowledge_items: {
+        Row: {
+          active: boolean
+          ai_settings_id: string
+          answer: string
+          business_id: string
+          created_at: string
+          id: string
+          question: string
+          row_version: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          ai_settings_id: string
+          answer: string
+          business_id: string
+          created_at?: string
+          id?: string
+          question: string
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          ai_settings_id?: string
+          answer?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          question?: string
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_knowledge_items_business_id_ai_settings_id_fkey"
+            columns: ["business_id", "ai_settings_id"]
+            isOneToOne: false
+            referencedRelation: "ai_assistant_settings"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "ai_knowledge_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_addons: {
         Row: {
           additional_duration_minutes: number
@@ -958,6 +1148,515 @@ export type Database = {
           },
         ]
       }
+      calendar_calendars: {
+        Row: {
+          active: boolean
+          business_id: string
+          connection_id: string
+          created_at: string
+          external_calendar_id: string
+          id: string
+          name: string
+          row_version: number
+          timezone: string
+          updated_at: string
+          use_for_availability: boolean
+          write_appointments: boolean
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          connection_id: string
+          created_at?: string
+          external_calendar_id: string
+          id?: string
+          name: string
+          row_version?: number
+          timezone: string
+          updated_at?: string
+          use_for_availability?: boolean
+          write_appointments?: boolean
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          connection_id?: string
+          created_at?: string
+          external_calendar_id?: string
+          id?: string
+          name?: string
+          row_version?: number
+          timezone?: string
+          updated_at?: string
+          use_for_availability?: boolean
+          write_appointments?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_calendars_business_id_connection_id_fkey"
+            columns: ["business_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_connections"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calendar_calendars_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calendar_connections: {
+        Row: {
+          business_id: string
+          created_at: string
+          external_account_email: string | null
+          id: string
+          integration_id: string
+          last_error: string | null
+          last_sync_at: string | null
+          location_id: string
+          provider: string
+          row_version: number
+          scopes: string[]
+          staff_id: string | null
+          status: string
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          external_account_email?: string | null
+          id?: string
+          integration_id: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          location_id: string
+          provider: string
+          row_version?: number
+          scopes?: string[]
+          staff_id?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          external_account_email?: string | null
+          id?: string
+          integration_id?: string
+          last_error?: string | null
+          last_sync_at?: string | null
+          location_id?: string
+          provider?: string
+          row_version?: number
+          scopes?: string[]
+          staff_id?: string | null
+          status?: string
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_connections_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_connections_business_id_integration_id_fkey"
+            columns: ["business_id", "integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calendar_connections_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calendar_connections_business_id_staff_id_fkey"
+            columns: ["business_id", "staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      calendar_events: {
+        Row: {
+          business_id: string
+          busy: boolean
+          calendar_id: string
+          cancelled: boolean
+          conflicts_with_booking: boolean
+          created_at: string
+          ends_at: string
+          external_etag: string | null
+          external_event_id: string
+          external_updated_at: string | null
+          id: string
+          origin: string
+          row_version: number
+          session_id: string | null
+          starts_at: string
+          sync_status: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          busy?: boolean
+          calendar_id: string
+          cancelled?: boolean
+          conflicts_with_booking?: boolean
+          created_at?: string
+          ends_at: string
+          external_etag?: string | null
+          external_event_id: string
+          external_updated_at?: string | null
+          id?: string
+          origin: string
+          row_version?: number
+          session_id?: string | null
+          starts_at: string
+          sync_status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          busy?: boolean
+          calendar_id?: string
+          cancelled?: boolean
+          conflicts_with_booking?: boolean
+          created_at?: string
+          ends_at?: string
+          external_etag?: string | null
+          external_event_id?: string
+          external_updated_at?: string | null
+          id?: string
+          origin?: string
+          row_version?: number
+          session_id?: string | null
+          starts_at?: string
+          sync_status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_business_id_calendar_id_fkey"
+            columns: ["business_id", "calendar_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_calendars"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calendar_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calendar_events_business_id_session_id_fkey"
+            columns: ["business_id", "session_id"]
+            isOneToOne: false
+            referencedRelation: "booking_sessions"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      calendar_sync_runs: {
+        Row: {
+          business_id: string
+          completed_at: string | null
+          connection_id: string
+          created_at: string
+          direction: string
+          error_message: string | null
+          id: string
+          records_read: number
+          records_written: number
+          row_version: number
+          started_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          completed_at?: string | null
+          connection_id: string
+          created_at?: string
+          direction: string
+          error_message?: string | null
+          id?: string
+          records_read?: number
+          records_written?: number
+          row_version?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          completed_at?: string | null
+          connection_id?: string
+          created_at?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          records_read?: number
+          records_written?: number
+          row_version?: number
+          started_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_sync_runs_business_id_connection_id_fkey"
+            columns: ["business_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_connections"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calendar_sync_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      calls: {
+        Row: {
+          answered_at: string | null
+          appointment_id: string | null
+          business_id: string
+          called_e164: string
+          caller_e164: string
+          created_at: string
+          customer_id: string | null
+          direction: string
+          duration_seconds: number
+          ended_at: string | null
+          id: string
+          integration_id: string | null
+          is_sandbox: boolean
+          outcome: string | null
+          phone_number_id: string | null
+          provider_call_id: string | null
+          recording_asset_id: string | null
+          recording_consent_id: string | null
+          recording_delete_after: string | null
+          row_version: number
+          started_at: string
+          status: string
+          summary: string
+          transcript: string | null
+          updated_at: string
+        }
+        Insert: {
+          answered_at?: string | null
+          appointment_id?: string | null
+          business_id: string
+          called_e164: string
+          caller_e164: string
+          created_at?: string
+          customer_id?: string | null
+          direction: string
+          duration_seconds?: number
+          ended_at?: string | null
+          id?: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          outcome?: string | null
+          phone_number_id?: string | null
+          provider_call_id?: string | null
+          recording_asset_id?: string | null
+          recording_consent_id?: string | null
+          recording_delete_after?: string | null
+          row_version?: number
+          started_at: string
+          status: string
+          summary?: string
+          transcript?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answered_at?: string | null
+          appointment_id?: string | null
+          business_id?: string
+          called_e164?: string
+          caller_e164?: string
+          created_at?: string
+          customer_id?: string | null
+          direction?: string
+          duration_seconds?: number
+          ended_at?: string | null
+          id?: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          outcome?: string | null
+          phone_number_id?: string | null
+          provider_call_id?: string | null
+          recording_asset_id?: string | null
+          recording_consent_id?: string | null
+          recording_delete_after?: string | null
+          row_version?: number
+          started_at?: string
+          status?: string
+          summary?: string
+          transcript?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calls_business_id_appointment_id_fkey"
+            columns: ["business_id", "appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calls_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calls_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "calls_business_id_integration_id_fkey"
+            columns: ["business_id", "integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calls_business_id_phone_number_id_fkey"
+            columns: ["business_id", "phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "phone_numbers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calls_business_id_recording_asset_id_fkey"
+            columns: ["business_id", "recording_asset_id"]
+            isOneToOne: false
+            referencedRelation: "storage_assets"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "calls_business_id_recording_consent_id_fkey"
+            columns: ["business_id", "recording_consent_id"]
+            isOneToOne: false
+            referencedRelation: "customer_consents"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          ai_enabled: boolean
+          assigned_staff_id: string | null
+          business_id: string
+          channel: string
+          created_at: string
+          customer_id: string
+          id: string
+          last_message_at: string | null
+          location_id: string | null
+          phone_number_id: string | null
+          row_version: number
+          staff_takeover_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_enabled?: boolean
+          assigned_staff_id?: string | null
+          business_id: string
+          channel: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          last_message_at?: string | null
+          location_id?: string | null
+          phone_number_id?: string | null
+          row_version?: number
+          staff_takeover_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_enabled?: boolean
+          assigned_staff_id?: string | null
+          business_id?: string
+          channel?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          last_message_at?: string | null
+          location_id?: string | null
+          phone_number_id?: string | null
+          row_version?: number
+          staff_takeover_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_business_id_assigned_staff_id_fkey"
+            columns: ["business_id", "assigned_staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "conversations_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "conversations_business_id_phone_number_id_fkey"
+            columns: ["business_id", "phone_number_id"]
+            isOneToOne: false
+            referencedRelation: "phone_numbers"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
       custom_field_values: {
         Row: {
           appointment_id: string | null
@@ -1891,6 +2590,78 @@ export type Database = {
           },
         ]
       }
+      integrations: {
+        Row: {
+          business_id: string
+          connected_at: string | null
+          created_at: string
+          disconnected_at: string | null
+          external_account_id: string | null
+          id: string
+          is_sandbox: boolean
+          last_error_code: string | null
+          last_error_message: string | null
+          last_verified_at: string | null
+          location_id: string | null
+          provider: string
+          public_config: Json
+          row_version: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          connected_at?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          external_account_id?: string | null
+          id?: string
+          is_sandbox?: boolean
+          last_error_code?: string | null
+          last_error_message?: string | null
+          last_verified_at?: string | null
+          location_id?: string | null
+          provider: string
+          public_config?: Json
+          row_version?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          connected_at?: string | null
+          created_at?: string
+          disconnected_at?: string | null
+          external_account_id?: string | null
+          id?: string
+          is_sandbox?: boolean
+          last_error_code?: string | null
+          last_error_message?: string | null
+          last_verified_at?: string | null
+          location_id?: string | null
+          provider?: string
+          public_config?: Json
+          row_version?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integrations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "integrations_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           active: boolean
@@ -2070,6 +2841,199 @@ export type Database = {
           },
         ]
       }
+      message_attachments: {
+        Row: {
+          asset_id: string
+          business_id: string
+          created_at: string
+          id: string
+          message_id: string
+        }
+        Insert: {
+          asset_id: string
+          business_id: string
+          created_at?: string
+          id?: string
+          message_id: string
+        }
+        Update: {
+          asset_id?: string
+          business_id?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_attachments_business_id_asset_id_fkey"
+            columns: ["business_id", "asset_id"]
+            isOneToOne: false
+            referencedRelation: "storage_assets"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "message_attachments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_attachments_business_id_message_id_fkey"
+            columns: ["business_id", "message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      message_templates: {
+        Row: {
+          active: boolean
+          body: string
+          business_id: string
+          channel: string
+          created_at: string
+          id: string
+          name: string
+          purpose: string
+          row_version: number
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          body: string
+          business_id: string
+          channel: string
+          created_at?: string
+          id?: string
+          name: string
+          purpose: string
+          row_version?: number
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          body?: string
+          business_id?: string
+          channel?: string
+          created_at?: string
+          id?: string
+          name?: string
+          purpose?: string
+          row_version?: number
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_templates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          business_id: string
+          channel: string
+          conversation_id: string
+          created_at: string
+          delivered_at: string | null
+          direction: string
+          from_address: string
+          id: string
+          idempotency_key: string
+          integration_id: string | null
+          is_sandbox: boolean
+          provider_error_code: string | null
+          provider_error_message: string | null
+          provider_message_id: string | null
+          received_at: string | null
+          row_version: number
+          segment_count: number
+          sent_at: string | null
+          status: string
+          to_address: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          business_id: string
+          channel: string
+          conversation_id: string
+          created_at?: string
+          delivered_at?: string | null
+          direction: string
+          from_address: string
+          id?: string
+          idempotency_key: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          provider_error_code?: string | null
+          provider_error_message?: string | null
+          provider_message_id?: string | null
+          received_at?: string | null
+          row_version?: number
+          segment_count?: number
+          sent_at?: string | null
+          status?: string
+          to_address: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          channel?: string
+          conversation_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          direction?: string
+          from_address?: string
+          id?: string
+          idempotency_key?: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          provider_error_code?: string | null
+          provider_error_message?: string | null
+          provider_message_id?: string | null
+          received_at?: string | null
+          row_version?: number
+          segment_count?: number
+          sent_at?: string | null
+          status?: string
+          to_address?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_business_id_conversation_id_fkey"
+            columns: ["business_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_business_id_integration_id_fkey"
+            columns: ["business_id", "integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           active: boolean
@@ -2149,6 +3113,76 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      phone_numbers: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          integration_id: string
+          location_id: string | null
+          phone_e164: string
+          provider_phone_id: string | null
+          registration_status: string
+          row_version: number
+          sms_enabled: boolean
+          status: string
+          updated_at: string
+          voice_enabled: boolean
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          integration_id: string
+          location_id?: string | null
+          phone_e164: string
+          provider_phone_id?: string | null
+          registration_status?: string
+          row_version?: number
+          sms_enabled?: boolean
+          status?: string
+          updated_at?: string
+          voice_enabled?: boolean
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          integration_id?: string
+          location_id?: string | null
+          phone_e164?: string
+          provider_phone_id?: string | null
+          registration_status?: string
+          row_version?: number
+          sms_enabled?: boolean
+          status?: string
+          updated_at?: string
+          voice_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "phone_numbers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "phone_numbers_business_id_integration_id_fkey"
+            columns: ["business_id", "integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "phone_numbers_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
       }
       profiles: {
         Row: {
