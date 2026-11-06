@@ -323,6 +323,477 @@ export type Database = {
           },
         ]
       }
+      custom_field_values: {
+        Row: {
+          appointment_id: string | null
+          business_id: string
+          created_at: string
+          custom_field_id: string
+          customer_id: string | null
+          id: string
+          row_version: number
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          appointment_id?: string | null
+          business_id: string
+          created_at?: string
+          custom_field_id: string
+          customer_id?: string | null
+          id?: string
+          row_version?: number
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          appointment_id?: string | null
+          business_id?: string
+          created_at?: string
+          custom_field_id?: string
+          customer_id?: string | null
+          id?: string
+          row_version?: number
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_field_values_business_id_custom_field_id_fkey"
+            columns: ["business_id", "custom_field_id"]
+            isOneToOne: false
+            referencedRelation: "custom_fields"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "custom_field_values_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "custom_field_values_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_fields: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          entity_type: string
+          field_key: string
+          id: string
+          label: string
+          options: Json
+          required: boolean
+          row_version: number
+          sort_order: number
+          updated_at: string
+          value_type: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          entity_type: string
+          field_key: string
+          id?: string
+          label: string
+          options?: Json
+          required?: boolean
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+          value_type: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          entity_type?: string
+          field_key?: string
+          id?: string
+          label?: string
+          options?: Json
+          required?: boolean
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+          value_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_fields_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_group_members: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string
+          group_id: string
+          id: string
+          row_version: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id: string
+          group_id: string
+          id?: string
+          row_version?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string
+          group_id?: string
+          id?: string
+          row_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_group_members_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "customer_group_members_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_group_members_business_id_group_id_fkey"
+            columns: ["business_id", "group_id"]
+            isOneToOne: false
+            referencedRelation: "customer_groups"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      customer_groups: {
+        Row: {
+          business_id: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          row_version: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          row_version?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          row_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_groups_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_notes: {
+        Row: {
+          author_user_id: string | null
+          body: string
+          business_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          visibility: string
+        }
+        Insert: {
+          author_user_id?: string | null
+          body: string
+          business_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          visibility?: string
+        }
+        Update: {
+          author_user_id?: string | null
+          body?: string
+          business_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_notes_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "customer_notes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_tag_assignments: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          row_version: number
+          tag_id: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          row_version?: number
+          tag_id: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          row_version?: number
+          tag_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_tag_assignments_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "customer_tag_assignments_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_tag_assignments_business_id_tag_id_fkey"
+            columns: ["business_id", "tag_id"]
+            isOneToOne: false
+            referencedRelation: "customer_tags"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      customer_tags: {
+        Row: {
+          business_id: string
+          color: string
+          created_at: string
+          id: string
+          name: string
+          row_version: number
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          row_version?: number
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          row_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_tags_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_users: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          row_version: number
+          updated_at: string
+          user_id: string
+          verified_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          row_version?: number
+          updated_at?: string
+          user_id: string
+          verified_at: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          row_version?: number
+          updated_at?: string
+          user_id?: string
+          verified_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_users_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "customer_users_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customers: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          archived_at: string | null
+          business_id: string
+          city: string | null
+          company_name: string | null
+          country_code: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          id: string
+          merged_into_customer_id: string | null
+          normalized_email: string | null
+          phone_e164: string | null
+          postal_code: string | null
+          region: string | null
+          row_version: number
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          archived_at?: string | null
+          business_id: string
+          city?: string | null
+          company_name?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          id?: string
+          merged_into_customer_id?: string | null
+          normalized_email?: string | null
+          phone_e164?: string | null
+          postal_code?: string | null
+          region?: string | null
+          row_version?: number
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          archived_at?: string | null
+          business_id?: string
+          city?: string | null
+          company_name?: string | null
+          country_code?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          id?: string
+          merged_into_customer_id?: string | null
+          normalized_email?: string | null
+          phone_e164?: string | null
+          postal_code?: string | null
+          region?: string | null
+          row_version?: number
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_business_id_merged_into_customer_id_fkey"
+            columns: ["business_id", "merged_into_customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           active: boolean
