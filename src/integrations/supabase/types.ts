@@ -5496,6 +5496,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_appointment: {
+        Args: {
+          p_actor_user_id: string
+          p_appointment_id: string
+          p_expected_row_version: number
+          p_management_token: string
+          p_reason: string
+          p_request_key: string
+          p_subject_hash: string
+        }
+        Returns: Json
+      }
+      confirm_booking: {
+        Args: {
+          p_actor_user_id: string
+          p_consent_decisions: Json
+          p_contact: Json
+          p_customer_id: string
+          p_customer_notes: string
+          p_hold_token: string
+          p_request_key: string
+          p_subject_hash: string
+        }
+        Returns: Json
+      }
+      create_booking_hold: {
+        Args: {
+          p_addon_quantities: Json
+          p_booking_page_id: string
+          p_request_key: string
+          p_seat_count: number
+          p_service_id: string
+          p_session_id: string
+          p_staff_id: string
+          p_starts_at: string
+          p_subject_hash: string
+        }
+        Returns: Json
+      }
+      expire_holds: { Args: never; Returns: number }
       get_availability: {
         Args: {
           p_addon_quantities: Json
@@ -5506,6 +5546,10 @@ export type Database = {
           p_staff_id: string
           p_through_date: string
         }
+        Returns: Json
+      }
+      get_managed_appointment: {
+        Args: { p_subject_hash: string; p_token: string }
         Returns: Json
       }
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json }
@@ -5521,6 +5565,18 @@ export type Database = {
           p_organization_name: string
           p_request_key: string
           p_timezone: string
+        }
+        Returns: Json
+      }
+      reschedule_appointment: {
+        Args: {
+          p_actor_user_id: string
+          p_appointment_id: string
+          p_expected_row_version: number
+          p_management_token: string
+          p_new_starts_at: string
+          p_request_key: string
+          p_subject_hash: string
         }
         Returns: Json
       }
