@@ -1079,6 +1079,66 @@ export type Database = {
           },
         ]
       }
+      customer_consents: {
+        Row: {
+          business_id: string
+          channel: string
+          created_at: string
+          customer_id: string
+          decision: string
+          disclosure_text: string
+          disclosure_version: string
+          evidence_reference: string | null
+          id: string
+          purpose: string
+          recorded_at: string
+          source: string
+        }
+        Insert: {
+          business_id: string
+          channel: string
+          created_at?: string
+          customer_id: string
+          decision: string
+          disclosure_text: string
+          disclosure_version: string
+          evidence_reference?: string | null
+          id?: string
+          purpose: string
+          recorded_at?: string
+          source: string
+        }
+        Update: {
+          business_id?: string
+          channel?: string
+          created_at?: string
+          customer_id?: string
+          decision?: string
+          disclosure_text?: string
+          disclosure_version?: string
+          evidence_reference?: string | null
+          id?: string
+          purpose?: string
+          recorded_at?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_consents_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "customer_consents_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_group_members: {
         Row: {
           business_id: string
@@ -1432,6 +1492,401 @@ export type Database = {
             columns: ["business_id", "merged_into_customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      form_fields: {
+        Row: {
+          business_id: string
+          created_at: string
+          customer_mapping: string | null
+          field_key: string
+          field_type: string
+          form_version_id: string
+          help_text: string
+          id: string
+          label: string
+          options: Json
+          placeholder: string
+          required: boolean
+          row_version: number
+          sort_order: number
+          updated_at: string
+          validation: Json
+          visibility_rule: Json | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          customer_mapping?: string | null
+          field_key: string
+          field_type: string
+          form_version_id: string
+          help_text?: string
+          id?: string
+          label: string
+          options?: Json
+          placeholder?: string
+          required?: boolean
+          row_version?: number
+          sort_order: number
+          updated_at?: string
+          validation?: Json
+          visibility_rule?: Json | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          customer_mapping?: string | null
+          field_key?: string
+          field_type?: string
+          form_version_id?: string
+          help_text?: string
+          id?: string
+          label?: string
+          options?: Json
+          placeholder?: string
+          required?: boolean
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+          validation?: Json
+          visibility_rule?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_fields_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_fields_business_id_form_version_id_fkey"
+            columns: ["business_id", "form_version_id"]
+            isOneToOne: false
+            referencedRelation: "form_versions"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      form_service_links: {
+        Row: {
+          business_id: string
+          created_at: string
+          form_id: string
+          id: string
+          purpose: string
+          row_version: number
+          service_id: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          form_id: string
+          id?: string
+          purpose: string
+          row_version?: number
+          service_id: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          form_id?: string
+          id?: string
+          purpose?: string
+          row_version?: number
+          service_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_service_links_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_service_links_business_id_form_id_fkey"
+            columns: ["business_id", "form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "form_service_links_business_id_service_id_fkey"
+            columns: ["business_id", "service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      form_submission_answers: {
+        Row: {
+          business_id: string
+          created_at: string
+          form_field_id: string
+          id: string
+          submission_id: string
+          value: Json
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          form_field_id: string
+          id?: string
+          submission_id: string
+          value: Json
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          form_field_id?: string
+          id?: string
+          submission_id?: string
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submission_answers_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submission_answers_business_id_form_field_id_fkey"
+            columns: ["business_id", "form_field_id"]
+            isOneToOne: false
+            referencedRelation: "form_fields"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "form_submission_answers_business_id_submission_id_fkey"
+            columns: ["business_id", "submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      form_submissions: {
+        Row: {
+          appointment_id: string | null
+          business_id: string
+          created_at: string
+          customer_id: string | null
+          form_id: string
+          form_version_id: string
+          id: string
+          idempotency_key: string
+          source: string
+          spam_status: string
+          submitted_at: string
+          submitter_subject_hash: string | null
+        }
+        Insert: {
+          appointment_id?: string | null
+          business_id: string
+          created_at?: string
+          customer_id?: string | null
+          form_id: string
+          form_version_id: string
+          id?: string
+          idempotency_key: string
+          source?: string
+          spam_status?: string
+          submitted_at?: string
+          submitter_subject_hash?: string | null
+        }
+        Update: {
+          appointment_id?: string | null
+          business_id?: string
+          created_at?: string
+          customer_id?: string | null
+          form_id?: string
+          form_version_id?: string
+          id?: string
+          idempotency_key?: string
+          source?: string
+          spam_status?: string
+          submitted_at?: string
+          submitter_subject_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_business_id_appointment_id_fkey"
+            columns: ["business_id", "appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "form_submissions_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "form_submissions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_business_id_form_id_fkey"
+            columns: ["business_id", "form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "form_submissions_business_id_form_version_id_fkey"
+            columns: ["business_id", "form_version_id"]
+            isOneToOne: false
+            referencedRelation: "form_versions"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      form_versions: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by_user_id: string | null
+          form_id: string
+          id: string
+          published_at: string | null
+          version_number: number
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by_user_id?: string | null
+          form_id: string
+          id?: string
+          published_at?: string | null
+          version_number: number
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by_user_id?: string | null
+          form_id?: string
+          id?: string
+          published_at?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_versions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_versions_business_id_form_id_fkey"
+            columns: ["business_id", "form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      forms: {
+        Row: {
+          accent_color: string
+          active_version_id: string | null
+          business_id: string
+          create_customer: boolean
+          created_at: string
+          description: string
+          id: string
+          lead_tag_id: string | null
+          location_id: string | null
+          logo_asset_id: string | null
+          name: string
+          row_version: number
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          accent_color?: string
+          active_version_id?: string | null
+          business_id: string
+          create_customer?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          lead_tag_id?: string | null
+          location_id?: string | null
+          logo_asset_id?: string | null
+          name: string
+          row_version?: number
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          accent_color?: string
+          active_version_id?: string | null
+          business_id?: string
+          create_customer?: boolean
+          created_at?: string
+          description?: string
+          id?: string
+          lead_tag_id?: string | null
+          location_id?: string | null
+          logo_asset_id?: string | null
+          name?: string
+          row_version?: number
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forms_active_version_fk"
+            columns: ["business_id", "active_version_id"]
+            isOneToOne: false
+            referencedRelation: "form_versions"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "forms_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "forms_business_id_lead_tag_id_fkey"
+            columns: ["business_id", "lead_tag_id"]
+            isOneToOne: false
+            referencedRelation: "customer_tags"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "forms_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "forms_business_id_logo_asset_id_fkey"
+            columns: ["business_id", "logo_asset_id"]
+            isOneToOne: false
+            referencedRelation: "storage_assets"
             referencedColumns: ["business_id", "id"]
           },
         ]
