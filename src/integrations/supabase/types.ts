@@ -3662,6 +3662,59 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string
+          business_id: string
+          created_at: string
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          read_at: string | null
+          recipient_user_id: string
+          row_version: number
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          business_id: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          read_at?: string | null
+          recipient_user_id: string
+          row_version?: number
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          business_id?: string
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          read_at?: string | null
+          recipient_user_id?: string
+          row_version?: number
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_members: {
         Row: {
           active: boolean
@@ -4006,6 +4059,79 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      privacy_requests: {
+        Row: {
+          business_id: string
+          completed_at: string | null
+          created_at: string
+          customer_id: string
+          export_asset_id: string | null
+          id: string
+          request_type: string
+          requested_at: string
+          requested_by_user_id: string | null
+          resolution_notes: string
+          row_version: number
+          status: string
+          updated_at: string
+          verified_at: string | null
+        }
+        Insert: {
+          business_id: string
+          completed_at?: string | null
+          created_at?: string
+          customer_id: string
+          export_asset_id?: string | null
+          id?: string
+          request_type: string
+          requested_at?: string
+          requested_by_user_id?: string | null
+          resolution_notes?: string
+          row_version?: number
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          completed_at?: string | null
+          created_at?: string
+          customer_id?: string
+          export_asset_id?: string | null
+          id?: string
+          request_type?: string
+          requested_at?: string
+          requested_by_user_id?: string | null
+          resolution_notes?: string
+          row_version?: number
+          status?: string
+          updated_at?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "privacy_requests_business_id_customer_id_fkey"
+            columns: ["business_id", "customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "privacy_requests_business_id_export_asset_id_fkey"
+            columns: ["business_id", "export_asset_id"]
+            isOneToOne: false
+            referencedRelation: "storage_assets"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "privacy_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
