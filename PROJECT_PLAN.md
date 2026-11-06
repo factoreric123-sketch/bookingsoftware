@@ -16,7 +16,7 @@ This checklist tracks the original product spec against the current implementati
 
 - [ ] Create isolated test owner, manager, staff, and customer accounts; test signup, onboarding, invitation redemption, and role-specific browser views. Existing isolated owner/manager views and a temporary staff fixture passed; fresh signup hit Supabase's email rate limit and invitation redemption still needs a fresh account. See `docs/phase1-verification.md`.
 - [x] Exercise public booking, dashboard booking, management links, rescheduling, cancellation, conflict handling, and daylight-saving boundaries in two separate businesses. Both isolated businesses passed public booking, management, dashboard booking, rescheduling, and cancellation; stale-version and occupied-slot conflicts were rejected. B also passed live spring/fall availability, booking, and cancellation checks. See `docs/phase1-verification.md`.
-- [ ] Add the service-role integration harness and the remaining required RLS, idempotency, concurrency, finance, consent, metering, and job scenarios. Keep test data isolated and clean it up.
+- [ ] Add the service-role integration harness and the remaining required RLS, idempotency, concurrency, finance, consent, metering, and job scenarios. A repeatable public Edge harness now covers two-tenant projection, concurrent holds, idempotent confirmation, management link, and cancellation; service-role and broader scenarios remain.
 - [ ] Verify mobile layout, loading and error states, accessibility of the main booking and dashboard journeys.
 
 ### 2. Finish reliable scheduling and team operations

@@ -717,7 +717,7 @@ Deno.serve(async (req: Request) => {
   const { data, error } = await admin.rpc(action as never, params as never);
   if (error) {
     console.error("backend operation failed", { action, code: error.code });
-    const status = error.code === "23505" || error.code === "23P01" ? 409 : 400;
+    const status = error.code === "P0409" || error.code === "23505" || error.code === "23P01" ? 409 : 400;
     return json({ error: error.message, code: error.code }, status);
   }
 
