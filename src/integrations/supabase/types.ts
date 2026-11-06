@@ -14,6 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_hours: {
+        Row: {
+          active: boolean
+          business_id: string
+          closes_at: string
+          created_at: string
+          id: string
+          iso_weekday: number
+          location_id: string
+          opens_at: string
+          row_version: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          closes_at: string
+          created_at?: string
+          id?: string
+          iso_weekday: number
+          location_id: string
+          opens_at: string
+          row_version?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          closes_at?: string
+          created_at?: string
+          id?: string
+          iso_weekday?: number
+          location_id?: string
+          opens_at?: string
+          row_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_hours_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "business_hours_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
       business_members: {
         Row: {
           active: boolean
@@ -239,6 +293,27 @@ export type Database = {
           website_url?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "businesses_cover_asset_fk"
+            columns: ["cover_asset_id"]
+            isOneToOne: false
+            referencedRelation: "storage_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "businesses_default_location_fk"
+            columns: ["default_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "businesses_logo_asset_fk"
+            columns: ["logo_asset_id"]
+            isOneToOne: false
+            referencedRelation: "storage_assets"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "businesses_organization_id_fkey"
             columns: ["organization_id"]
@@ -545,6 +620,641 @@ export type Database = {
           {
             foreignKeyName: "profiles_last_active_business_fk"
             columns: ["last_active_business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_addons: {
+        Row: {
+          active: boolean
+          additional_duration_minutes: number
+          business_id: string
+          created_at: string
+          description: string
+          id: string
+          maximum_quantity: number
+          name: string
+          price_minor: number
+          row_version: number
+          service_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          additional_duration_minutes?: number
+          business_id: string
+          created_at?: string
+          description?: string
+          id?: string
+          maximum_quantity?: number
+          name: string
+          price_minor?: number
+          row_version?: number
+          service_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          additional_duration_minutes?: number
+          business_id?: string
+          created_at?: string
+          description?: string
+          id?: string
+          maximum_quantity?: number
+          name?: string
+          price_minor?: number
+          row_version?: number
+          service_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_addons_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_addons_business_id_service_id_fkey"
+            columns: ["business_id", "service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      service_categories: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          id: string
+          name: string
+          row_version: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          id?: string
+          name: string
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          id?: string
+          name?: string
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_categories_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_locations: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          duration_override_minutes: number | null
+          id: string
+          location_id: string
+          price_override_minor: number | null
+          row_version: number
+          service_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          duration_override_minutes?: number | null
+          id?: string
+          location_id: string
+          price_override_minor?: number | null
+          row_version?: number
+          service_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          duration_override_minutes?: number | null
+          id?: string
+          location_id?: string
+          price_override_minor?: number | null
+          row_version?: number
+          service_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_locations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_locations_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "service_locations_business_id_service_id_fkey"
+            columns: ["business_id", "service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      services: {
+        Row: {
+          active: boolean
+          appointment_type: string
+          archived_at: string | null
+          buffer_after_minutes: number
+          buffer_before_minutes: number
+          business_id: string
+          capacity: number
+          category_id: string | null
+          color: string
+          created_at: string
+          currency: string
+          delivery_mode: string
+          deposit_type: string | null
+          deposit_value: number | null
+          description: string
+          duration_minutes: number
+          id: string
+          name: string
+          payment_requirement: string
+          price_minor: number
+          row_version: number
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          appointment_type?: string
+          archived_at?: string | null
+          buffer_after_minutes?: number
+          buffer_before_minutes?: number
+          business_id: string
+          capacity?: number
+          category_id?: string | null
+          color?: string
+          created_at?: string
+          currency?: string
+          delivery_mode?: string
+          deposit_type?: string | null
+          deposit_value?: number | null
+          description?: string
+          duration_minutes: number
+          id?: string
+          name: string
+          payment_requirement?: string
+          price_minor?: number
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          appointment_type?: string
+          archived_at?: string | null
+          buffer_after_minutes?: number
+          buffer_before_minutes?: number
+          business_id?: string
+          capacity?: number
+          category_id?: string | null
+          color?: string
+          created_at?: string
+          currency?: string
+          delivery_mode?: string
+          deposit_type?: string | null
+          deposit_value?: number | null
+          description?: string
+          duration_minutes?: number
+          id?: string
+          name?: string
+          payment_requirement?: string
+          price_minor?: number
+          row_version?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_business_id_category_id_fkey"
+            columns: ["business_id", "category_id"]
+            isOneToOne: false
+            referencedRelation: "service_categories"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "services_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_availability: {
+        Row: {
+          active: boolean
+          business_id: string
+          closes_at: string
+          created_at: string
+          effective_from: string
+          effective_until: string | null
+          id: string
+          iso_weekday: number
+          location_id: string
+          opens_at: string
+          row_version: number
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          closes_at: string
+          created_at?: string
+          effective_from?: string
+          effective_until?: string | null
+          id?: string
+          iso_weekday: number
+          location_id: string
+          opens_at: string
+          row_version?: number
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          closes_at?: string
+          created_at?: string
+          effective_from?: string
+          effective_until?: string | null
+          id?: string
+          iso_weekday?: number
+          location_id?: string
+          opens_at?: string
+          row_version?: number
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_availability_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_availability_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "staff_availability_business_id_staff_id_fkey"
+            columns: ["business_id", "staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      staff_locations: {
+        Row: {
+          business_id: string
+          created_at: string
+          id: string
+          location_id: string
+          row_version: number
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          id?: string
+          location_id: string
+          row_version?: number
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          id?: string
+          location_id?: string
+          row_version?: number
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_locations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_locations_business_id_location_id_fkey"
+            columns: ["business_id", "location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "staff_locations_business_id_staff_id_fkey"
+            columns: ["business_id", "staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      staff_profiles: {
+        Row: {
+          active: boolean
+          archived_at: string | null
+          avatar_asset_id: string | null
+          bio: string
+          bookable: boolean
+          buffer_after_minutes: number
+          buffer_before_minutes: number
+          business_id: string
+          color: string
+          created_at: string
+          display_name: string
+          email: string | null
+          id: string
+          phone_e164: string | null
+          row_version: number
+          updated_at: string
+          user_id: string | null
+          weekly_capacity_minutes: number
+        }
+        Insert: {
+          active?: boolean
+          archived_at?: string | null
+          avatar_asset_id?: string | null
+          bio?: string
+          bookable?: boolean
+          buffer_after_minutes?: number
+          buffer_before_minutes?: number
+          business_id: string
+          color?: string
+          created_at?: string
+          display_name: string
+          email?: string | null
+          id?: string
+          phone_e164?: string | null
+          row_version?: number
+          updated_at?: string
+          user_id?: string | null
+          weekly_capacity_minutes?: number
+        }
+        Update: {
+          active?: boolean
+          archived_at?: string | null
+          avatar_asset_id?: string | null
+          bio?: string
+          bookable?: boolean
+          buffer_after_minutes?: number
+          buffer_before_minutes?: number
+          business_id?: string
+          color?: string
+          created_at?: string
+          display_name?: string
+          email?: string | null
+          id?: string
+          phone_e164?: string | null
+          row_version?: number
+          updated_at?: string
+          user_id?: string | null
+          weekly_capacity_minutes?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_profiles_business_id_avatar_asset_id_fkey"
+            columns: ["business_id", "avatar_asset_id"]
+            isOneToOne: false
+            referencedRelation: "storage_assets"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "staff_profiles_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      staff_services: {
+        Row: {
+          active: boolean
+          business_id: string
+          created_at: string
+          id: string
+          row_version: number
+          service_id: string
+          staff_id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          business_id: string
+          created_at?: string
+          id?: string
+          row_version?: number
+          service_id: string
+          staff_id: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          business_id?: string
+          created_at?: string
+          id?: string
+          row_version?: number
+          service_id?: string
+          staff_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_services_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_services_business_id_service_id_fkey"
+            columns: ["business_id", "service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["business_id", "id"]
+          },
+          {
+            foreignKeyName: "staff_services_business_id_staff_id_fkey"
+            columns: ["business_id", "staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      staff_time_off: {
+        Row: {
+          business_id: string
+          created_at: string
+          ends_at: string
+          id: string
+          reason: string
+          requested_by_user_id: string | null
+          reviewed_at: string | null
+          reviewed_by_user_id: string | null
+          row_version: number
+          staff_id: string
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          ends_at: string
+          id?: string
+          reason?: string
+          requested_by_user_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          row_version?: number
+          staff_id: string
+          starts_at: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          ends_at?: string
+          id?: string
+          reason?: string
+          requested_by_user_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by_user_id?: string | null
+          row_version?: number
+          staff_id?: string
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_time_off_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_time_off_business_id_staff_id_fkey"
+            columns: ["business_id", "staff_id"]
+            isOneToOne: false
+            referencedRelation: "staff_profiles"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      storage_assets: {
+        Row: {
+          bucket_name: string
+          business_id: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          mime_type: string
+          object_path: string
+          original_filename: string
+          row_version: number
+          scan_status: string
+          size_bytes: number
+          updated_at: string
+          uploaded_by_user_id: string | null
+          visibility: string
+        }
+        Insert: {
+          bucket_name: string
+          business_id: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          mime_type: string
+          object_path: string
+          original_filename: string
+          row_version?: number
+          scan_status?: string
+          size_bytes: number
+          updated_at?: string
+          uploaded_by_user_id?: string | null
+          visibility?: string
+        }
+        Update: {
+          bucket_name?: string
+          business_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          mime_type?: string
+          object_path?: string
+          original_filename?: string
+          row_version?: number
+          scan_status?: string
+          size_bytes?: number
+          updated_at?: string
+          uploaded_by_user_id?: string | null
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "storage_assets_business_id_fkey"
+            columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
             referencedColumns: ["id"]
