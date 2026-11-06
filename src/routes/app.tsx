@@ -127,7 +127,7 @@ function Dashboard() {
     }
   }, [authLoading, isLoading, navigate, user, workspace.business.id]);
   if (authLoading || !user || isLoading)
-    return <div className="app-loading">Loading your workspace…</div>;
+    return <div className="app-loading" role="status">Loading your workspace…</div>;
   if (!workspace.business.id) return <main className="dashboard-content" style={{ maxWidth: 760, margin: "auto" }}>
     {hasMembership ? <section className="panel"><h1>Workspace unavailable</h1><p>{loadError || "This account has a membership, but the full dashboard could not load."}</p></section> : <p>Checking your workspace access…</p>}
   </main>;
@@ -137,7 +137,7 @@ function Dashboard() {
         <div className="app-logo">
           <span className="avello-logo">A</span>
           <b>Avello</b>
-          <button onClick={() => setMobileOpen(false)}>
+          <button aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
             <X size={18} />
           </button>
         </div>
@@ -180,7 +180,7 @@ function Dashboard() {
       </aside>
       <div className="app-main">
         <header className="app-topbar">
-          <button className="app-menu" onClick={() => setMobileOpen(true)}>
+          <button className="app-menu" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
             <Menu size={20} />
           </button>
           <div className="top-actions">
@@ -3042,7 +3042,7 @@ function Modal({
       <div className="modal-card" onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2>{title}</h2>
-          <button onClick={onClose}>
+          <button aria-label="Close dialog" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
