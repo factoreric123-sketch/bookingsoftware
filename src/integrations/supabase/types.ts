@@ -5496,6 +5496,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_member_invitation: {
+        Args: {
+          p_actor_user_id: string
+          p_subject_hash: string
+          p_token: string
+        }
+        Returns: Json
+      }
       cancel_appointment: {
         Args: {
           p_actor_user_id: string
@@ -5521,6 +5529,18 @@ export type Database = {
         }
         Returns: Json
       }
+      create_blocked_time: {
+        Args: {
+          p_actor_user_id: string
+          p_business_id: string
+          p_ends_at: string
+          p_location_id: string
+          p_reason: string
+          p_staff_id: string
+          p_starts_at: string
+        }
+        Returns: Json
+      }
       create_booking_hold: {
         Args: {
           p_addon_quantities: Json
@@ -5532,6 +5552,19 @@ export type Database = {
           p_staff_id: string
           p_starts_at: string
           p_subject_hash: string
+        }
+        Returns: Json
+      }
+      create_invoice: {
+        Args: {
+          p_actor_user_id: string
+          p_appointment_id: string
+          p_business_id: string
+          p_customer_id: string
+          p_due_date: string
+          p_items: Json
+          p_notes: string
+          p_request_key: string
         }
         Returns: Json
       }
@@ -5548,11 +5581,30 @@ export type Database = {
         }
         Returns: Json
       }
+      get_business_analytics: {
+        Args: {
+          p_actor_user_id: string
+          p_business_id: string
+          p_from_date: string
+          p_location_id: string
+          p_through_date: string
+        }
+        Returns: Json
+      }
       get_managed_appointment: {
         Args: { p_subject_hash: string; p_token: string }
         Returns: Json
       }
       get_public_booking_page: { Args: { p_slug: string }; Returns: Json }
+      merge_customers: {
+        Args: {
+          p_actor_user_id: string
+          p_destination_customer_id: string
+          p_request_key: string
+          p_source_customer_id: string
+        }
+        Returns: Json
+      }
       provision_business: {
         Args: {
           p_actor_user_id: string
@@ -5568,6 +5620,20 @@ export type Database = {
         }
         Returns: Json
       }
+      record_manual_payment: {
+        Args: {
+          p_actor_user_id: string
+          p_amount_minor: number
+          p_invoice_id: string
+          p_method: string
+          p_request_key: string
+        }
+        Returns: Json
+      }
+      release_blocked_time: {
+        Args: { p_actor_user_id: string; p_blocked_time_id: string }
+        Returns: Json
+      }
       reschedule_appointment: {
         Args: {
           p_actor_user_id: string
@@ -5575,6 +5641,17 @@ export type Database = {
           p_expected_row_version: number
           p_management_token: string
           p_new_starts_at: string
+          p_request_key: string
+          p_subject_hash: string
+        }
+        Returns: Json
+      }
+      submit_public_form: {
+        Args: {
+          p_answers: Json
+          p_form_slug: string
+          p_form_version_id: string
+          p_honeypot: string
           p_request_key: string
           p_subject_hash: string
         }
