@@ -2603,6 +2603,59 @@ export type Database = {
           },
         ]
       }
+      entitlement_overrides: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          feature_key: string
+          granted_by_user_id: string | null
+          id: string
+          limit_value: number | null
+          organization_id: string
+          reason: string
+          row_version: number
+          updated_at: string
+          valid_from: string
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled: boolean
+          feature_key: string
+          granted_by_user_id?: string | null
+          id?: string
+          limit_value?: number | null
+          organization_id: string
+          reason: string
+          row_version?: number
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          feature_key?: string
+          granted_by_user_id?: string | null
+          id?: string
+          limit_value?: number | null
+          organization_id?: string
+          reason?: string
+          row_version?: number
+          updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entitlement_overrides_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_fields: {
         Row: {
           business_id: string
@@ -3916,6 +3969,47 @@ export type Database = {
           },
         ]
       }
+      plan_features: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          feature_key: string
+          id: string
+          limit_value: number | null
+          plan_id: string
+          row_version: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          feature_key: string
+          id?: string
+          limit_value?: number | null
+          plan_id: string
+          row_version?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          feature_key?: string
+          id?: string
+          limit_value?: number | null
+          plan_id?: string
+          row_version?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_features_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -4874,6 +4968,207 @@ export type Database = {
           },
         ]
       }
+      subscription_billing_documents: {
+        Row: {
+          amount_minor: number
+          created_at: string
+          currency: string
+          hosted_invoice_url: string | null
+          id: string
+          invoice_number: string | null
+          issued_at: string
+          organization_id: string
+          paid_at: string | null
+          pdf_url: string | null
+          provider_invoice_id: string
+          row_version: number
+          status: string
+          subscription_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_minor: number
+          created_at?: string
+          currency: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_number?: string | null
+          issued_at: string
+          organization_id: string
+          paid_at?: string | null
+          pdf_url?: string | null
+          provider_invoice_id: string
+          row_version?: number
+          status: string
+          subscription_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_minor?: number
+          created_at?: string
+          currency?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_number?: string | null
+          issued_at?: string
+          organization_id?: string
+          paid_at?: string | null
+          pdf_url?: string | null
+          provider_invoice_id?: string
+          row_version?: number
+          status?: string
+          subscription_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_billing_document_organization_id_subscription_fkey"
+            columns: ["organization_id", "subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "subscription_billing_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_plans: {
+        Row: {
+          active: boolean
+          annual_price_minor: number | null
+          code: string
+          created_at: string
+          currency: string
+          description: string
+          id: string
+          monthly_price_minor: number | null
+          name: string
+          published: boolean
+          row_version: number
+          sort_order: number
+          stripe_annual_price_id: string | null
+          stripe_monthly_price_id: string | null
+          trial_days: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          annual_price_minor?: number | null
+          code: string
+          created_at?: string
+          currency?: string
+          description?: string
+          id?: string
+          monthly_price_minor?: number | null
+          name: string
+          published?: boolean
+          row_version?: number
+          sort_order?: number
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          trial_days?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          annual_price_minor?: number | null
+          code?: string
+          created_at?: string
+          currency?: string
+          description?: string
+          id?: string
+          monthly_price_minor?: number | null
+          name?: string
+          published?: boolean
+          row_version?: number
+          sort_order?: number
+          stripe_annual_price_id?: string | null
+          stripe_monthly_price_id?: string | null
+          trial_days?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          billing_interval: string
+          cancel_at_period_end: boolean
+          cancelled_at: string | null
+          created_at: string
+          current_period_ends_at: string | null
+          current_period_starts_at: string | null
+          ended_at: string | null
+          id: string
+          organization_id: string
+          plan_id: string
+          row_version: number
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          trial_ends_at: string | null
+          trial_starts_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          billing_interval?: string
+          cancel_at_period_end?: boolean
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_ends_at?: string | null
+          current_period_starts_at?: string | null
+          ended_at?: string | null
+          id?: string
+          organization_id: string
+          plan_id: string
+          row_version?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_starts_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billing_interval?: string
+          cancel_at_period_end?: boolean
+          cancelled_at?: string | null
+          created_at?: string
+          current_period_ends_at?: string | null
+          current_period_starts_at?: string | null
+          ended_at?: string | null
+          id?: string
+          organization_id?: string
+          plan_id?: string
+          row_version?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          trial_ends_at?: string | null
+          trial_starts_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           appointment_id: string | null
@@ -4953,6 +5248,119 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usage_events: {
+        Row: {
+          business_id: string
+          cost_currency: string | null
+          created_at: string
+          id: string
+          idempotency_key: string
+          integration_id: string | null
+          is_sandbox: boolean
+          metric: string
+          occurred_at: string
+          provider_cost_microunits: number | null
+          provider_usage_id: string | null
+          quantity: number
+          subscription_id: string
+        }
+        Insert: {
+          business_id: string
+          cost_currency?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          metric: string
+          occurred_at: string
+          provider_cost_microunits?: number | null
+          provider_usage_id?: string | null
+          quantity: number
+          subscription_id: string
+        }
+        Update: {
+          business_id?: string
+          cost_currency?: string | null
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          integration_id?: string | null
+          is_sandbox?: boolean
+          metric?: string
+          occurred_at?: string
+          provider_cost_microunits?: number | null
+          provider_usage_id?: string | null
+          quantity?: number
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_events_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usage_events_business_id_integration_id_fkey"
+            columns: ["business_id", "integration_id"]
+            isOneToOne: false
+            referencedRelation: "integrations"
+            referencedColumns: ["business_id", "id"]
+          },
+        ]
+      }
+      usage_limits: {
+        Row: {
+          created_at: string
+          currency: string
+          id: string
+          metric: string
+          monthly_limit: number
+          monthly_spend_cap_minor: number | null
+          organization_id: string
+          overage_enabled: boolean
+          row_version: number
+          updated_at: string
+          warning_threshold_bps: number
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          id?: string
+          metric: string
+          monthly_limit: number
+          monthly_spend_cap_minor?: number | null
+          organization_id: string
+          overage_enabled?: boolean
+          row_version?: number
+          updated_at?: string
+          warning_threshold_bps?: number
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          id?: string
+          metric?: string
+          monthly_limit?: number
+          monthly_spend_cap_minor?: number | null
+          organization_id?: string
+          overage_enabled?: boolean
+          row_version?: number
+          updated_at?: string
+          warning_threshold_bps?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "usage_limits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
