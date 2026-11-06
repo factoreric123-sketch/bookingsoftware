@@ -21,6 +21,7 @@ type ProvisionResult = { organization_id: string; business_id: string; location_
 
 function Onboarding() {
   const navigate = useNavigate();
+  const [bookingHost, setBookingHost] = useState("");
   const { user, loading: authLoading } = useAuth();
   const [step, setStep] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -39,6 +40,8 @@ function Onboarding() {
   });
   const [hours, setHours] = useState(() => dayNames.map((day, index) => ({ day, open: "09:00", close: "17:00", enabled: index < 5 })));
   const [service, setService] = useState({ name: "Initial consultation", description: "A focused session to understand what you need.", duration: 60, price: 100, color: "#6d5dfc" });
+
+  useEffect(() => { setBookingHost(window.location.host); }, []);
 
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/login", replace: true });
@@ -89,7 +92,9 @@ function Onboarding() {
           color: service.color,
         },
       });
-      await navigate({ to: "/app" });
+      // Provisioning creates the first membership after the app store's initial load.
+      // Reload so the dashboard starts with a fresh membership and workspace snapshot.
+      window.location.assign("/app");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Workspace setup failed. Please try again.");
     } finally {
@@ -132,12 +137,12 @@ function Onboarding() {
         <div className="choice-cards"><button disabled><span className="google-cal">31</span><b>Google Calendar</b><small>Requires Google OAuth</small><em>Not configured</em></button><button disabled><span className="outlook-cal">O</span><b>Outlook Calendar</b><small>Requires Microsoft OAuth</small><em>Not configured</em></button><button className="selected"><span className="internal-cal"><CalendarDays size={22}/></span><b>Avello Calendar</b><small>Protected by database scheduling constraints</small><em><Check size={13}/>Selected</em></button></div>
       </Step>}
       {step === 4 && <Step title="Make it yours" copy="Choose the public URL and color customers will see.">
-        <label>Booking page URL<div className="input-prefix"><span>avello.app/book/</span><input value={business.slug} onChange={(event) => setBusiness({ ...business, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}/></div></label>
+        <label>Booking page URL<div className="input-prefix"><span>{bookingHost}/book/</span><input value={business.slug} onChange={(event) => setBusiness({ ...business, slug: event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "") })}/></div></label>
         <label>Brand color<div className="color-choice"><input type="color" value={business.accent} onChange={(event) => setBusiness({ ...business, accent: event.target.value })}/><span>{business.accent}</span></div></label>
         <div className="booking-mini-preview" style={{ "--brand": business.accent } as React.CSSProperties}><div><span>{business.name?.[0] || "B"}</span><b>{business.name || "Your business"}</b><small>{business.industry || "Your industry"}</small></div><button>Book an appointment</button></div>
       </Step>}
       {step === 5 && <Step title="Publish your workspace" copy="This final step writes your complete setup to Supabase and publishes the real booking page.">
-        <div className="launch-card"><span><Rocket size={28}/></span><h3>{business.name}</h3><p>avello.app/book/{business.slug}</p><ul><li><Check size={15}/>Secure organization and owner access</li><li><Check size={15}/>Location and operating hours</li><li><Check size={15}/>First service and staff assignment</li><li><Check size={15}/>Public booking page</li></ul></div>
+        <div className="launch-card"><span><Rocket size={28}/></span><h3>{business.name}</h3><p>{bookingHost}/book/{business.slug}</p><ul><li><Check size={15}/>Secure organization and owner access</li><li><Check size={15}/>Location and operating hours</li><li><Check size={15}/>First service and staff assignment</li><li><Check size={15}/>Public booking page</li></ul></div>
       </Step>}
       {error && <div className="auth-error">{error}</div>}
       <div className="onboard-actions">{step > 0 ? <button className="back-action" disabled={saving} onClick={() => setStep(step - 1)}><ArrowLeft size={16}/>Back</button> : <span/>}<button className="solid-action" disabled={!valid || saving} onClick={next}>{saving ? <><Loader2 className="spin" size={16}/>Creating workspace…</> : <>{step === 5 ? "Publish and open dashboard" : "Continue"}<ArrowRight size={16}/></>}</button></div>
