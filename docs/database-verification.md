@@ -4,6 +4,8 @@ Date: 2026-11-06. All work applied through Lovable's Supabase migration tooling 
 
 Follow-up verification on 2026-11-07: see `authorization-verification.md` for the explicit-actor repair, 13 passing tests, real connected transactions, remaining failures, and advisor limitations. The original results below are historical.
 
+Published-field immutability follow-up on 2026-11-07: migration `20261107220124_ef6831d1-670b-40f7-9112-fd13e29a16fb.sql` extends the existing field trigger to INSERT and safely separates NEW/OLD handling. The original gap was reproduced before repair; all 14 connected transactional regression assertions passed and all fixtures rolled back. Security advisor reported only the same 11 pre-existing findings. See `published-form-fields-verification.md` for exact results and Edge `save_form` source-order compatibility evidence.
+
 ## Applied migrations (in order)
 
 1. Foundation: private schema, shared update/immutability trigger, timezone validation, profiles (+ auth signup trigger and backfill), private.platform_admins, organizations, organization_members, businesses, business_settings, business_members, locations, member_locations, member_invitations, last-owner protection.
