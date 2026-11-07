@@ -62,3 +62,22 @@ The authorization mismatch is repaired and tested for the listed cases, but the 
 
 1. In `public.reschedule_appointment`, preserve the current validation, row-version, policy, idempotency, and event logic. For an individual session, update the existing `resource_reservations` row identified by `(business_id, session_id, staff_id)` with the new buffered `starts_at` and `ends_at` instead of deactivating it and inserting a duplicate. The unique index `resource_reservations_session_uidx` covers inactive rows too. Verify successful reschedule, a competing booking conflict, rollback to the original slot after failure, and token/actor isolation.
 2. In `public.provision_business`, remove the `auth.users` read used only to derive `v_display_name`. Read `public.profiles.full_name` by the verified actor UUID and fall back to `Owner`. Keep the existing function signature, service-role-only EXECUTE grant, transactional provisioning, and idempotency. Verify fresh owner onboarding with a new user and a second tenant. Also enforce organization admin role (owner/admin), not merely active organization membership, when `p_organization_id` is supplied.
+
+## Repair migration applied 2026-11-07
+
+Migration: `20261107214248_92b13d46-7018-4dc3-a121-42e9fd9d1b16.sql`
+
+- `public.reschedule_appointment`: individual sessions now update the existing reservation in place. The function excludes the appointment's own reservation from the overlap check, and any conflict raises P0409 and rolls back.
+- `public.provision_business`: no `auth.users` read. The display name comes from `profiles.full_name` and falls back to `Owner`. A supplied organization requires an active owner/admin membership.
+- Signatures are unchanged and each has one overload. EXECUTE is limited to `service_role`; anon and authenticated are denied (verified via `has_function_privilege`).
+
+Connected verification through the backend handler: 18/18 passed.
+- Fresh owner onboarding, tenants 1 and 2: pass. Idempotent replay returned the same business: pass (both).
+- Owner display name fallback `Owner` (profiles had no full_name): pass (both).
+- Tenant 2 owner adding a business to tenant 1's org: denied. Org owner adding a second business: pass.
+- Owner reschedule 09:00→13:00 UTC: pass. One active reservation row was updated to 13:00–13:30.
+- Reschedule onto a competing booking: rejected with P0409 (HTTP 400). Session and reservation stayed unchanged.
+- Another appointment's token: P0403. Anonymous forged actor: P0403. Other-tenant owner: P0403.
+- Own management token reschedule to 09:30: pass, still one reservation row.
+- Vitest: 6 passed, 7 connected tests skipped (opt-in).
+- Unchanged pre-existing linter items: 10 intentional private-table RLS notices, leaked-password protection disabled.
