@@ -1,9 +1,10 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { supabase } from "../integrations/supabase/client";
 
-export const Route = createFileRoute("/auth/callback")({ component: AuthCallback });
+export const Route = createFileRoute("/auth/callback")({ head: () => pageHead("Avello \u2014 Complete sign in", "Complete secure authentication for your Avello account."), component: AuthCallback });
 
 function AuthCallback() {
   const navigate = useNavigate();

@@ -1,9 +1,10 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, ChevronDown, ChevronUp, Menu, Phone, Plus, X } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Avello — Run your business. We'll handle the bookings." }, { name: "description", content: "Appointments, customers, payments, texts, and AI phone answering in one business platform." }] }),
+  head: () => pageHead("Avello — Booking and business management", "Appointments, customers, payments, texts, and AI phone answering in one business platform."),
   component: Index,
 });
 

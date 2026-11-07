@@ -1,9 +1,10 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, CalendarDays, Check, Clock3, Loader2, MapPin, ShieldCheck, UserRound } from "lucide-react";
 import { invokeBackend } from "../integrations/supabase/backend";
 
-export const Route = createFileRoute("/book/$slug")({ component: BookingPage });
+export const Route = createFileRoute("/book/$slug")({ head: () => pageHead("Avello \u2014 Book an appointment", "Choose a service and available appointment time through Avello."), component: BookingPage });
 
 type PublicService = { service_id: string; name: string; description: string; duration_minutes: number; price_minor: number; currency: string; payment_requirement: string };
 type PublicStaff = { staff_id: string; display_name: string; bio?: string };

@@ -1,9 +1,10 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { supabase } from "../integrations/supabase/client";
 
-export const Route = createFileRoute("/reset-password")({ component: ResetPassword });
+export const Route = createFileRoute("/reset-password")({ head: () => pageHead("Avello \u2014 Reset password", "Reset the password for your Avello business account."), component: ResetPassword });
 
 function ResetPassword() {
   const navigate = useNavigate();

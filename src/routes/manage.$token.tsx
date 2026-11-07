@@ -1,9 +1,10 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { CalendarDays, Check, Clock3, Loader2, RefreshCw, X } from "lucide-react";
 import { invokeBackend } from "../integrations/supabase/backend";
 
-export const Route = createFileRoute("/manage/$token")({ component: ManageBooking });
+export const Route = createFileRoute("/manage/$token")({ head: () => pageHead("Avello \u2014 Manage appointment", "View, reschedule, or cancel your Avello appointment securely."), component: ManageBooking });
 
 type ManagedAppointment = {
   appointment_id: string;

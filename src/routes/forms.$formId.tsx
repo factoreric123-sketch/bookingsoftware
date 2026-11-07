@@ -1,9 +1,10 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, Loader2, ShieldCheck } from "lucide-react";
 import { invokeBackend } from "../integrations/supabase/backend";
 
-export const Route = createFileRoute("/forms/$formId")({ component: PublicForm });
+export const Route = createFileRoute("/forms/$formId")({ head: () => pageHead("Avello \u2014 Customer form", "Submit your customer information securely through Avello."), component: PublicForm });
 
 type Field = { id: string; field_key: string; label: string; field_type: string; required: boolean; placeholder: string; help_text: string; options: Array<{ value: string; label: string }>; validation: Record<string, unknown>; visibility_rule: { field_key: string; operator: string; value: string | boolean } | null };
 type FormProjection = { form_id: string; version_id: string; name: string; description: string; slug: string; accent_color: string; business: { name: string; accent_color: string }; fields: Field[] };
