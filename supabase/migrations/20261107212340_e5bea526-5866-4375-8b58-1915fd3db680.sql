@@ -1,0 +1,14 @@
+INSERT INTO public.business_members(business_id,user_id,role,all_locations,can_view_analytics) VALUES ('a2000000-0000-4000-8000-000000000001','8317c8b5-0dfb-4f08-965b-55b3e51fd1da','manager',true,true);
+INSERT INTO public.staff_profiles(id,business_id,display_name) VALUES ('a5000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','Verification staff');
+INSERT INTO public.services(id,business_id,name,duration_minutes) VALUES ('a6000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','Verification service',30);
+INSERT INTO public.staff_locations(business_id,staff_id,location_id) VALUES ('a2000000-0000-4000-8000-000000000001','a5000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001');
+INSERT INTO public.staff_services(business_id,staff_id,service_id) VALUES ('a2000000-0000-4000-8000-000000000001','a5000000-0000-4000-8000-000000000001','a6000000-0000-4000-8000-000000000001');
+INSERT INTO public.service_locations(business_id,service_id,location_id) VALUES ('a2000000-0000-4000-8000-000000000001','a6000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001');
+INSERT INTO public.business_hours(business_id,location_id,iso_weekday,opens_at,closes_at) SELECT 'a2000000-0000-4000-8000-000000000001'::uuid,'a3000000-0000-4000-8000-000000000001'::uuid,d,'09:00'::time,'17:00'::time FROM generate_series(1,7) d;
+INSERT INTO public.staff_availability(business_id,location_id,staff_id,iso_weekday,opens_at,closes_at,effective_from) SELECT 'a2000000-0000-4000-8000-000000000001'::uuid,'a3000000-0000-4000-8000-000000000001'::uuid,'a5000000-0000-4000-8000-000000000001'::uuid,d,'09:00'::time,'17:00'::time,'2026-11-01'::date FROM generate_series(1,7) d;
+INSERT INTO public.booking_pages(id,business_id,location_id,slug,title,status) VALUES ('a7000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','authz-verification-a-20261107','Authorization verification A','published');
+INSERT INTO public.forms(id,business_id,name,slug,status,create_customer) VALUES ('a8000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','Verification form','authz-verification-form-20261107','published',false);
+INSERT INTO public.form_versions(id,business_id,form_id,version_number) VALUES ('a9000000-0000-4000-8000-000000000001','a2000000-0000-4000-8000-000000000001','a8000000-0000-4000-8000-000000000001',1);
+INSERT INTO public.form_fields(business_id,form_version_id,field_key,label,field_type,required,sort_order) VALUES ('a2000000-0000-4000-8000-000000000001','a9000000-0000-4000-8000-000000000001','note','Verification note','text',true,1);
+UPDATE public.form_versions SET published_at=now() WHERE id='a9000000-0000-4000-8000-000000000001';
+UPDATE public.forms SET active_version_id='a9000000-0000-4000-8000-000000000001' WHERE id='a8000000-0000-4000-8000-000000000001';
