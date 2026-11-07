@@ -5568,6 +5568,17 @@ export type Database = {
         }
         Returns: Json
       }
+      create_member_invitation: {
+        Args: {
+          p_actor_user_id: string
+          p_business_id: string
+          p_email: string
+          p_location_ids: string[]
+          p_permissions: Json
+          p_role: string
+        }
+        Returns: Json
+      }
       expire_holds: { Args: never; Returns: number }
       get_availability: {
         Args: {
