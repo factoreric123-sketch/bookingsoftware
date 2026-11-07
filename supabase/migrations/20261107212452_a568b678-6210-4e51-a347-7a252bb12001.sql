@@ -1,0 +1,3 @@
+DO $$ DECLARE d text; BEGIN SELECT pg_get_functiondef('public.create_blocked_time(uuid,uuid,uuid,uuid,timestamptz,timestamptz,text)'::regprocedure) INTO d; IF position('ON CONFLICT ON CONSTRAINT resource_reservations_block_uidx DO NOTHING' in d)=0 THEN RAISE EXCEPTION 'Expected conflict clause missing'; END IF; EXECUTE replace(d,'ON CONFLICT ON CONSTRAINT resource_reservations_block_uidx DO NOTHING','ON CONFLICT (business_id, blocked_time_id, staff_id) WHERE blocked_time_id IS NOT NULL DO NOTHING'); END $$;
+REVOKE ALL ON FUNCTION public.create_blocked_time(uuid,uuid,uuid,uuid,timestamptz,timestamptz,text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.create_blocked_time(uuid,uuid,uuid,uuid,timestamptz,timestamptz,text) TO service_role;
