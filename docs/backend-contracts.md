@@ -2,6 +2,8 @@
 
 All operations are Postgres functions in `public`, `SECURITY INVOKER`, with `EXECUTE` revoked from `PUBLIC`, `anon`, and `authenticated` and granted only to `service_role`. Call them from TanStack server functions after verifying the caller's session with `requireSupabaseAuth`; pass the verified user id as `p_actor_user_id`. Never let a browser supply actor identity.
 
+Current deployment uses the existing `backend-api` boundary, which overwrites supplied actor IDs with verified access-token identity. Protected SQL authorization now uses private explicit-actor helpers rather than request-context auth.uid(). See `authorization-verification.md` for exact runtime results and known rescheduling failures.
+
 Error codes: `P0403` forbidden, `P0404` not found, `P0409` conflict/state changed, `P0422` validation failed, `P0429` rate limited, `P0402` payment not configured.
 
 ## Operations

@@ -2,6 +2,8 @@
 
 Date: 2026-11-06. All work applied through Lovable's Supabase migration tooling to the connected project.
 
+Follow-up verification on 2026-11-07: see `authorization-verification.md` for the explicit-actor repair, 13 passing tests, real connected transactions, remaining failures, and advisor limitations. The original results below are historical.
+
 ## Applied migrations (in order)
 
 1. Foundation: private schema, shared update/immutability trigger, timezone validation, profiles (+ auth signup trigger and backfill), private.platform_admins, organizations, organization_members, businesses, business_settings, business_members, locations, member_locations, member_invitations, last-owner protection.

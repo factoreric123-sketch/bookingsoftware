@@ -1,6 +1,6 @@
 # Avello implementation status
 
-Updated November 4, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring.
+Updated November 7, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring. Earlier functional lists describe wiring, not verification of every workflow; see the authorization verification report for current failures.
 
 ## Functional with the connected Supabase project
 
@@ -48,9 +48,9 @@ Updated November 4, 2026. This document separates live production behavior, sand
 
 ## Remaining internal work
 
-### Blocking authorization defect found November 4
+### Explicit-actor authorization repaired November 7; workflow failures remain
 
-The protected RPCs are invoked by `backend-api` using a service-role Supabase client after `getUser` verifies the caller. Several SQL functions authorize with `private.business_member_role` / `private.business_permission`, which resolve the member through `auth.uid()`. The service-role RPC request has no caller JWT context, so these checks resolve no member and reject valid owners. This affects `create_blocked_time`, `release_blocked_time`, `merge_customers`, `create_invoice`, `record_manual_payment`, `get_business_analytics`, and authenticated confirmation/management paths. The earlier status list describes wired paths, not verified successful owner transactions. Lovable must change the managed SQL contract to authorize the explicitly supplied actor UUID against active memberships and preserve service-role-only EXECUTE grants. Do not weaken RLS or grant these functions to browsers. Reverify every affected workflow with two isolated tenants after that migration.
+Five private explicit-actor helpers and nine affected RPC authorization branches now use the server-verified actor, retaining service-role-only execution. Two isolated tenants verified owner transactions, cross-tenant rejection, manager flags, staff/inactive rejection and anonymous capability flows. Thirteen Vitest tests pass. Rescheduling still fails on an existing reservation unique-index conflict; form slug loading and initial provisioning also exposed separate failures. Performance advisor execution was unavailable for this user-managed backend. Exact migrations, functions and outcomes are in `docs/authorization-verification.md`; this is not a claim of complete end-to-end workflow verification.
 
 1. Finish production adapters for team invitations/roles and automation steps.
 2. Replace every remaining local-only dashboard mutation and sandbox-derived operational value.
