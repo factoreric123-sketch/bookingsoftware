@@ -28,3 +28,7 @@ use the editor.
   own key and store it in Secrets.
 - **Secrets.** Lovable manages them. Do not put secret values in the repo.
 <!-- LOVABLE:END -->
+
+- Protected service-role RPCs authorize the server-verified explicit actor through private actor helpers; request-context helpers remain for RLS because service requests have no end-user auth.uid().
+- Connected authorization regression tests are opt-in and require isolated test-user tokens from environment variables, preventing ordinary tests from mutating production data.
+- Leaf routes use the shared pageHead helper for unique metadata while keeping public capability tokens out of metadata.
