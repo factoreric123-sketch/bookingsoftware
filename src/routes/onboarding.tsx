@@ -1,3 +1,4 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, BriefcaseBusiness, CalendarDays, Check, Clock3, Loader2, MapPin, Palette, Rocket, Sparkles } from "lucide-react";
@@ -5,7 +6,7 @@ import { invokeBackend } from "../integrations/supabase/backend";
 import { supabase } from "../integrations/supabase/client";
 import { useAuth } from "../lib/auth-context";
 
-export const Route = createFileRoute("/onboarding")({ component: Onboarding });
+export const Route = createFileRoute("/onboarding")({ head: () => pageHead("Avello \u2014 Set up your business", "Set up your business, services, hours, and booking page in Avello."), component: Onboarding });
 
 const stepDefinitions = [
   { label: "Business", icon: BriefcaseBusiness },

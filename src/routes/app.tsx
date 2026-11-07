@@ -1,3 +1,4 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -48,7 +49,7 @@ import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm,
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
 
-export const Route = createFileRoute("/app")({ component: Dashboard });
+export const Route = createFileRoute("/app")({ head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."), component: Dashboard });
 type Section =
   | "Overview"
   | "Calendar"

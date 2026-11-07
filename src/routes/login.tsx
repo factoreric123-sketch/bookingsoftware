@@ -1,10 +1,11 @@
+import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { supabase } from "../integrations/supabase/client";
 import { useAuth } from "../lib/auth-context";
 
-export const Route = createFileRoute("/login")({ component: Login });
+export const Route = createFileRoute("/login")({ head: () => pageHead("Avello \u2014 Sign in", "Sign in or create your Avello business account."), component: Login });
 
 async function nextAuthenticatedRoute() {
   const { count } = await supabase
