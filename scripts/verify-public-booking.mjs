@@ -29,6 +29,8 @@ if (unauthenticatedStaffEdit.status !== 401) throw new Error("Unauthenticated st
 
 const serviceId = b.services[0].service_id;
 const availability = { p_booking_page_id: b.booking_page_id, p_service_id: serviceId, p_from_date: date, p_through_date: date, p_staff_id: null, p_addon_quantities: [], p_seat_count: 1 };
+const crossTenantAvailability = await call("get_availability", { ...availability, p_booking_page_id: a.booking_page_id });
+if (crossTenantAvailability.status === 200) throw new Error("Another business's service was accepted on A's booking page");
 const slots = requireOk(await call("get_availability", availability), "B availability");
 if (!slots.length) throw new Error("No available slot on the requested date");
 const slot = slots[0];
@@ -56,7 +58,7 @@ try {
   if (repeat.appointment_id !== confirmed.appointment_id) throw new Error("Confirmation replay created another appointment");
   const managed = requireOk(await call("get_managed_appointment", { p_management_token: confirmed.management_token }), "Management link");
   if (managed.appointment_id !== confirmed.appointment_id) throw new Error("Management link opened another appointment");
-  console.log(JSON.stringify({ tenantIsolation: true, unauthenticatedStaffEditDenied: true, invalidTokenDenied: true, concurrentHold: true, idempotentConfirmation: true, managementLink: true, appointmentId: confirmed.appointment_id }));
+  console.log(JSON.stringify({ tenantIsolation: true, crossTenantAvailabilityDenied: true, unauthenticatedStaffEditDenied: true, invalidTokenDenied: true, concurrentHold: true, idempotentConfirmation: true, managementLink: true, appointmentId: confirmed.appointment_id }));
 } finally {
   if (confirmed) {
     const managed = requireOk(await call("get_managed_appointment", { p_management_token: confirmed.management_token }), "Cleanup lookup");
