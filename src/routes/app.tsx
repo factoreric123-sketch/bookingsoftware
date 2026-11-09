@@ -1984,7 +1984,7 @@ function Team() {
     weeklyHours: 40,
   });
   const save = async () => {
-    if (!form.name.trim() || !form.email.trim() || form.weeklyHours < 0) return;
+    if (!form.name.trim() || (!editingId && !form.email.trim()) || form.weeklyHours < 0) return;
     setError("");
     setSavingStaff(true);
     try {
@@ -2142,7 +2142,7 @@ function Team() {
               </label>
             ))}
           </fieldset>
-          <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || !form.email.trim() || form.weeklyHours < 0}>
+          <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || (!editingId && !form.email.trim()) || form.weeklyHours < 0}>
             {savingStaff ? "Saving…" : editingId ? "Save profile" : "Add member"}
           </button>
         </Modal>
