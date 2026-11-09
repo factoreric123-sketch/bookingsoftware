@@ -2632,6 +2632,8 @@ function Payments() {
   const [paymentError, setPaymentError] = useState("");
   const [saving, setSaving] = useState(false);
   const [payingId, setPayingId] = useState("");
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState(0);
   const [form, setForm] = useState({
     customerId: workspace.customers[0]?.id ?? "",
     amount: 0,
@@ -2642,6 +2644,9 @@ function Payments() {
   const total = activeInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
   const paid = activeInvoices.reduce((sum, invoice) => sum + invoice.paid, 0);
   const formatAmount = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: workspace.business.currency ?? "USD" }).format(amount);
+  const paymentInvoice = workspace.invoices.find((invoice) => invoice.id === paymentInvoiceId);
+  const paymentBalance = paymentInvoice ? Math.round((paymentInvoice.amount - paymentInvoice.paid) * 100) / 100 : 0;
+  const validPaymentAmount = Number.isFinite(paymentAmount) && paymentAmount > 0 && Math.abs(paymentAmount * 100 - Math.round(paymentAmount * 100)) < 0.000001 && Math.round(paymentAmount * 100) <= Math.round(paymentBalance * 100);
   const save = async () => {
     if (!form.customerId || form.amount <= 0) return;
     setSaving(true); setPaymentError("");
@@ -2651,7 +2656,7 @@ function Payments() {
   };
   const markPaid = async (id: string, amount: number) => {
     setPayingId(id); setPaymentError("");
-    try { await recordManualPayment(id, amount); }
+    try { await recordManualPayment(id, amount); setPaymentInvoiceId(""); }
     catch (caught) { setPaymentError(caught instanceof Error ? caught.message : "Payment could not be recorded."); }
     finally { setPayingId(""); }
   };
@@ -2713,12 +2718,12 @@ function Payments() {
                 <b>{formatAmount(invoice.amount)}</b>
                 {invoice.paid > 0 && invoice.status !== "paid" && <small>{formatAmount(invoice.paid)} recorded</small>}
               </span>
-              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button disabled={payingId === invoice.id || invoice.amount <= invoice.paid} onClick={() => void markPaid(invoice.id, Math.max(0, invoice.amount - invoice.paid))}>{payingId === invoice.id ? "Recording…" : "Record balance paid"}</button>}</span>
+              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button disabled={payingId === invoice.id || invoice.amount <= invoice.paid} onClick={() => { setPaymentInvoiceId(invoice.id); setPaymentAmount(Math.round((invoice.amount - invoice.paid) * 100) / 100); setPaymentError(""); }}>Record payment</button>}</span>
             </div>
           ))}
         </div>
       </div>
-      {paymentError && !show && <p role="alert" className="form-error">{paymentError}</p>}
+      {paymentError && !show && !paymentInvoiceId && <p role="alert" className="form-error">{paymentError}</p>}
       <div className="panel provider-note">
         <CreditCard size={21} />
         <div>
@@ -2768,6 +2773,15 @@ function Payments() {
           <button className="solid-action full" onClick={save} disabled={saving || !form.customerId || form.amount <= 0}>
             {saving ? "Saving…" : "Save draft invoice"}
           </button>
+        </Modal>
+      )}
+      {paymentInvoice && (
+        <Modal title={`Record payment for ${paymentInvoice.number}`} onClose={() => { if (!payingId) setPaymentInvoiceId(""); }}>
+          <p>Record money already received. This does not charge a card.</p>
+          <p>Remaining balance: {formatAmount(paymentBalance)}</p>
+          <label>Amount received<input type="number" min="0.01" max={paymentBalance} step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(Number(event.target.value))} /></label>
+          {paymentError && <p role="alert" className="form-error">{paymentError}</p>}
+          <button className="solid-action full" disabled={Boolean(payingId) || !validPaymentAmount} onClick={() => void markPaid(paymentInvoice.id, paymentAmount)}>{payingId ? "Recording…" : "Record manual payment"}</button>
         </Modal>
       )}
     </>
