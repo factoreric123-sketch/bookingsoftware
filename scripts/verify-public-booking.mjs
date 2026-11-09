@@ -24,6 +24,8 @@ const requireOk = (result, action) => {
 const a = requireOk(await call("get_public_booking_page", { p_slug: "authz-verification-a-20261107" }), "A page");
 const b = requireOk(await call("get_public_booking_page", { p_slug: "authz-verification-b-20261107" }), "B page");
 if (a.booking_page_id === b.booking_page_id || b.services.length !== 1) throw new Error("Tenant projections are not isolated");
+const unauthenticatedStaffEdit = await call("set_staff_services", { p_business_id: "b2000000-0000-4000-8000-000000000001", p_staff_id: "b5000000-0000-4000-8000-000000000001", p_service_ids: [] });
+if (unauthenticatedStaffEdit.status !== 401) throw new Error("Unauthenticated staff assignment edit was not rejected");
 
 const serviceId = b.services[0].service_id;
 const availability = { p_booking_page_id: b.booking_page_id, p_service_id: serviceId, p_from_date: date, p_through_date: date, p_staff_id: null, p_addon_quantities: [], p_seat_count: 1 };
@@ -54,7 +56,7 @@ try {
   if (repeat.appointment_id !== confirmed.appointment_id) throw new Error("Confirmation replay created another appointment");
   const managed = requireOk(await call("get_managed_appointment", { p_management_token: confirmed.management_token }), "Management link");
   if (managed.appointment_id !== confirmed.appointment_id) throw new Error("Management link opened another appointment");
-  console.log(JSON.stringify({ tenantIsolation: true, invalidTokenDenied: true, concurrentHold: true, idempotentConfirmation: true, managementLink: true, appointmentId: confirmed.appointment_id }));
+  console.log(JSON.stringify({ tenantIsolation: true, unauthenticatedStaffEditDenied: true, invalidTokenDenied: true, concurrentHold: true, idempotentConfirmation: true, managementLink: true, appointmentId: confirmed.appointment_id }));
 } finally {
   if (confirmed) {
     const managed = requireOk(await call("get_managed_appointment", { p_management_token: confirmed.management_token }), "Cleanup lookup");
