@@ -271,7 +271,7 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
     .filter((item) => item.status !== "cancelled")
     .reduce(
       (sum, item) =>
-        sum + (workspace.services.find((service) => service.id === item.serviceId)?.price ?? 0),
+        sum + (item.bookedTotal ?? workspace.services.find((service) => service.id === item.serviceId)?.price ?? 0),
       0,
     );
   const chart = Array.from({ length: 7 }, (_, offset) => {

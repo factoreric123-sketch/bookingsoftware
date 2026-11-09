@@ -5,7 +5,7 @@ import { useAuth } from "./auth-context";
 export type Service = { id: string; name: string; description: string; duration: number; price: number; color: string; active: boolean };
 export type Customer = { id: string; name: string; email: string; phone: string; notes: string; tags: string[]; createdAt: string };
 export type AppointmentStatus = "confirmed" | "pending" | "completed" | "cancelled" | "no-show";
-export type Appointment = { id: string; serviceId: string; customerId: string; staffId?: string; date: string; time: string; duration: number; status: AppointmentStatus; source: "dashboard" | "booking-page"; notes?: string; createdAt: string; manageToken: string; rowVersion?: number };
+export type Appointment = { id: string; serviceId: string; customerId: string; staffId?: string; date: string; time: string; duration: number; status: AppointmentStatus; source: "dashboard" | "booking-page"; notes?: string; createdAt: string; manageToken: string; rowVersion?: number; bookedTotal?: number };
 export type Business = { id: string; name: string; slug: string; industry: string; email: string; phone: string; address: string; timezone: string; currency?: string; defaultLocationId?: string; accent: string; setupComplete: boolean; hours: Record<string, { open: string; close: string; enabled: boolean }> };
 export type Integration = { id: string; name: string; description: string; status: "connected" | "not-configured" | "pending-approval"; category: string };
 export type Staff = { id: string; name: string; email: string; role: "owner" | "manager" | "staff"; active: boolean; serviceIds: string[]; weeklyHours: number };
@@ -135,7 +135,7 @@ function mapSnapshot(snapshot: any): Workspace {
   const appointments: Appointment[] = [];
   for (const session of snapshot.sessions ?? []) {
     const parts = zonedParts(session.starts_at, business.timezone ?? "America/New_York");
-    for (const item of session.appointments ?? []) appointments.push({ id: item.id, serviceId: session.primary_service_id, customerId: item.customer_id, staffId: session.staff_id ?? undefined, date: parts.date, time: parts.time, duration: Math.max(5, Math.round((new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()) / 60000)), status: item.status === "no_show" ? "no-show" : item.status, source: item.source === "booking_page" ? "booking-page" : "dashboard", notes: item.customer_notes ?? "", createdAt: item.created_at, manageToken: "", rowVersion: item.row_version });
+    for (const item of session.appointments ?? []) appointments.push({ id: item.id, serviceId: session.primary_service_id, customerId: item.customer_id, staffId: session.staff_id ?? undefined, date: parts.date, time: parts.time, duration: Math.max(5, Math.round((new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()) / 60000)), status: item.status === "no_show" ? "no-show" : item.status, source: item.source === "booking_page" ? "booking-page" : "dashboard", notes: item.customer_notes ?? "", createdAt: item.created_at, manageToken: "", rowVersion: item.row_version, bookedTotal: Number(item.total_minor ?? 0) / 100 });
   }
   const blockedTimes = (snapshot.blocked_times ?? []).map((item: any): BlockedTime => { const start = zonedParts(item.starts_at, business.timezone ?? "America/New_York"); const end = zonedParts(item.ends_at, business.timezone ?? "America/New_York"); return { id: item.id, staffId: item.staff_id ?? undefined, date: start.date, start: start.time, end: end.time, reason: item.reason, createdAt: item.created_at }; });
   return {
