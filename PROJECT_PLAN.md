@@ -14,14 +14,14 @@ This checklist tracks the original product spec against the current implementati
 
 ### 1. Prove the core works end to end
 
-- [ ] Create isolated test owner, manager, staff, and customer accounts; test signup, onboarding, invitation redemption, and role-specific browser views. Existing owner/manager views, staff view, and Edge invitation redemption passed. Fresh signup and invitation browser flow still need a reachable test inbox; the reserved `example.com` test address was rejected and a previous attempt hit Supabase's email rate limit. See `docs/phase1-verification.md`.
+- [ ] Create isolated test owner, manager, staff, and customer accounts; test signup, onboarding, invitation redemption, and role-specific browser views. Fresh owner signup and onboarding passed with an available test inbox. The first dashboard navigation exposed a stale workspace; the onboarding route now reloads after provisioning. Existing owner/manager views, staff view, and Edge invitation redemption passed. Further email verification testing is deferred at Eric's request. See `docs/phase1-verification.md`.
 - [x] Exercise public booking, dashboard booking, management links, rescheduling, cancellation, conflict handling, and daylight-saving boundaries in two separate businesses. Both isolated businesses passed public booking, management, dashboard booking, rescheduling, and cancellation; stale-version and occupied-slot conflicts were rejected. B also passed live spring/fall availability, booking, and cancellation checks. See `docs/phase1-verification.md`.
 - [ ] Add the service-role integration harness and the remaining required RLS, idempotency, concurrency, finance, consent, metering, and job scenarios. Repeatable public Edge and rollback-only SQL harnesses now cover those critical invariants, including service-role and anonymous direct-RPC checks. The original broader 50-scenario acceptance inventory and provider-backed cases still need reconciliation.
 - [ ] Verify mobile layout, loading and error states, accessibility of the main booking and dashboard journeys. Hosted public booking and B owner overview/Bookings passed at 390×844; invalid booking loading/error state passed after publication. Main mobile navigation and dialog controls now have accessible labels; keyboard and broader dashboard audit remain.
 
 ### 2. Finish reliable scheduling and team operations
 
-- [ ] Fix business-timezone date handling and remaining dashboard statistics so displayed dates and metrics match stored records.
+- [ ] Fix business-timezone date handling and remaining dashboard statistics so displayed dates and metrics match stored records. Overview chart, calendar week, and booking/AI form default dates now use the business timezone; remaining metric semantics still need review.
 - [ ] Add staff availability, time-off, service-assignment editing, and location-assignment editing with authorization and conflict checks.
 - [ ] Add owner-controlled member permission and role editing with audit history; preserve access isolation.
 - [ ] Complete day/month/staff/location calendar views and appointment detail editing. Add drag-and-drop only after server-checked rescheduling is verified.

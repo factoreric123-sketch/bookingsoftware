@@ -45,6 +45,7 @@ import {
   Zap,
 } from "lucide-react";
 import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField } from "../lib/app-store";
+import { businessDate, calendarWeekStart, shiftCalendarDate } from "../lib/business-date";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
 import { supabase } from "../integrations/supabase/client";
@@ -262,12 +263,7 @@ function PageHeader({
 
 function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
   const { workspace } = useAppStore();
-  const today = new Intl.DateTimeFormat("en-CA", {
-    timeZone: workspace.business.timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
+  const today = businessDate(workspace.business.timezone);
   const todays = workspace.appointments.filter(
     (item) => item.date === today && item.status !== "cancelled",
   );
@@ -279,11 +275,10 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
       0,
     );
   const chart = Array.from({ length: 7 }, (_, offset) => {
-    const value = new Date();
-    value.setDate(value.getDate() - (6 - offset));
-    const date = value.toISOString().slice(0, 10);
+    const date = shiftCalendarDate(today, offset - 6);
+    const value = new Date(`${date}T12:00:00Z`);
     return {
-      day: value.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      day: value.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }),
       bookings: workspace.appointments.filter(
         (appointment) => appointment.date === date && appointment.status !== "cancelled",
       ).length,
@@ -493,20 +488,18 @@ function CalendarWorkspace() {
   const { workspace, addBlockedTime, removeBlockedTime } = useAppStore();
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
-  const [weekStart, setWeekStart] = useState(() => { const date = new Date(); const weekday = date.getDay(); date.setDate(date.getDate() - (weekday === 0 ? 6 : weekday - 1)); date.setHours(12, 0, 0, 0); return date; });
+  const [weekStart, setWeekStart] = useState(() => calendarWeekStart(businessDate(workspace.business.timezone)));
   const [form, setForm] = useState({
     staffId: workspace.staff[0]?.id ?? "",
-    date: new Date().toISOString().slice(0, 10),
+    date: businessDate(workspace.business.timezone),
     start: "12:00",
     end: "13:00",
     reason: "Unavailable",
   });
   const days = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date(weekStart);
-    date.setDate(date.getDate() + index);
-    return date.toISOString().slice(0, 10);
+    return shiftCalendarDate(weekStart, index);
   });
-  const moveWeek = (offset: number) => setWeekStart((current) => { const date = new Date(current); date.setDate(date.getDate() + offset * 7); return date; });
+  const moveWeek = (offset: number) => setWeekStart((current) => shiftCalendarDate(current, offset * 7));
   const weekLabel = `${new Date(`${days[0]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${new Date(`${days[6]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
   const save = async () => {
     const result = await addBlockedTime(form);
@@ -538,7 +531,7 @@ function CalendarWorkspace() {
         }
       />
       <div className="calendar-toolbar">
-        <button className="secondary-action" onClick={() => { const date = new Date(); const weekday = date.getDay(); date.setDate(date.getDate() - (weekday === 0 ? 6 : weekday - 1)); date.setHours(12, 0, 0, 0); setWeekStart(date); }}>Today</button>
+        <button className="secondary-action" onClick={() => setWeekStart(calendarWeekStart(businessDate(workspace.business.timezone)))}>Today</button>
         <div>
           <button onClick={() => moveWeek(-1)}>‹</button>
           <b>{weekLabel}</b>
@@ -744,7 +737,7 @@ function Bookings({ title }: { title: string }) {
     customerId: workspace.customers[0]?.id ?? "",
     serviceId: workspace.services[0]?.id ?? "",
     staffId: workspace.staff[0]?.id ?? "",
-    date: new Date().toISOString().slice(0, 10),
+    date: businessDate(workspace.business.timezone),
     time: "09:00",
   });
   const submit = async () => {
@@ -1562,7 +1555,7 @@ function PhoneAi() {
     caller: "(555) 010-2020",
     name: "Taylor Reed",
     serviceId: workspace.services.find((service) => service.active)?.id ?? "",
-    date: new Date().toISOString().slice(0, 10),
+    date: businessDate(workspace.business.timezone),
     time: "",
   });
   const eligible = workspace.staff.filter(
