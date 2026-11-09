@@ -750,6 +750,13 @@ Deno.serve(async (req: Request) => {
     delete params.p_local_time;
   }
 
+  if (action === "get_availability") {
+    // An expired individual hold keeps its resource reservation until this cleanup runs.
+    // Refreshing availability must release it without waiting for another hold attempt.
+    const { error: expiryError } = await admin.rpc("expire_holds");
+    if (expiryError) return json({ error: expiryError.message, code: expiryError.code }, 400);
+  }
+
   const { data, error } = await admin.rpc(action as never, params as never);
   if (error) {
     console.error("backend operation failed", { action, code: error.code });
