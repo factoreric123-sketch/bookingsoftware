@@ -44,3 +44,4 @@
 .service-footer .text-action{margin-left:auto;border:0;background:none;color:#6555d8;font-size:10px;font-weight:650;cursor:pointer;padding:5px}
 .business-switch select{max-width:160px;border:0;background:transparent;color:#fff;font-size:12px;font-weight:700;outline:0}.business-switch select option{color:#191923}
 .team-card > .secondary-action{grid-column:1/-1;justify-self:start;min-width:110px;min-height:38px;white-space:nowrap}
+:is(button,a,input,select,textarea,[tabindex]):focus-visible{outline:2px solid #6d5dfc;outline-offset:2px}
