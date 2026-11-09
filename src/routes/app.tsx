@@ -286,6 +286,7 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
   });
   const completedSetup = [Boolean(workspace.business.name), workspace.services.length > 0, Object.values(workspace.business.hours).some((item) => item.enabled), workspace.staff.length > 0, Boolean(workspace.business.slug)].filter(Boolean).length;
   const activeAppointments = workspace.appointments.filter((item) => item.status !== "cancelled");
+  const revenueLabel = new Intl.NumberFormat("en-US", { style: "currency", currency: workspace.business.currency ?? "USD", maximumFractionDigits: 2 }).format(revenue);
   const bookingRate = activeAppointments.length ? `${Math.round((activeAppointments.filter((item) => item.status === "confirmed" || item.status === "completed").length / activeAppointments.length) * 100)}%` : "—";
   const setupItems = [
     { label: "Business profile", done: Boolean(workspace.business.name), section: "Settings" as Section },
@@ -315,15 +316,15 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
           icon={CalendarDays}
         />
         <Metric
-          label="New customers"
+          label="Customers"
           value={String(workspace.customers.length)}
           trend="Authorized customer records"
           icon={Users}
         />
         <Metric
           label="Booked revenue"
-          value={`$${revenue.toLocaleString()}`}
-          trend="Across active appointments"
+          value={revenueLabel}
+          trend="Across loaded active appointments"
           icon={CircleDollarSign}
         />
         <Metric label="Confirmation rate" value={bookingRate} trend={activeAppointments.length ? "Across active bookings" : "No booking data yet"} icon={Activity} />
@@ -333,7 +334,7 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
           <div className="panel-heading">
             <div>
               <h2>Booking activity</h2>
-              <p>Confirmed bookings over the last 7 days</p>
+              <p>Active bookings over the last 7 days</p>
             </div>
             <span className="date-filter">Last 7 days</span>
           </div>
