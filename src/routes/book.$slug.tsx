@@ -81,6 +81,7 @@ function BookingPage() {
     setError("");
     try {
       const created = await invokeBackend<Hold>("create_booking_hold", { p_booking_page_id: page.booking_page_id, p_service_id: serviceId, p_staff_id: slot.staff_id, p_session_id: slot.session_id, p_starts_at: slot.starts_at, p_addon_quantities: [], p_seat_count: 1, p_request_key: holdRequestKey });
+      setSecondsLeft(Math.max(0, Math.floor((new Date(created.expires_at).getTime() - Date.now()) / 1000)));
       setHold(created);
       setStep("details");
     } catch (caught) {
