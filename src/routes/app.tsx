@@ -2122,7 +2122,7 @@ function Team() {
             </label>
           </div>
           {editingId && <label>Active profile<input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /></label>}
-          {!editingId && <fieldset className="service-checks">
+          <fieldset className="service-checks">
             <legend>Assigned services</legend>
             {workspace.services.map((service) => (
               <label key={service.id}>
@@ -2141,8 +2141,7 @@ function Team() {
                 {service.name}
               </label>
             ))}
-          </fieldset>}
-          {editingId && <p>Service assignments stay as shown on the profile card.</p>}
+          </fieldset>
           <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || !form.email.trim() || form.weeklyHours < 0}>
             {savingStaff ? "Saving…" : editingId ? "Save profile" : "Add member"}
           </button>

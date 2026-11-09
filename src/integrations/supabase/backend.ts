@@ -23,6 +23,7 @@ export type BackendAction =
   | "get_my_businesses"
   | "get_staff_schedule"
   | "mutate_workspace"
+  | "set_staff_services"
   | "get_public_form"
   | "create_dashboard_booking"
   | "reschedule_dashboard_booking"

@@ -34,6 +34,7 @@ const authenticatedActions = new Set([
   "get_my_businesses",
   "get_staff_schedule",
   "mutate_workspace",
+  "set_staff_services",
   "create_dashboard_booking",
   "reschedule_dashboard_booking",
   "save_form",
@@ -475,6 +476,41 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await updateQuery.select().single();
     if (error) return json({ error: error.message, code: error.code }, 400);
     return json({ data });
+  }
+
+  if (action === "set_staff_services") {
+    const businessId = String(params.p_business_id ?? "");
+    const staffId = String(params.p_staff_id ?? "");
+    const requested = params.p_service_ids;
+    if (!Array.isArray(requested) || requested.some((id) => typeof id !== "string") || requested.length > 100) return json({ error: "A valid service list is required" }, 400);
+    const serviceIds = [...new Set(requested as string[])];
+    const [{ data: member, error: memberError }, { data: staff, error: staffError }, { data: services, error: servicesError }, { data: links, error: linksError }] = await Promise.all([
+      admin.from("business_members").select("role,can_manage_staff").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle(),
+      admin.from("staff_profiles").select("id").eq("business_id", businessId).eq("id", staffId).is("archived_at", null).maybeSingle(),
+      serviceIds.length ? admin.from("services").select("id").eq("business_id", businessId).is("archived_at", null).in("id", serviceIds) : Promise.resolve({ data: [], error: null }),
+      admin.from("staff_services").select("service_id,active").eq("business_id", businessId).eq("staff_id", staffId),
+    ]);
+    if (memberError || staffError || servicesError || linksError) return json({ error: memberError?.message ?? staffError?.message ?? servicesError?.message ?? linksError?.message }, 400);
+    if (!member || (member.role !== "owner" && !(member.role === "manager" && member.can_manage_staff === true))) return json({ error: "Permission denied" }, 403);
+    if (!staff) return json({ error: "Team profile not found" }, 404);
+    if ((services ?? []).length !== serviceIds.length) return json({ error: "One or more services are not in this business" }, 400);
+    const existing = new Map((links ?? []).map((link) => [link.service_id, link.active]));
+    const toDisable = (links ?? []).filter((link) => link.active && !serviceIds.includes(link.service_id)).map((link) => link.service_id);
+    const toEnable = serviceIds.filter((id) => existing.get(id) === false);
+    const toCreate = serviceIds.filter((id) => !existing.has(id));
+    if (toCreate.length) {
+      const { error } = await admin.from("staff_services").insert(toCreate.map((serviceId) => ({ business_id: businessId, staff_id: staffId, service_id: serviceId })));
+      if (error) return json({ error: error.message, code: error.code }, 400);
+    }
+    if (toEnable.length) {
+      const { error } = await admin.from("staff_services").update({ active: true }).eq("business_id", businessId).eq("staff_id", staffId).in("service_id", toEnable);
+      if (error) return json({ error: error.message, code: error.code }, 400);
+    }
+    if (toDisable.length) {
+      const { error } = await admin.from("staff_services").update({ active: false }).eq("business_id", businessId).eq("staff_id", staffId).in("service_id", toDisable);
+      if (error) return json({ error: error.message, code: error.code }, 400);
+    }
+    return json({ data: { staff_id: staffId, service_ids: serviceIds } });
   }
 
   if (action === "create_dashboard_booking") {
