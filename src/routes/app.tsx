@@ -491,7 +491,7 @@ function CalendarWorkspace() {
   const [error, setError] = useState("");
   const [weekStart, setWeekStart] = useState(() => calendarWeekStart(businessDate(workspace.business.timezone)));
   const [form, setForm] = useState({
-    staffId: workspace.staff[0]?.id ?? "",
+    staffId: "",
     date: businessDate(workspace.business.timezone),
     start: "12:00",
     end: "13:00",
@@ -616,7 +616,7 @@ function CalendarWorkspace() {
       <div className="panel block-list">
         <div className="panel-heading">
           <div>
-            <h2>Upcoming blocked time</h2>
+            <h2>Blocked time</h2>
             <p>These periods are excluded from public, dashboard, and AI availability.</p>
           </div>
           <b>{workspace.blockedTimes.length} blocks</b>
@@ -2638,10 +2638,10 @@ function Payments() {
     status: "draft" as const,
     dueDate: new Date(Date.now() + 14 * 86400000).toISOString().slice(0, 10),
   });
-  const total = workspace.invoices.reduce((sum, invoice) => sum + invoice.amount, 0);
-  const paid = workspace.invoices
-    .filter((invoice) => invoice.status === "paid")
-    .reduce((sum, invoice) => sum + invoice.amount, 0);
+  const activeInvoices = workspace.invoices.filter((invoice) => invoice.status !== "void");
+  const total = activeInvoices.reduce((sum, invoice) => sum + invoice.amount, 0);
+  const paid = activeInvoices.reduce((sum, invoice) => sum + invoice.paid, 0);
+  const formatAmount = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: workspace.business.currency ?? "USD" }).format(amount);
   const save = async () => {
     if (!form.customerId || form.amount <= 0) return;
     setSaving(true); setPaymentError("");
@@ -2669,21 +2669,21 @@ function Payments() {
       />
       <div className="metric-grid payments-metrics">
         <Metric
-          label="Total invoiced"
-          value={`$${total.toLocaleString()}`}
-          trend="Authorized invoice records"
+          label="Invoice total"
+          value={formatAmount(total)}
+          trend="Non-void invoice records"
           icon={FileText}
         />
         <Metric
           label="Collected"
-          value={`$${paid.toLocaleString()}`}
+          value={formatAmount(paid)}
           trend={`${total ? Math.round((paid / total) * 100) : 0}% collection rate`}
           icon={CircleDollarSign}
         />
         <Metric
           label="Outstanding"
-          value={`$${(total - paid).toLocaleString()}`}
-          trend="Sent and overdue"
+          value={formatAmount(total - paid)}
+          trend="Unpaid non-void balance"
           icon={Clock3}
         />
         <Metric label="Stripe status" value="Offline" trend="No payment claims" icon={CreditCard} />
@@ -2710,9 +2710,10 @@ function Payments() {
               <span>{workspace.customers.find((c) => c.id === invoice.customerId)?.name}</span>
               <span>{formatDate(invoice.dueDate)}</span>
               <span>
-                <b>${invoice.amount.toLocaleString()}</b>
+                <b>{formatAmount(invoice.amount)}</b>
+                {invoice.paid > 0 && invoice.status !== "paid" && <small>{formatAmount(invoice.paid)} recorded</small>}
               </span>
-              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button disabled={payingId === invoice.id} onClick={() => void markPaid(invoice.id, invoice.amount)}>{payingId === invoice.id ? "Recording…" : "Record paid"}</button>}</span>
+              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button disabled={payingId === invoice.id || invoice.amount <= invoice.paid} onClick={() => void markPaid(invoice.id, Math.max(0, invoice.amount - invoice.paid))}>{payingId === invoice.id ? "Recording…" : "Record balance paid"}</button>}</span>
             </div>
           ))}
         </div>
