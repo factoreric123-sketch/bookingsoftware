@@ -23,7 +23,7 @@ This checklist tracks the original product spec against the current implementati
 ### 2. Finish reliable scheduling and team operations
 
 - [ ] Fix business-timezone date handling and remaining dashboard statistics so displayed dates and metrics match stored records. Overview chart, calendar week, and booking/AI form default dates use the business timezone. Booked revenue now sums appointment totals captured at booking rather than current service prices; a live priced-booking comparison and the remaining metric review are open.
-- [ ] Add staff availability, time-off, service-assignment editing, and location-assignment editing with authorization and conflict checks. Service-assignment editing now persists and passed an isolated hosted owner test; the other controls remain.
+- [ ] Add staff availability, time-off, service-assignment editing, and location-assignment editing with authorization and conflict checks. Service-assignment editing persists and passed an isolated hosted owner test. Newly created staff now inherit the selected location's weekly hours and appeared with bookable public slots in an isolated browser test. Staff-specific blocked time exists in Calendar; recurring availability editing and location-assignment editing remain.
 - [ ] Add owner-controlled member permission and role editing with audit history; preserve access isolation.
 - [ ] Complete day/month/staff/location calendar views and appointment detail editing. Add drag-and-drop only after server-checked rescheduling is verified.
 - [ ] Finish booking policy controls: notice window, advance window, buffers, cancellation and reschedule limits, group capacity, and manual approval where supported by the schema.

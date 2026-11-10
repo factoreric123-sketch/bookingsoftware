@@ -419,12 +419,14 @@ Deno.serve(async (req: Request) => {
       if (entity === "staff_profile") {
         const locationId = typeof incoming.location_id === "string" ? incoming.location_id : null;
         const serviceIds = Array.isArray(incoming.service_ids) ? incoming.service_ids.filter((value): value is string => typeof value === "string") : [];
-        if (locationId) {
-          const { error: linkError } = await admin.from("staff_locations").insert({ business_id: businessId, staff_id: data.id, location_id: locationId });
-          if (linkError) {
-            await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
-            return json({ error: linkError.message, code: linkError.code }, 400);
-          }
+        if (!locationId) {
+          await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
+          return json({ error: "A location is required for bookable staff" }, 400);
+        }
+        const { error: linkError } = await admin.from("staff_locations").insert({ business_id: businessId, staff_id: data.id, location_id: locationId });
+        if (linkError) {
+          await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
+          return json({ error: linkError.message, code: linkError.code }, 400);
         }
         if (serviceIds.length) {
           const { error: serviceError } = await admin.from("staff_services").insert(serviceIds.map((serviceId) => ({ business_id: businessId, staff_id: data.id, service_id: serviceId })));
@@ -432,6 +434,27 @@ Deno.serve(async (req: Request) => {
             await admin.from("staff_locations").delete().eq("business_id", businessId).eq("staff_id", data.id);
             await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
             return json({ error: serviceError.message, code: serviceError.code }, 400);
+          }
+        }
+        {
+          const { data: hours, error: hoursError } = await admin.from("business_hours")
+            .select("iso_weekday,opens_at,closes_at,active")
+            .eq("business_id", businessId).eq("location_id", locationId);
+          if (hoursError || !hours?.length) {
+            await admin.from("staff_services").delete().eq("business_id", businessId).eq("staff_id", data.id);
+            await admin.from("staff_locations").delete().eq("business_id", businessId).eq("staff_id", data.id);
+            await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
+            return json({ error: hoursError?.message ?? "Set location hours before adding bookable staff" }, 400);
+          }
+          const { error: availabilityError } = await admin.from("staff_availability").insert(hours.map((hour) => ({
+            business_id: businessId, staff_id: data.id, location_id: locationId,
+            iso_weekday: hour.iso_weekday, opens_at: hour.opens_at, closes_at: hour.closes_at, active: hour.active,
+          })));
+          if (availabilityError) {
+            await admin.from("staff_services").delete().eq("business_id", businessId).eq("staff_id", data.id);
+            await admin.from("staff_locations").delete().eq("business_id", businessId).eq("staff_id", data.id);
+            await admin.from("staff_profiles").delete().eq("business_id", businessId).eq("id", data.id);
+            return json({ error: availabilityError.message, code: availabilityError.code }, 400);
           }
         }
       }
