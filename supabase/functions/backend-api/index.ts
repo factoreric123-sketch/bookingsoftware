@@ -160,8 +160,9 @@ Deno.serve(async (req: Request) => {
   }
 
   if (action === "get_managed_appointment") {
-    params.p_token = params.p_management_token;
+    params.p_token = params.p_management_token ?? params.p_token;
     delete params.p_management_token;
+    if (typeof params.p_token !== "string" || !params.p_token) return json({ error: "Management token is required" }, 400);
   }
 
   if (action === "get_public_form") {
