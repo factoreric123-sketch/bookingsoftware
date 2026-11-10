@@ -1339,23 +1339,25 @@ function Services() {
     description: "",
     duration: 60,
     price: 100,
+    bufferBefore: 0,
+    bufferAfter: 0,
     color: "#6d5dfc",
     active: true,
   });
   const openCreate = () => {
     setEditingId("");
     setError("");
-    setForm({ name: "", description: "", duration: 60, price: 100, color: "#6d5dfc", active: true });
+    setForm({ name: "", description: "", duration: 60, price: 100, bufferBefore: 0, bufferAfter: 0, color: "#6d5dfc", active: true });
     setShow(true);
   };
   const openEdit = (service: (typeof workspace.services)[number]) => {
     setEditingId(service.id);
     setError("");
-    setForm({ name: service.name, description: service.description, duration: service.duration, price: service.price, color: service.color, active: service.active });
+    setForm({ name: service.name, description: service.description, duration: service.duration, price: service.price, bufferBefore: service.bufferBefore ?? 0, bufferAfter: service.bufferAfter ?? 0, color: service.color, active: service.active });
     setShow(true);
   };
   const save = async () => {
-    if (!form.name.trim() || form.duration <= 0 || form.price < 0) return;
+    if (!form.name.trim() || form.duration <= 0 || form.price < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440) return;
     setSaving(true);
     setError("");
     try {
@@ -1457,7 +1459,12 @@ function Services() {
               />
             </label>
           </div>
-          <button className="solid-action full" disabled={saving || !form.name.trim() || form.duration <= 0 || form.price < 0} onClick={save}>
+          <div className="field-pair">
+            <label>Buffer before (minutes)<input type="number" min="0" max="1440" step="1" value={form.bufferBefore} onChange={(event) => setForm({ ...form, bufferBefore: Number(event.target.value) })} /></label>
+            <label>Buffer after (minutes)<input type="number" min="0" max="1440" step="1" value={form.bufferAfter} onChange={(event) => setForm({ ...form, bufferAfter: Number(event.target.value) })} /></label>
+          </div>
+          <p>Buffers reserve extra staff time around each booking without changing its customer-facing duration.</p>
+          <button className="solid-action full" disabled={saving || !form.name.trim() || form.duration <= 0 || form.price < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440} onClick={save}>
             {saving ? "Saving…" : editingId ? "Save service" : "Create service"}
           </button>
         </Modal>
