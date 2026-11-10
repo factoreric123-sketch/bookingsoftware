@@ -1037,6 +1037,7 @@ export type Database = {
           business_id: string
           capacity: number
           created_at: string
+          created_from_hold: boolean
           delivery_mode: string
           ends_at: string
           id: string
@@ -1058,6 +1059,7 @@ export type Database = {
           business_id: string
           capacity?: number
           created_at?: string
+          created_from_hold?: boolean
           delivery_mode: string
           ends_at: string
           id?: string
@@ -1079,6 +1081,7 @@ export type Database = {
           business_id?: string
           capacity?: number
           created_at?: string
+          created_from_hold?: boolean
           delivery_mode?: string
           ends_at?: string
           id?: string
