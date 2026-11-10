@@ -1341,23 +1341,25 @@ function Services() {
     price: 100,
     bufferBefore: 0,
     bufferAfter: 0,
+    appointmentType: "individual" as "individual" | "group",
+    capacity: 1,
     color: "#6d5dfc",
     active: true,
   });
   const openCreate = () => {
     setEditingId("");
     setError("");
-    setForm({ name: "", description: "", duration: 60, price: 100, bufferBefore: 0, bufferAfter: 0, color: "#6d5dfc", active: true });
+    setForm({ name: "", description: "", duration: 60, price: 100, bufferBefore: 0, bufferAfter: 0, appointmentType: "individual", capacity: 1, color: "#6d5dfc", active: true });
     setShow(true);
   };
   const openEdit = (service: (typeof workspace.services)[number]) => {
     setEditingId(service.id);
     setError("");
-    setForm({ name: service.name, description: service.description, duration: service.duration, price: service.price, bufferBefore: service.bufferBefore ?? 0, bufferAfter: service.bufferAfter ?? 0, color: service.color, active: service.active });
+    setForm({ name: service.name, description: service.description, duration: service.duration, price: service.price, bufferBefore: service.bufferBefore ?? 0, bufferAfter: service.bufferAfter ?? 0, appointmentType: service.appointmentType ?? "individual", capacity: service.capacity ?? 1, color: service.color, active: service.active });
     setShow(true);
   };
   const save = async () => {
-    if (!form.name.trim() || form.duration <= 0 || form.price < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440) return;
+    if (!form.name.trim() || form.duration <= 0 || form.price < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440 || (form.appointmentType === "group" && (!Number.isInteger(form.capacity) || form.capacity < 2 || form.capacity > 100))) return;
     setSaving(true);
     setError("");
     try {
@@ -1403,6 +1405,7 @@ function Services() {
               <span>
                 <CircleDollarSign size={15} />${service.price}
               </span>
+              {service.appointmentType === "group" && <span>Group · {service.capacity ?? 1} seats</span>}
             </div>
             <div className="service-footer">
               <label className="switch">
@@ -1463,8 +1466,10 @@ function Services() {
             <label>Buffer before (minutes)<input type="number" min="0" max="1440" step="1" value={form.bufferBefore} onChange={(event) => setForm({ ...form, bufferBefore: Number(event.target.value) })} /></label>
             <label>Buffer after (minutes)<input type="number" min="0" max="1440" step="1" value={form.bufferAfter} onChange={(event) => setForm({ ...form, bufferAfter: Number(event.target.value) })} /></label>
           </div>
+          <div className="field-pair"><label>Booking type<select value={form.appointmentType} disabled={Boolean(editingId)} onChange={(event) => setForm({ ...form, appointmentType: event.target.value as "individual" | "group", capacity: event.target.value === "group" ? 2 : 1 })}><option value="individual">Individual</option><option value="group">Group</option></select></label>{form.appointmentType === "group" && <label>Group capacity<input type="number" min="2" max="100" step="1" value={form.capacity} onChange={(event) => setForm({ ...form, capacity: Number(event.target.value) })} /></label>}</div>
+          {editingId && <p>Booking type stays fixed after creation so existing appointments keep their original session rules.</p>}
           <p>Buffers reserve extra staff time around each booking without changing its customer-facing duration.</p>
-          <button className="solid-action full" disabled={saving || !form.name.trim() || form.duration <= 0 || form.price < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440} onClick={save}>
+          <button className="solid-action full" disabled={saving || !form.name.trim() || form.duration <= 0 || form.price < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440 || (form.appointmentType === "group" && (!Number.isInteger(form.capacity) || form.capacity < 2 || form.capacity > 100))} onClick={save}>
             {saving ? "Saving…" : editingId ? "Save service" : "Create service"}
           </button>
         </Modal>
