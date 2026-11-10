@@ -44,7 +44,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField } from "../lib/app-store";
+import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField, type PaymentMethod } from "../lib/app-store";
 import { businessDate, calendarWeekStart, shiftCalendarDate } from "../lib/business-date";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
@@ -2634,6 +2634,7 @@ function Payments() {
   const [payingId, setPayingId] = useState("");
   const [paymentInvoiceId, setPaymentInvoiceId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "">("");
   const [form, setForm] = useState({
     customerId: workspace.customers[0]?.id ?? "",
     amount: 0,
@@ -2655,8 +2656,9 @@ function Payments() {
     finally { setSaving(false); }
   };
   const markPaid = async (id: string, amount: number) => {
+    if (!paymentMethod) return;
     setPayingId(id); setPaymentError("");
-    try { await recordManualPayment(id, amount); setPaymentInvoiceId(""); }
+    try { await recordManualPayment(id, amount, paymentMethod); setPaymentInvoiceId(""); }
     catch (caught) { setPaymentError(caught instanceof Error ? caught.message : "Payment could not be recorded."); }
     finally { setPayingId(""); }
   };
@@ -2718,7 +2720,7 @@ function Payments() {
                 <b>{formatAmount(invoice.amount)}</b>
                 {invoice.paid > 0 && invoice.status !== "paid" && <small>{formatAmount(invoice.paid)} recorded</small>}
               </span>
-              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button disabled={payingId === invoice.id || invoice.amount <= invoice.paid} onClick={() => { setPaymentInvoiceId(invoice.id); setPaymentAmount(Math.round((invoice.amount - invoice.paid) * 100) / 100); setPaymentError(""); }}>Record payment</button>}</span>
+              <span className={`invoice-status ${invoice.status}`}>{invoice.status}{invoice.status !== "paid" && invoice.status !== "void" && <button disabled={payingId === invoice.id || invoice.amount <= invoice.paid} onClick={() => { setPaymentInvoiceId(invoice.id); setPaymentAmount(Math.round((invoice.amount - invoice.paid) * 100) / 100); setPaymentMethod(""); setPaymentError(""); }}>Record payment</button>}</span>
             </div>
           ))}
         </div>
@@ -2780,8 +2782,9 @@ function Payments() {
           <p>Record money already received. This does not charge a card.</p>
           <p>Remaining balance: {formatAmount(paymentBalance)}</p>
           <label>Amount received<input type="number" min="0.01" max={paymentBalance} step="0.01" value={paymentAmount} onChange={(event) => setPaymentAmount(Number(event.target.value))} /></label>
+          <label>Payment method<select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as PaymentMethod | "")}><option value="">Select a method</option><option value="cash">Cash</option><option value="bank_transfer">Bank transfer</option><option value="external_terminal">External terminal</option><option value="card">Card processed elsewhere</option><option value="other">Other</option></select></label>
           {paymentError && <p role="alert" className="form-error">{paymentError}</p>}
-          <button className="solid-action full" disabled={Boolean(payingId) || !validPaymentAmount} onClick={() => void markPaid(paymentInvoice.id, paymentAmount)}>{payingId ? "Recording…" : "Record manual payment"}</button>
+          <button className="solid-action full" disabled={Boolean(payingId) || !validPaymentAmount || !paymentMethod} onClick={() => void markPaid(paymentInvoice.id, paymentAmount)}>{payingId ? "Recording…" : "Record manual payment"}</button>
         </Modal>
       )}
     </>
