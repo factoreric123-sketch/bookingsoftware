@@ -26,7 +26,7 @@ This checklist tracks the original product spec against the current implementati
 - [ ] Add staff availability, time-off, service-assignment editing, and location-assignment editing with authorization and conflict checks. Service-assignment editing persists and passed an isolated hosted owner test. Newly created staff inherit the selected location's weekly hours and appeared with bookable public slots. The hosted weekly editor and public booking now honor edited staff hours; the isolated test schedule was restored after verification. Staff-specific blocked time exists in Calendar. Location-assignment editing, broader time-off controls, and cross-business/stale-version editor checks remain.
 - [ ] Add owner-controlled member permission and role editing with audit history; preserve access isolation.
 - [ ] Complete day/month/staff/location calendar views and appointment detail editing. Add drag-and-drop only after server-checked rescheduling is verified.
-- [ ] Finish booking policy controls: notice window, advance window, buffers, cancellation and reschedule limits, group capacity, and manual approval where supported by the schema.
+- [ ] Finish booking policy controls: owner Settings now persists slot interval, notice window, advance window, cancellation cutoff, and reschedule cutoff; a hosted edit survived reload and was restored. Service/staff buffers, group capacity, manual approval, and policy boundary tests remain.
 - [ ] Expand multi-location operations, location filters, and business switching before multi-brand administration.
 
 ### 3. Finish customer and form workflows
