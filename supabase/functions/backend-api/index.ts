@@ -392,6 +392,7 @@ Deno.serve(async (req: Request) => {
     const incoming = (params.p_values ?? {}) as Record<string, unknown>;
     const rules: Record<string, { table: string; permission: string; columns: string[] }> = {
       business: { table: "businesses", permission: "owner", columns: ["name","slug","industry","description","email","phone_e164","website_url","timezone","currency","accent_color"] },
+      business_settings: { table: "business_settings", permission: "owner", columns: ["slot_interval_minutes","minimum_notice_minutes","maximum_advance_days","cancellation_notice_minutes","reschedule_notice_minutes"] },
       service: { table: "services", permission: "can_manage_services", columns: ["name","description","duration_minutes","price_minor","currency","buffer_before_minutes","buffer_after_minutes","appointment_type","capacity","delivery_mode","payment_requirement","deposit_type","deposit_value","color","active","sort_order","archived_at"] },
       staff_profile: { table: "staff_profiles", permission: "can_manage_staff", columns: ["display_name","email","phone_e164","bio","color","active","bookable","weekly_capacity_minutes"] },
       customer: { table: "customers", permission: "can_manage_customers", columns: ["full_name","email","phone_e164","company_name","address","source","status","active","archived_at"] },
@@ -406,6 +407,14 @@ Deno.serve(async (req: Request) => {
     const values = Object.fromEntries(Object.entries(incoming).filter(([key]) => rule.columns.includes(key)));
     if (entity === "workflow" && values.active === true) return json({ error: "Workflow activation is unavailable until the job runner is connected" }, 400);
     if (!Object.keys(values).length) return json({ error: "No supported values supplied" }, 400);
+    if (entity === "business_settings") {
+      if (operation !== "update" || Object.keys(incoming).some((key) => !rule.columns.includes(key))) return json({ error: "Unsupported booking policy update" }, 400);
+      const limits: Record<string, [number, number]> = { slot_interval_minutes: [5, 120], minimum_notice_minutes: [0, 525600], maximum_advance_days: [1, 730], cancellation_notice_minutes: [0, 525600], reschedule_notice_minutes: [0, 525600] };
+      if (Object.entries(values).some(([key, value]) => !Number.isInteger(value) || (value as number) < limits[key][0] || (value as number) > limits[key][1])) return json({ error: "Booking policy values are out of range" }, 400);
+      const { data, error } = await admin.from("business_settings").update(values).eq("business_id", businessId).select().single();
+      if (error) return json({ error: error.message, code: error.code }, 400);
+      return json({ data });
+    }
     if (entity === "ai_settings") {
       const { data: existingSettings } = await admin.from(rule.table).select("id").eq("business_id", businessId).maybeSingle();
       const settingsMutation = existingSettings

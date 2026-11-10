@@ -3000,6 +3000,39 @@ function Analytics() {
 function BusinessSettings() {
   const { workspace, updateBusiness } = useAppStore();
   const [business, setBusiness] = useState(workspace.business);
+  const [policy, setPolicy] = useState<Record<string, number> | null>(null);
+  const [policyError, setPolicyError] = useState("");
+  const [policySaved, setPolicySaved] = useState(false);
+  const [policySaving, setPolicySaving] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setPolicy(null);
+    invokeBackend<{ settings: Record<string, number> }>("get_workspace_snapshot", { p_business_id: workspace.business.id })
+      .then((snapshot) => { if (active) setPolicy(snapshot.settings); })
+      .catch((caught) => { if (active) setPolicyError(caught instanceof Error ? caught.message : "Booking policy could not be loaded."); });
+    return () => { active = false; };
+  }, [workspace.business.id]);
+  const policyFields = [
+    { key: "slot_interval_minutes", label: "Slot interval (minutes)", min: 5, max: 120 },
+    { key: "minimum_notice_minutes", label: "Minimum booking notice (minutes)", min: 0, max: 525600 },
+    { key: "maximum_advance_days", label: "Maximum advance booking (days)", min: 1, max: 730 },
+    { key: "cancellation_notice_minutes", label: "Cancellation cutoff (minutes)", min: 0, max: 525600 },
+    { key: "reschedule_notice_minutes", label: "Reschedule cutoff (minutes)", min: 0, max: 525600 },
+  ] as const;
+  const savePolicy = async () => {
+    if (!policy) return;
+    setPolicySaving(true); setPolicySaved(false); setPolicyError("");
+    try {
+      const values = Object.fromEntries(policyFields.map(({ key }) => [key, policy[key]]));
+      const updated = await invokeBackend<Record<string, number>>("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "business_settings", p_operation: "update", p_values: values });
+      setPolicy(updated); setPolicySaved(true);
+    } catch (caught) { setPolicyError(caught instanceof Error ? caught.message : "Booking policy could not be saved."); }
+    finally { setPolicySaving(false); }
+  };
+  const invalidPolicy = !policy || policyFields.some(({ key, min, max }) => {
+    const value = policy[key];
+    return typeof value !== "number" || !Number.isInteger(value) || value < min || value > max;
+  });
   const [saveError, setSaveError] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -3087,6 +3120,15 @@ function BusinessSettings() {
           </div>
           {saveError && <p role="alert" className="form-error">{saveError}</p>}
           {saved && <p role="status">Business profile saved.</p>}
+        </section>
+        <section className="panel settings-form">
+          <h2>Booking rules</h2>
+          <p>These limits apply to new bookings and customer changes. Enter zero minutes to allow an action until its appointment starts.</p>
+          {!policy && !policyError && <p role="status">Loading booking rules…</p>}
+          {policy && <div className="field-pair">{policyFields.map(({ key, label, min, max }) => <label key={key}>{label}<input type="number" min={min} max={max} step="1" value={policy[key] ?? ""} onChange={(event) => setPolicy((current) => current ? { ...current, [key]: event.target.value === "" ? NaN : Number(event.target.value) } : current)} /></label>)}</div>}
+          {policy && <div className="settings-actions"><button type="button" className="solid-action" disabled={policySaving || invalidPolicy} onClick={() => void savePolicy()}>{policySaving ? "Saving…" : "Save booking rules"}</button></div>}
+          {policyError && <p role="alert" className="form-error">{policyError}</p>}
+          {policySaved && <p role="status">Booking rules saved.</p>}
         </section>
       </div>
     </>
