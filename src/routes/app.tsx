@@ -1990,9 +1990,11 @@ function Team() {
     active: true,
     serviceIds: [] as string[],
     weeklyHours: 40,
+    bufferBefore: 0,
+    bufferAfter: 0,
   });
   const save = async () => {
-    if (!form.name.trim() || (!editingId && !form.email.trim()) || form.weeklyHours < 0) return;
+    if (!form.name.trim() || (!editingId && !form.email.trim()) || form.weeklyHours < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440) return;
     setError("");
     setSavingStaff(true);
     try {
@@ -2000,7 +2002,7 @@ function Team() {
       else await addStaff(form);
       setShow(false);
       setEditingId("");
-      setForm({ name: "", email: "", role: "staff", active: true, serviceIds: [], weeklyHours: 40 });
+      setForm({ name: "", email: "", role: "staff", active: true, serviceIds: [], weeklyHours: 40, bufferBefore: 0, bufferAfter: 0 });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Team profile could not be saved.");
     } finally {
@@ -2010,13 +2012,13 @@ function Team() {
   const openCreate = () => {
     setEditingId("");
     setError("");
-    setForm({ name: "", email: "", role: "staff", active: true, serviceIds: [], weeklyHours: 40 });
+    setForm({ name: "", email: "", role: "staff", active: true, serviceIds: [], weeklyHours: 40, bufferBefore: 0, bufferAfter: 0 });
     setShow(true);
   };
   const openEdit = (member: (typeof workspace.staff)[number]) => {
     setEditingId(member.id);
     setError("");
-    setForm({ name: member.name, email: member.email, role: "staff", active: member.active, serviceIds: member.serviceIds, weeklyHours: member.weeklyHours });
+    setForm({ name: member.name, email: member.email, role: "staff", active: member.active, serviceIds: member.serviceIds, weeklyHours: member.weeklyHours, bufferBefore: member.bufferBefore ?? 0, bufferAfter: member.bufferAfter ?? 0 });
     setShow(true);
   };
   const createInvitation = async () => {
@@ -2130,6 +2132,10 @@ function Team() {
               />
             </label>
           </div>
+          <div className="field-pair">
+            <label>Buffer before (minutes)<input type="number" min="0" max="1440" step="1" value={form.bufferBefore} onChange={(event) => setForm({ ...form, bufferBefore: Number(event.target.value) })} /></label>
+            <label>Buffer after (minutes)<input type="number" min="0" max="1440" step="1" value={form.bufferAfter} onChange={(event) => setForm({ ...form, bufferAfter: Number(event.target.value) })} /></label>
+          </div>
           {editingId && <label>Active profile<input type="checkbox" checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} /></label>}
           <fieldset className="service-checks">
             <legend>Assigned services</legend>
@@ -2151,7 +2157,7 @@ function Team() {
               </label>
             ))}
           </fieldset>
-          <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || (!editingId && !form.email.trim()) || form.weeklyHours < 0}>
+          <button className="solid-action full" onClick={save} disabled={savingStaff || !form.name.trim() || (!editingId && !form.email.trim()) || form.weeklyHours < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440}>
             {savingStaff ? "Saving…" : editingId ? "Save profile" : "Add member"}
           </button>
         </Modal>
