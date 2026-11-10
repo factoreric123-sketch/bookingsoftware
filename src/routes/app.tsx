@@ -3001,14 +3001,16 @@ function BusinessSettings() {
   const { workspace, updateBusiness } = useAppStore();
   const [business, setBusiness] = useState(workspace.business);
   const [policy, setPolicy] = useState<Record<string, number> | null>(null);
+  const [dailyLimit, setDailyLimit] = useState<number | null>(null);
+  const [manualApproval, setManualApproval] = useState(false);
   const [policyError, setPolicyError] = useState("");
   const [policySaved, setPolicySaved] = useState(false);
   const [policySaving, setPolicySaving] = useState(false);
   useEffect(() => {
     let active = true;
     setPolicy(null);
-    invokeBackend<{ settings: Record<string, number> }>("get_workspace_snapshot", { p_business_id: workspace.business.id })
-      .then((snapshot) => { if (active) setPolicy(snapshot.settings); })
+    invokeBackend<{ settings: Record<string, number | boolean | null> }>("get_workspace_snapshot", { p_business_id: workspace.business.id })
+      .then((snapshot) => { if (active) { setPolicy(snapshot.settings as Record<string, number>); setDailyLimit(typeof snapshot.settings["maximum_appointments_per_day"] === "number" ? snapshot.settings["maximum_appointments_per_day"] : null); setManualApproval(snapshot.settings["manual_approval_required"] === true); } })
       .catch((caught) => { if (active) setPolicyError(caught instanceof Error ? caught.message : "Booking policy could not be loaded."); });
     return () => { active = false; };
   }, [workspace.business.id]);
@@ -3023,13 +3025,13 @@ function BusinessSettings() {
     if (!policy) return;
     setPolicySaving(true); setPolicySaved(false); setPolicyError("");
     try {
-      const values = Object.fromEntries(policyFields.map(({ key }) => [key, policy[key]]));
-      const updated = await invokeBackend<Record<string, number>>("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "business_settings", p_operation: "update", p_values: values });
-      setPolicy(updated); setPolicySaved(true);
+      const values = { ...Object.fromEntries(policyFields.map(({ key }) => [key, policy[key]])), maximum_appointments_per_day: dailyLimit, manual_approval_required: manualApproval };
+      const updated = await invokeBackend<Record<string, number | boolean | null>>("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "business_settings", p_operation: "update", p_values: values });
+      setPolicy(updated as Record<string, number>); setDailyLimit(typeof updated["maximum_appointments_per_day"] === "number" ? updated["maximum_appointments_per_day"] : null); setManualApproval(updated["manual_approval_required"] === true); setPolicySaved(true);
     } catch (caught) { setPolicyError(caught instanceof Error ? caught.message : "Booking policy could not be saved."); }
     finally { setPolicySaving(false); }
   };
-  const invalidPolicy = !policy || policyFields.some(({ key, min, max }) => {
+  const invalidPolicy = !policy || (dailyLimit !== null && (!Number.isInteger(dailyLimit) || dailyLimit < 1 || dailyLimit > 1000)) || policyFields.some(({ key, min, max }) => {
     const value = policy[key];
     return typeof value !== "number" || !Number.isInteger(value) || value < min || value > max;
   });
@@ -3126,6 +3128,7 @@ function BusinessSettings() {
           <p>These limits apply to new bookings and customer changes. Enter zero minutes to allow an action until its appointment starts.</p>
           {!policy && !policyError && <p role="status">Loading booking rules…</p>}
           {policy && <div className="field-pair">{policyFields.map(({ key, label, min, max }) => <label key={key}>{label}<input type="number" min={min} max={max} step="1" value={policy[key] ?? ""} onChange={(event) => setPolicy((current) => current ? { ...current, [key]: event.target.value === "" ? NaN : Number(event.target.value) } : current)} /></label>)}</div>}
+          {policy && <><label>Maximum appointments per day (blank for no limit)<input type="number" min="1" max="1000" step="1" value={dailyLimit ?? ""} onChange={(event) => setDailyLimit(event.target.value === "" ? null : Number(event.target.value))} /></label><label><input type="checkbox" checked={manualApproval} onChange={(event) => setManualApproval(event.target.checked)} /> Require manual approval for new bookings</label></>}
           {policy && <div className="settings-actions"><button type="button" className="solid-action" disabled={policySaving || invalidPolicy} onClick={() => void savePolicy()}>{policySaving ? "Saving…" : "Save booking rules"}</button></div>}
           {policyError && <p role="alert" className="form-error">{policyError}</p>}
           {policySaved && <p role="status">Booking rules saved.</p>}
