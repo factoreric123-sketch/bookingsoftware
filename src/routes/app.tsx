@@ -44,7 +44,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField, type PaymentMethod } from "../lib/app-store";
+import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField, type PaymentMethod, type Staff } from "../lib/app-store";
 import { businessDate, calendarWeekStart, shiftCalendarDate } from "../lib/business-date";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
@@ -1959,6 +1959,7 @@ function Team() {
   const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
   const [savingStaff, setSavingStaff] = useState(false);
+  const [scheduleMember, setScheduleMember] = useState<Staff | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"staff" | "manager">("staff");
   const [invitePermissions, setInvitePermissions] = useState<Record<string, boolean>>({});
@@ -2086,6 +2087,7 @@ function Team() {
               ))}
             </div>
             <button type="button" className="secondary-action" onClick={() => openEdit(member)}>Edit profile</button>
+            <button type="button" className="secondary-action" onClick={() => setScheduleMember(member)}>Weekly availability</button>
           </article>
         ))}
       </div>
@@ -2147,8 +2149,80 @@ function Team() {
           </button>
         </Modal>
       )}
+      {scheduleMember && <WeeklyHoursDialog member={scheduleMember} businessId={workspace.business.id} locationId={workspace.business.defaultLocationId} onClose={() => setScheduleMember(null)} />}
     </>
   );
+}
+
+type WeeklyRule = { id: string; iso_weekday: number; opens_at: string; closes_at: string; active: boolean; row_version: number };
+type LocationHour = { iso_weekday: number; opens_at: string; closes_at: string; active: boolean };
+type DayDraft = { open: string; close: string; active: boolean };
+const weekdayNames = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+function WeeklyHoursDialog({ member, businessId, locationId, onClose }: { member: Staff; businessId: string; locationId: string | undefined; onClose: () => void }) {
+  const [rules, setRules] = useState<WeeklyRule[]>([]);
+  const [locationHours, setLocationHours] = useState<LocationHour[]>([]);
+  const [drafts, setDrafts] = useState<Record<number, DayDraft>>({});
+  const [loading, setLoading] = useState(true);
+  const [savingDay, setSavingDay] = useState(0);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  useEffect(() => {
+    if (!locationId) { setError("Set a default location before editing availability."); setLoading(false); return; }
+    let mounted = true;
+    invokeBackend<{ rules: WeeklyRule[]; business_hours: LocationHour[] }>("get_staff_weekly_hours", { p_business_id: businessId, p_staff_id: member.id, p_location_id: locationId })
+      .then((result) => {
+        if (!mounted) return;
+        setRules(result.rules);
+        setLocationHours(result.business_hours);
+        setDrafts(Object.fromEntries(weekdayNames.map((_, index) => {
+          const weekday = index + 1;
+          const rule = result.rules.find((item) => item.iso_weekday === weekday);
+          const hour = result.business_hours.find((item) => item.iso_weekday === weekday);
+          return [weekday, { open: (rule?.opens_at ?? hour?.opens_at ?? "09:00").slice(0, 5), close: (rule?.closes_at ?? hour?.closes_at ?? "17:00").slice(0, 5), active: rule?.active ?? false }];
+        })));
+      })
+      .catch((caught) => { if (mounted) setError(caught instanceof Error ? caught.message : "Availability could not be loaded."); })
+      .finally(() => { if (mounted) setLoading(false); });
+    return () => { mounted = false; };
+  }, [businessId, locationId, member.id]);
+  const saveDay = async (weekday: number) => {
+    if (!locationId) return;
+    const draft = drafts[weekday];
+    if (!draft) return;
+    const rule = rules.find((item) => item.iso_weekday === weekday);
+    setSavingDay(weekday); setError(""); setNotice("");
+    try {
+      const saved = await invokeBackend<WeeklyRule>("set_staff_weekly_hours_day", { p_business_id: businessId, p_staff_id: member.id, p_location_id: locationId, p_iso_weekday: weekday, p_opens_at: draft.open, p_closes_at: draft.close, p_active: draft.active, p_expected_row_version: rule?.row_version ?? null });
+      setRules((current) => [...current.filter((item) => item.iso_weekday !== weekday), saved]);
+      setNotice(`${weekdayNames[weekday - 1]} availability saved.`);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Availability could not be saved."); }
+    finally { setSavingDay(0); }
+  };
+  return <Modal title={`Weekly availability · ${member.name}`} onClose={onClose} wide>
+    <p>These hours control new booking slots at the default location. Existing appointments stay booked.</p>
+    {loading && <p role="status">Loading weekly hours…</p>}
+    {error && <p className="form-error" role="alert">{error}</p>}
+    {notice && <p role="status">{notice}</p>}
+    {!loading && locationId && <div className="weekly-hours-list">{weekdayNames.map((name, index) => {
+      const weekday = index + 1;
+      const draft = drafts[weekday];
+      const hour = locationHours.find((item) => item.iso_weekday === weekday);
+      const dayRules = rules.filter((item) => item.iso_weekday === weekday);
+      if (!draft) return null;
+      const available = Boolean(hour?.active);
+      const valid = draft.open < draft.close && (!draft.active || (available && draft.open >= hour!.opens_at.slice(0, 5) && draft.close <= hour!.closes_at.slice(0, 5)));
+      return <div className="weekly-hours-row" key={weekday}>
+        <b>{name}</b>
+        <label><input type="checkbox" checked={draft.active} disabled={!available || dayRules.length > 1} onChange={(event) => setDrafts((current) => ({ ...current, [weekday]: { ...(current[weekday] ?? draft), active: event.target.checked } }))} />Available</label>
+        <input type="time" aria-label={`${name} starts`} value={draft.open} disabled={!draft.active || dayRules.length > 1} onChange={(event) => setDrafts((current) => ({ ...current, [weekday]: { ...(current[weekday] ?? draft), open: event.target.value } }))} />
+        <input type="time" aria-label={`${name} ends`} value={draft.close} disabled={!draft.active || dayRules.length > 1} onChange={(event) => setDrafts((current) => ({ ...current, [weekday]: { ...(current[weekday] ?? draft), close: event.target.value } }))} />
+        <button type="button" className="secondary-action" disabled={!valid || Boolean(savingDay) || dayRules.length > 1} onClick={() => void saveDay(weekday)}>{savingDay === weekday ? "Saving…" : "Save"}</button>
+        {dayRules.length > 1 && <small>Multiple rules exist for this day; edit them in the advanced schedule.</small>}
+        {!available && <small>Location closed</small>}
+      </div>;
+    })}</div>}
+  </Modal>;
 }
 
 function Forms() {
@@ -3043,14 +3117,16 @@ function Modal({
   title,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  wide?: boolean;
 }) {
   return (
     <div className="modal-backdrop" onMouseDown={onClose}>
-      <div className="modal-card" onMouseDown={(e) => e.stopPropagation()}>
+      <div className={wide ? "modal-card wide" : "modal-card"} onMouseDown={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2>{title}</h2>
           <button aria-label="Close dialog" onClick={onClose}>

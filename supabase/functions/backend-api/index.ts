@@ -35,6 +35,8 @@ const authenticatedActions = new Set([
   "get_staff_schedule",
   "mutate_workspace",
   "set_staff_services",
+  "get_staff_weekly_hours",
+  "set_staff_weekly_hours_day",
   "create_dashboard_booking",
   "reschedule_dashboard_booking",
   "save_form",
@@ -534,6 +536,58 @@ Deno.serve(async (req: Request) => {
       if (error) return json({ error: error.message, code: error.code }, 400);
     }
     return json({ data: { staff_id: staffId, service_ids: serviceIds } });
+  }
+
+  if (action === "get_staff_weekly_hours" || action === "set_staff_weekly_hours_day") {
+    const businessId = String(params.p_business_id ?? "");
+    const staffId = String(params.p_staff_id ?? "");
+    const locationId = String(params.p_location_id ?? "");
+    const { data: member, error: memberError } = await admin.from("business_members")
+      .select("role,can_manage_staff").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (memberError) return json({ error: memberError.message }, 400);
+    if (!member || (member.role !== "owner" && !(member.role === "manager" && member.can_manage_staff === true))) return json({ error: "Permission denied" }, 403);
+    const [{ data: staff }, { data: staffLocation }, { data: businessHours, error: hoursError }] = await Promise.all([
+      admin.from("staff_profiles").select("id").eq("business_id", businessId).eq("id", staffId).is("archived_at", null).maybeSingle(),
+      admin.from("staff_locations").select("staff_id").eq("business_id", businessId).eq("staff_id", staffId).eq("location_id", locationId).maybeSingle(),
+      admin.from("business_hours").select("iso_weekday,opens_at,closes_at,active").eq("business_id", businessId).eq("location_id", locationId),
+    ]);
+    if (hoursError) return json({ error: hoursError.message }, 400);
+    if (!staff || !staffLocation) return json({ error: "Staff member is not assigned to this location" }, 404);
+    if (action === "get_staff_weekly_hours") {
+      const { data: rules, error } = await admin.from("staff_availability")
+        .select("id,iso_weekday,opens_at,closes_at,active,row_version,effective_from,effective_until")
+        .eq("business_id", businessId).eq("staff_id", staffId).eq("location_id", locationId)
+        .is("effective_until", null).order("iso_weekday");
+      if (error) return json({ error: error.message }, 400);
+      return json({ data: { rules: rules ?? [], business_hours: businessHours ?? [] } });
+    }
+    const weekday = Number(params.p_iso_weekday);
+    const opensAt = String(params.p_opens_at ?? "");
+    const closesAt = String(params.p_closes_at ?? "");
+    const active = params.p_active;
+    const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+    if (!Number.isInteger(weekday) || weekday < 1 || weekday > 7 || !validTime(opensAt) || !validTime(closesAt) || opensAt >= closesAt || typeof active !== "boolean") {
+      return json({ error: "Choose a weekday and a valid opening interval" }, 400);
+    }
+    if (active && !(businessHours ?? []).some((hour) => hour.iso_weekday === weekday && hour.active && opensAt >= hour.opens_at.slice(0, 5) && closesAt <= hour.closes_at.slice(0, 5))) {
+      return json({ error: "Staff hours must fit within the location's open hours" }, 400);
+    }
+    const { data: existing, error: existingError } = await admin.from("staff_availability")
+      .select("id,row_version").eq("business_id", businessId).eq("staff_id", staffId)
+      .eq("location_id", locationId).eq("iso_weekday", weekday).is("effective_until", null);
+    if (existingError) return json({ error: existingError.message }, 400);
+    if ((existing ?? []).length > 1) return json({ error: "Multiple open-ended rules exist for this day; resolve them before editing", code: "P0409" }, 409);
+    const expectedVersion = params.p_expected_row_version;
+    if (existing?.length && (!Number.isInteger(expectedVersion) || expectedVersion !== existing[0].row_version)) return json({ error: "Availability changed; reload before saving", code: "P0409" }, 409);
+    if (!existing?.length && expectedVersion != null) return json({ error: "Availability changed; reload before saving", code: "P0409" }, 409);
+    const values = { opens_at: opensAt, closes_at: closesAt, active };
+    const mutation = existing?.length
+      ? admin.from("staff_availability").update(values).eq("business_id", businessId).eq("id", existing[0].id).eq("row_version", expectedVersion)
+      : admin.from("staff_availability").insert({ business_id: businessId, staff_id: staffId, location_id: locationId, iso_weekday: weekday, ...values });
+    const { data: saved, error: saveError } = await mutation.select("id,iso_weekday,opens_at,closes_at,active,row_version,effective_from,effective_until").maybeSingle();
+    if (saveError) return json({ error: saveError.message, code: saveError.code }, 400);
+    if (!saved) return json({ error: "Availability changed; reload before saving", code: "P0409" }, 409);
+    return json({ data: saved });
   }
 
   if (action === "create_dashboard_booking") {

@@ -24,6 +24,8 @@ export type BackendAction =
   | "get_staff_schedule"
   | "mutate_workspace"
   | "set_staff_services"
+  | "get_staff_weekly_hours"
+  | "set_staff_weekly_hours_day"
   | "get_public_form"
   | "create_dashboard_booking"
   | "reschedule_dashboard_booking"
