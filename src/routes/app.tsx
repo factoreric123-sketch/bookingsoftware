@@ -1037,7 +1037,7 @@ function Customers() {
       return `"${safe.replaceAll('"', '""')}"`;
     };
     const rows = [
-      ["Name", "Email", "Phone", "Tags", "Created", "Appointments", "Booked value"],
+      ["Name", "Email", "Phone", "Tags", "Created", "Appointments", "Booked value", "Collected"],
       ...workspace.customers.map((customer) => {
         const appointments = workspace.appointments.filter(
           (item) => item.customerId === customer.id,
@@ -1054,6 +1054,9 @@ function Customers() {
               sum + (item.status === "cancelled" ? 0 : item.bookedTotal ?? 0),
             0,
           ),
+          workspace.invoices
+            .filter((invoice) => invoice.customerId === customer.id)
+            .reduce((sum, invoice) => sum + invoice.paid, 0),
         ];
       }),
     ];
@@ -1131,7 +1134,7 @@ function Customers() {
               (item) => item.customerId === customer.id,
             );
             const invoices = workspace.invoices.filter(
-              (item) => item.customerId === customer.id && item.status === "paid",
+              (item) => item.customerId === customer.id,
             );
             return (
               <article className="customer-card" key={customer.id}>
@@ -1165,7 +1168,7 @@ function Customers() {
                   <div>
                     <dt>Collected</dt>
                     <dd>
-                      ${invoices.reduce((sum, item) => sum + item.amount, 0).toLocaleString()}
+                      ${invoices.reduce((sum, item) => sum + item.paid, 0).toLocaleString()}
                     </dd>
                   </div>
                 </dl>
