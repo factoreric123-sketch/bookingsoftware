@@ -955,6 +955,7 @@ function Customers() {
   const selected = workspace.customers.find((customer) => customer.id === selectedId);
   const [draft, setDraft] = useState({ name: "", email: "", phone: "", notes: "", tags: "" });
   const [profileError, setProfileError] = useState("");
+  const [activityFilter, setActivityFilter] = useState<"all" | "appointments" | "invoices" | "forms">("all");
   const [savingProfile, setSavingProfile] = useState(false);
   const [mergeDestinationId, setMergeDestinationId] = useState("");
   const [mergeConfirmed, setMergeConfirmed] = useState(false);
@@ -995,6 +996,7 @@ function Customers() {
     });
     setSelectedId(id);
     setProfileError("");
+    setActivityFilter("all");
     setMergeDestinationId("");
     setMergeConfirmed(false);
   };
@@ -1123,21 +1125,25 @@ function Customers() {
     : [];
   const timeline = [
     ...profileAppointments.map((item) => ({
+      kind: "appointments" as const,
       date: item.createdAt,
       label: `${item.status} appointment`,
       meta: `${workspace.services.find((service) => service.id === item.serviceId)?.name ?? "Service"} · ${formatDate(item.date)} at ${prettyTime(item.time)}`,
     })),
     ...profileInvoices.map((item) => ({
+      kind: "invoices" as const,
       date: item.createdAt,
       label: `Invoice ${item.status}`,
       meta: `${item.number} · $${item.amount.toLocaleString()}`,
     })),
     ...profileForms.map((item) => ({
+      kind: "forms" as const,
       date: item.submittedAt,
       label: "Form submitted",
       meta: workspace.forms.find((form) => form.id === item.formId)?.name ?? "Form",
     })),
   ].sort((a, b) => b.date.localeCompare(a.date));
+  const visibleTimeline = activityFilter === "all" ? timeline : timeline.filter((item) => item.kind === activityFilter);
   return (
     <>
       <PageHeader
@@ -1347,8 +1353,16 @@ function Customers() {
           </label>
           <div className="customer-history">
             <h3>Activity timeline</h3>
-            {timeline.length ? (
-              timeline.map((item, index) => (
+            <label>Show activity
+              <select value={activityFilter} onChange={(event) => setActivityFilter(event.target.value as typeof activityFilter)}>
+                <option value="all">All activity ({timeline.length})</option>
+                <option value="appointments">Appointments ({profileAppointments.length})</option>
+                <option value="invoices">Invoices ({profileInvoices.length})</option>
+                <option value="forms">Forms ({profileForms.length})</option>
+              </select>
+            </label>
+            {visibleTimeline.length ? (
+              visibleTimeline.map((item, index) => (
                 <div key={`${item.date}-${index}`}>
                   <i />
                   <span>
@@ -1359,7 +1373,7 @@ function Customers() {
                 </div>
               ))
             ) : (
-              <p>No activity recorded yet.</p>
+              <p>{timeline.length ? "No activity in this category." : "No activity recorded yet."}</p>
             )}
           </div>
           {profileError && <p role="alert" className="form-error">{profileError}</p>}
