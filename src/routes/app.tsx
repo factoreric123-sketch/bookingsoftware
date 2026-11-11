@@ -286,7 +286,7 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
       ).length,
     };
   });
-  const completedSetup = [Boolean(workspace.business.name), workspace.services.length > 0, Object.values(workspace.business.hours).some((item) => item.enabled), workspace.staff.length > 0, Boolean(workspace.business.slug)].filter(Boolean).length;
+  const completedSetup = [Boolean(workspace.business.name), workspace.services.length > 0, Object.values(workspace.business.hours).some((item) => item.enabled), workspace.staff.length > 0, Boolean(workspace.business.bookingPagePublished)].filter(Boolean).length;
   const activeAppointments = workspace.appointments.filter((item) => item.status !== "cancelled");
   const revenueLabel = new Intl.NumberFormat("en-US", { style: "currency", currency: workspace.business.currency ?? "USD", maximumFractionDigits: 2 }).format(revenue);
   const bookingRate = activeAppointments.length ? `${Math.round((activeAppointments.filter((item) => item.status === "confirmed" || item.status === "completed").length / activeAppointments.length) * 100)}%` : "—";
@@ -295,7 +295,7 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
     { label: "Create your first service", done: workspace.services.length > 0, section: "Services" as Section },
     { label: "Set your availability", done: Object.values(workspace.business.hours).some((item) => item.enabled), section: "Calendar" as Section },
     { label: "Add a team member", done: workspace.staff.length > 0, section: "Team" as Section },
-    { label: "Publish booking page", done: Boolean(workspace.business.slug), section: "Booking Page" as Section },
+    { label: "Publish booking page", done: Boolean(workspace.business.bookingPagePublished), section: "Booking Page" as Section },
   ];
   return (
     <>
