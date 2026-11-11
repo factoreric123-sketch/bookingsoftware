@@ -1045,7 +1045,7 @@ function Customers() {
       return `"${safe.replaceAll('"', '""')}"`;
     };
     const rows = [
-      ["Name", "Email", "Phone", "Tags", "Created", "Appointments", "Booked value", "Collected"],
+      ["Name", "Email", "Phone", "Tags", "Notes", "Created", "Appointments", "Booked value", "Collected"],
       ...workspace.customers.map((customer) => {
         const appointments = workspace.appointments.filter(
           (item) => item.customerId === customer.id,
@@ -1055,6 +1055,7 @@ function Customers() {
           customer.email,
           customer.phone,
           customer.tags.join(" | "),
+          customer.notes,
           customer.createdAt,
           appointments.length,
           appointments.reduce(
@@ -1173,7 +1174,7 @@ function Customers() {
           </span>
           <button onClick={exportCsv}>
             <FileText size={15} />
-            Export CSV
+            Export loaded CSV
           </button>
           <button onClick={() => { setImportRows([]); setImportError(""); setImportSummary(""); setShowImport(true); }}>
             <FileText size={15} />
