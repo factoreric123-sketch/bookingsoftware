@@ -2386,14 +2386,16 @@ function Forms() {
   );
   const exportSubmissions = () => {
     if (!selectedForm) return;
-    const headers = ["Submitted", "Customer", ...selectedForm.fields.map((field) => field.label)];
-    const rows = submissions.map((submission) => {
+    const headers = ["Submission ID", "Submitted", "Customer", "Question", "Answer"];
+    const rows = submissions.flatMap((submission) => {
       const customer = workspace.customers.find((item) => item.id === submission.customerId);
-      return [
+      return submission.fields.map((field) => [
+        submission.id,
         new Date(submission.submittedAt).toISOString(),
         customer?.name ?? "Unmatched",
-        ...selectedForm.fields.map((field) => String(submission.answers[field.id] ?? "")),
-      ];
+        field.label,
+        String(submission.answers[field.id] ?? ""),
+      ]);
     });
     const blob = new Blob([[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n")], {
       type: "text/csv;charset=utf-8",
@@ -2483,7 +2485,7 @@ function Forms() {
             onClick={exportSubmissions}
           >
             <FileText size={14} />
-            Export CSV
+            Export loaded CSV
           </button>
         </div>
         <div className="table-toolbar">
@@ -2522,7 +2524,7 @@ function Forms() {
                       {new Date(submission.submittedAt).toLocaleString()}
                     </small>
                     <p>
-                      {selectedForm?.fields
+                      {submission.fields
                         .slice(0, 2)
                         .map(
                           (field) =>
@@ -2649,7 +2651,7 @@ function Forms() {
             </div>
           </div>
           <div className="answer-list">
-            {selectedForm?.fields.map((field) => (
+            {selectedSubmission.fields.map((field) => (
               <div key={field.id}>
                 <small>{field.label}</small>
                 <p>{String(selectedSubmission.answers[field.id] ?? "No answer")}</p>
