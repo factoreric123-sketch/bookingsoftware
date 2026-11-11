@@ -1301,8 +1301,7 @@ function Customers() {
             <b>
               $
               {profileInvoices
-                .filter((item) => item.status === "paid")
-                .reduce((sum, item) => sum + item.amount, 0)
+                .reduce((sum, item) => sum + item.paid, 0)
                 .toLocaleString()}{" "}
               collected
             </b>
