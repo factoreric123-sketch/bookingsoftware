@@ -1031,9 +1031,13 @@ function Customers() {
     }
   };
   const exportCsv = () => {
-    const quote = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
+    const quote = (value: string | number) => {
+      const text = String(value);
+      const safe = typeof value === "string" && /^\s*[=+@-]/.test(text) ? `'${text}` : text;
+      return `"${safe.replaceAll('"', '""')}"`;
+    };
     const rows = [
-      ["Name", "Email", "Phone", "Tags", "Created", "Appointments", "Lifetime value"],
+      ["Name", "Email", "Phone", "Tags", "Created", "Appointments", "Booked value"],
       ...workspace.customers.map((customer) => {
         const appointments = workspace.appointments.filter(
           (item) => item.customerId === customer.id,
@@ -1047,8 +1051,7 @@ function Customers() {
           appointments.length,
           appointments.reduce(
             (sum, item) =>
-              sum +
-              (workspace.services.find((service) => service.id === item.serviceId)?.price ?? 0),
+              sum + (item.status === "cancelled" ? 0 : item.bookedTotal ?? 0),
             0,
           ),
         ];
