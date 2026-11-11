@@ -789,6 +789,9 @@ Deno.serve(async (req: Request) => {
     const customerId = String(params.p_customer_id ?? "");
     const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
     if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
+    const { data: customer, error: customerError } = await admin.from("customers").select("id").eq("business_id", businessId).eq("id", customerId).is("archived_at", null).maybeSingle();
+    if (customerError) return json({ error: customerError.message, code: customerError.code }, 400);
+    if (!customer) return json({ error: "Customer not found in this business" }, 404);
     const note = typeof params.p_note === "string" ? params.p_note.trim() : "";
     if (note) {
       const { data: latest } = await admin.from("customer_notes").select("body").eq("business_id", businessId).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
