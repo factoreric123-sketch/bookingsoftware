@@ -47,6 +47,7 @@ import {
 import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField, type PaymentMethod, type Staff } from "../lib/app-store";
 import { businessDate, calendarWeekStart, shiftCalendarDate } from "../lib/business-date";
 import { previewCustomerCsv, type CustomerImportRow } from "../lib/customer-csv";
+import { csvCell } from "../lib/csv-cell";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
 import { supabase } from "../integrations/supabase/client";
@@ -1039,11 +1040,6 @@ function Customers() {
     }
   };
   const exportCsv = () => {
-    const quote = (value: string | number) => {
-      const text = String(value);
-      const safe = typeof value === "string" && /^\s*[=+@-]/.test(text) ? `'${text}` : text;
-      return `"${safe.replaceAll('"', '""')}"`;
-    };
     const rows = [
       ["Name", "Email", "Phone", "Tags", "Notes", "Created", "Appointments", "Booked value", "Collected"],
       ...workspace.customers.map((customer) => {
@@ -1069,7 +1065,7 @@ function Customers() {
         ];
       }),
     ];
-    const blob = new Blob([rows.map((row) => row.map(quote).join(",")).join("\n")], {
+    const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\n")], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
@@ -2399,8 +2395,7 @@ function Forms() {
         ...selectedForm.fields.map((field) => String(submission.answers[field.id] ?? "")),
       ];
     });
-    const quote = (value: string) => `"${value.replaceAll('"', '""')}"`;
-    const blob = new Blob([[headers, ...rows].map((row) => row.map(quote).join(",")).join("\n")], {
+    const blob = new Blob([[headers, ...rows].map((row) => row.map(csvCell).join(",")).join("\n")], {
       type: "text/csv;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
@@ -2989,11 +2984,6 @@ function Analytics() {
   const max = Math.max(1, ...serviceCounts.map((item) => item.count));
   const exportCsv = () => {
     if (!analytics) return;
-    const safeCell = (value: string | number) => {
-      const text = String(value);
-      const safe = typeof value === "string" && /^\s*[=+@-]/.test(text) ? `'${text}` : text;
-      return `"${safe.replaceAll('"', '""')}"`;
-    };
     const rows: Array<Array<string | number>> = [
       ["Metric", "Value"],
       ["Total bookings", analytics.booking_count ?? 0],
@@ -3006,7 +2996,7 @@ function Analytics() {
       [], ["Booking source", "Count"],
       ...bookingSources.map((item) => [item.source, item.count]),
     ];
-    const blob = new Blob([rows.map((row) => row.map(safeCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
