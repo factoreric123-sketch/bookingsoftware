@@ -2970,9 +2970,10 @@ function Analytics() {
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   useEffect(() => {
-    const through = new Date(); const from = new Date(); from.setDate(from.getDate() - 29);
-    invokeBackend<any>("get_business_analytics", { p_business_id: workspace.business.id, p_location_id: null, p_from_date: from.toISOString().slice(0, 10), p_through_date: through.toISOString().slice(0, 10) }).then(setAnalytics).catch((caught) => setAnalyticsError(caught instanceof Error ? caught.message : "Analytics unavailable"));
-  }, [workspace.business.id]);
+    const through = businessDate(workspace.business.timezone);
+    const from = shiftCalendarDate(through, -29);
+    invokeBackend<any>("get_business_analytics", { p_business_id: workspace.business.id, p_location_id: null, p_from_date: from, p_through_date: through }).then(setAnalytics).catch((caught) => setAnalyticsError(caught instanceof Error ? caught.message : "Analytics unavailable"));
+  }, [workspace.business.id, workspace.business.timezone]);
   const activeCount = Number(analytics?.booking_count ?? 0) - Number(analytics?.cancelled_count ?? 0);
   const completedCount = Number(analytics?.completed_count ?? 0);
   const revenue = Number(analytics?.net_revenue_minor ?? 0) / 100;
