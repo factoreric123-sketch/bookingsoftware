@@ -2340,7 +2340,7 @@ function Forms() {
     setFields([
       ...fields,
       {
-        id: `field_${fields.length}`,
+        id: crypto.randomUUID(),
         label: "New question",
         type: "text" as const,
         required: false,
@@ -2641,6 +2641,10 @@ function Forms() {
                     setFields((current) => current.map((item) => item.id === field.id ? { ...item, options: draft.split(/\r?\n/).map((option) => option.trim()).filter(Boolean) } : item));
                   }} placeholder={"First choice\nSecond choice"} />
                 </label>}
+                <button type="button" className="field-remove" disabled={fields.length === 1} onClick={() => {
+                  setFields((current) => current.filter((item) => item.id !== field.id));
+                  setOptionDrafts((current) => { const next = { ...current }; delete next[field.id]; return next; });
+                }}>Remove question</button>
               </div>
             ))}
           </div>
