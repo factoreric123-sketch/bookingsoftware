@@ -23,7 +23,7 @@ Updated November 11, 2026. This document separates live production behavior, san
 - The production schema contains 82 public tables and 10 private server-only tables with RLS enabled.
 - Database concurrency protection includes staff reservation exclusion constraints, group-capacity row locking, expiring holds, and hashed capability tokens.
 - Four unpublished subscription plans and their feature matrices are seeded without invented provider prices.
-- TypeScript, 15 ordinary tests, and the production build pass. Eight connected authorization tests are opt-in and skipped in the ordinary run.
+- TypeScript, 17 ordinary tests, and the production build pass. Eight connected authorization tests are opt-in and skipped in the ordinary run.
 - The landing page distinguishes the working booking workspace from sandbox AI and unconfigured provider integrations. It no longer displays copied testimonials, invented results, or unapproved plan prices.
 - Owner Overview booked revenue uses the appointment's captured total. A hosted $20 booking remained $20 in Overview after its service price changed to $30; the test appointment was cancelled and the service price restored.
 - Customer CSV import previews validation and duplicates, then writes approved rows with per-row results. A hosted three-row import added the valid customer with source, tags, and note while skipping the duplicate and rejecting the invalid email.
