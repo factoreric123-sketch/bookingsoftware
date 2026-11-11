@@ -31,7 +31,7 @@ This checklist tracks the original product spec against the current implementati
 
 ### 3. Finish customer and form workflows
 
-- [ ] Add customer CSV import with validation, deduplication preview, and per-row error reporting; verify export content.
+- [ ] Add customer CSV import with validation, deduplication preview, and per-row error reporting. The hosted customer export was verified with captured booked totals, cancelled-booking exclusion, and invoice collected totals; customer-supplied formula-like cells are escaped. Import and a partial-payment card display remain.
 - [ ] Complete customer timeline, activity filters, form/payment/booking tabs, and privacy export/deletion workflow.
 - [ ] Extend form editing with the supported field types, embeds, intake-form association, submission search/filter/export, and safe file handling.
 - [ ] Review every dashboard control for a real persisted action or an explicit unavailable state.
