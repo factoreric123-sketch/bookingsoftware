@@ -1281,7 +1281,7 @@ function Customers() {
       )}
       {showImport && (
         <Modal title="Import customers" wide onClose={() => { if (!importing) setShowImport(false); }}>
-          <p>Choose a CSV with Name and Email columns. Phone, Tags, and Notes are optional. Separate tags with |. Preview the rows before importing; existing and repeated emails are skipped.</p>
+              <p>Choose a CSV with Name and Email columns. Phone, Tags, and Notes are optional. Separate tags with |. Preview the rows before importing; emails already loaded here and repeated emails in the file are skipped. The server checks all other duplicates when you import.</p>
           <label>Customer CSV<input type="file" accept=".csv,text/csv" disabled={importing} onChange={(event) => void previewImport(event.target.files?.[0])} /></label>
           {importError && <p className="form-error" role="alert">{importError}</p>}
           {importRows.length > 0 && <>
