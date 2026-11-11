@@ -35,6 +35,15 @@ describe.skipIf(!enabled)('connected explicit-actor authorization', () => {
     const r = await call('create_invoice', { p_business_id: a, p_customer_id: 'a4000000-0000-4000-8000-000000000001', p_appointment_id: null, p_items: [], p_due_date: null, p_notes: '', p_request_key: crypto.randomUUID() }, 'B');
     expect(r.body.code).toBe('P0403');
   });
+  it('rejects a customer profile ID from another business before writing tags', async () => {
+    const r = await call('save_customer_profile', {
+      p_business_id: a,
+      p_customer_id: 'b4000000-0000-4000-8000-000000000001',
+      p_note: '',
+      p_tags: [],
+    });
+    expect(r.status).toBe(404);
+  });
   it('allows the public booking projection without an actor', async () => {
     expect((await call('get_public_booking_page', { p_slug: 'authz-verification-a-20261107' }, null)).status).toBe(200);
   });
