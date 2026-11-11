@@ -844,6 +844,15 @@ Deno.serve(async (req: Request) => {
     if (expiryError) return json({ error: expiryError.message, code: expiryError.code }, 400);
   }
 
+  if (action === "get_availability" || action === "create_booking_hold") {
+    // The public checkout books and prices one seat. Reject larger API requests
+    // until a multi-seat checkout can charge and record each seat consistently.
+    if (params.p_seat_count != null && params.p_seat_count !== 1) {
+      return json({ error: "Bookings currently allow one seat per request" }, 400);
+    }
+    params.p_seat_count = 1;
+  }
+
   const { data, error } = await admin.rpc(action as never, params as never);
   if (error) {
     console.error("backend operation failed", { action, code: error.code });
