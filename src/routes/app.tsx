@@ -2985,7 +2985,7 @@ function Analytics() {
     if (!analytics) return;
     const safeCell = (value: string | number) => {
       const text = String(value);
-      const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+      const safe = typeof value === "string" && /^\s*[=+@-]/.test(text) ? `'${text}` : text;
       return `"${safe.replaceAll('"', '""')}"`;
     };
     const rows: Array<Array<string | number>> = [
