@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField, type PaymentMethod, type Staff } from "../lib/app-store";
 import { businessDate, calendarWeekStart, shiftCalendarDate } from "../lib/business-date";
+import { previewCustomerCsv, type CustomerImportRow } from "../lib/customer-csv";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
 import { supabase } from "../integrations/supabase/client";
@@ -943,6 +944,11 @@ function Bookings({ title }: { title: string }) {
 function Customers() {
   const { workspace, addCustomer, updateCustomer, mergeCustomer } = useAppStore();
   const [show, setShow] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importRows, setImportRows] = useState<CustomerImportRow[]>([]);
+  const [importError, setImportError] = useState("");
+  const [importSummary, setImportSummary] = useState("");
+  const [importing, setImporting] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "", tags: ["New"] });
@@ -1070,6 +1076,42 @@ function Customers() {
     link.click();
     URL.revokeObjectURL(url);
   };
+  const previewImport = async (file?: File) => {
+    setImportRows([]);
+    setImportError("");
+    setImportSummary("");
+    if (!file) return;
+    if (file.size > 2_000_000) { setImportError("Choose a CSV smaller than 2 MB."); return; }
+    try {
+      const rows = previewCustomerCsv(await file.text(), workspace.customers.map((customer) => customer.email));
+      setImportRows(rows);
+    } catch (caught) {
+      setImportError(caught instanceof Error ? caught.message : "The CSV could not be read.");
+    }
+  };
+  const runImport = async () => {
+    if (importing || !importRows.some((row) => row.status === "ready")) return;
+    setImporting(true);
+    setImportError("");
+    let imported = 0;
+    let warnings = 0;
+    let failed = 0;
+    for (const row of importRows.filter((item) => item.status === "ready")) {
+      let status: CustomerImportRow["status"] = "imported";
+      let detail = "Imported";
+      try {
+        await addCustomer({ name: row.name, email: row.email, phone: row.phone, notes: row.notes, tags: row.tags }, "import");
+        imported += 1;
+      } catch (caught) {
+        detail = caught instanceof Error ? caught.message : "Import failed.";
+        if (detail.startsWith("Customer was created,")) { status = "warning"; warnings += 1; }
+        else { status = "failed"; failed += 1; }
+      }
+      setImportRows((current) => current.map((item) => item.line === row.line ? { ...item, status, detail } : item));
+    }
+    setImportSummary(`${imported} imported, ${warnings} imported with warnings, ${failed} failed. Skipped and invalid rows were not sent.`);
+    setImporting(false);
+  };
   const profileAppointments = selected
     ? workspace.appointments.filter((item) => item.customerId === selected.id)
     : [];
@@ -1126,6 +1168,10 @@ function Customers() {
           <button onClick={exportCsv}>
             <FileText size={15} />
             Export CSV
+          </button>
+          <button onClick={() => { setImportRows([]); setImportError(""); setImportSummary(""); setShowImport(true); }}>
+            <FileText size={15} />
+            Import CSV
           </button>
         </div>
         <div className="customer-grid">
@@ -1225,6 +1271,23 @@ function Customers() {
           <button className="solid-action full" onClick={save} disabled={creating || !form.name.trim() || !form.email.trim()}>
             {creating ? "Saving…" : "Save customer"}
           </button>
+        </Modal>
+      )}
+      {showImport && (
+        <Modal title="Import customers" wide onClose={() => { if (!importing) setShowImport(false); }}>
+          <p>Choose a CSV with Name and Email columns. Phone, Tags, and Notes are optional. Separate tags with |. Preview the rows before importing; existing and repeated emails are skipped.</p>
+          <label>Customer CSV<input type="file" accept=".csv,text/csv" disabled={importing} onChange={(event) => void previewImport(event.target.files?.[0])} /></label>
+          {importError && <p className="form-error" role="alert">{importError}</p>}
+          {importRows.length > 0 && <>
+            <p role="status">{importRows.filter((row) => row.status === "ready").length} ready, {importRows.filter((row) => row.status === "skip").length} duplicates, {importRows.filter((row) => row.status === "invalid").length} invalid.</p>
+            <div className="customer-import-preview">
+              <table><thead><tr><th>Row</th><th>Name</th><th>Email</th><th>Result</th></tr></thead><tbody>
+                {importRows.map((row) => <tr key={row.line}><td>{row.line}</td><td>{row.name || "—"}</td><td>{row.email || "—"}</td><td>{row.detail}</td></tr>)}
+              </tbody></table>
+            </div>
+            <button className="solid-action full" onClick={() => void runImport()} disabled={importing || !importRows.some((row) => row.status === "ready")}>{importing ? "Importing…" : `Import ${importRows.filter((row) => row.status === "ready").length} customers`}</button>
+          </>}
+          {importSummary && <p role="status">{importSummary}</p>}
         </Modal>
       )}
       {selected && (
