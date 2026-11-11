@@ -1,6 +1,6 @@
 # Avello implementation status
 
-Updated November 9, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring. Feature wiring does not imply full browser verification. The latest browser and connected-database results are in `docs/phase1-verification.md`.
+Updated November 11, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring. Feature wiring does not imply full browser verification. The latest browser and connected-database results are in `docs/phase1-verification.md`.
 
 ## Functional with the connected Supabase project
 
@@ -14,6 +14,10 @@ Updated November 9, 2026. This document separates live production behavior, sand
 - Dashboard appointment status transitions persist with actor-attributed status history, and cancellation releases the reserved staff interval. Dashboard rescheduling now uses the protected RPC with business-timezone conversion and row-version conflict checks; see `docs/dashboard-reschedule-verification.md` for its verification limit.
 - Blocked-time creation and release use the protected database operations; the calendar reports release failures.
 - Public booking loads a published projection, requests authoritative availability, creates a ten-minute hold, confirms idempotently, and returns the one-time appointment management token.
+- Booking holds now require an exact offered slot, including current staff assignments and hours; the connected database rejects out-of-hours, off-grid, inactive-staff, and mismatched group-session requests. A hosted booking confirmed and cancelled after this repair.
+- Owner booking rules persist slot interval, notice and advance windows, cancellation and rescheduling cutoffs, optional daily cap, and manual approval. The daily cap is enforced during hold creation under a business-settings row lock and in individual/group availability. A one-per-day hosted boundary and rollback-only direct-hold checks passed; a two-connection concurrency check remains.
+- Services and staff profiles persist before/after buffers. Hosted availability blocked an adjacent slot for a staff after buffer. Staff weekly hours can be edited and public slots follow the changed hours.
+- Two-seat group bookings accepted two separate customers and hid a full slot. Last-attendee cancellation and natural hold expiry now release hold-created group sessions and staff reservations. Public booking is restricted to one seat per request until multi-seat pricing and checkout are implemented.
 - Appointment management links load a restricted projection and enforce policy, row version, conflict-safe rescheduling, and soft cancellation.
 - Public forms load the active immutable published version and submit through server validation, rate limiting, honeypot protection, explicit customer mappings, and idempotency.
 - The production schema contains 82 public tables and 10 private server-only tables with RLS enabled.
@@ -21,6 +25,7 @@ Updated November 9, 2026. This document separates live production behavior, sand
 - Four unpublished subscription plans and their feature matrices are seeded without invented provider prices.
 - TypeScript, 12 unit tests, and the production build pass. Seven connected tests are opt-in and skipped in the ordinary unit run.
 - The landing page distinguishes the working booking workspace from sandbox AI and unconfigured provider integrations. It no longer displays copied testimonials, invented results, or unapproved plan prices.
+- Owner Overview booked revenue uses the appointment's captured total. A hosted $20 booking remained $20 in Overview after its service price changed to $30; the test appointment was cancelled and the service price restored.
 
 ## Partially connected
 
@@ -29,7 +34,7 @@ Updated November 9, 2026. This document separates live production behavior, sand
 - Forms submit publicly, and the dashboard creates immutable versions for both new forms and edits. CRM identity mappings are explicitly selected per field.
 - Invoice creation and manual payment recording use protected database operations. Stripe collection remains provider-dependent.
 - The analytics panel consumes the production analytics RPC for its 30-day operational metrics.
-- Team data loads from Supabase. Scheduling profiles can be created and edited (name, email, activity, weekly capacity, and service assignments); hosted editing of an existing owner profile and its service assignment passed. Owners can create staff or manager invitations with explicit permission flags through service-role-only RPCs and a one-time link; managers with staff permission can invite staff. Full dashboard navigation follows the verified membership flags. Invited staff have a scoped schedule showing only their profile's appointments and invited locations; a unique verified-email profile match is used when a profile has no user link. Invitation redemption and scoped staff views passed isolated browser checks. Existing-member role editing, recurring staff availability, and time-off interfaces remain.
+- Team data loads from Supabase. Scheduling profiles can be created and edited (name, email, activity, weekly capacity, service assignments, buffers, and weekly availability); hosted owner editing and public-slot effects passed. Owners can create staff or manager invitations with explicit permission flags through service-role-only RPCs and a one-time link; managers with staff permission can invite staff. Full dashboard navigation follows the verified membership flags. Invited staff have a scoped schedule showing only their profile's appointments and invited locations; a unique verified-email profile match is used when a profile has no user link. Invitation redemption and scoped staff views passed isolated browser checks. Existing-member role editing, broader time-off controls, and location-assignment editing remain.
 - Calendar data loads from Supabase and week navigation is dynamic. Dashboard date defaults and chart dates use the business timezone. Additional location filtering remains.
 - Database acceptance coverage is not yet at the required 50 concurrent/RLS scenarios. Repeatable public-booking and rollback-only SQL harnesses cover key two-tenant, conflict, replay, and authorization paths.
 
