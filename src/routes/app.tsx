@@ -314,13 +314,13 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
         <Metric
           label="Today’s bookings"
           value={String(todays.length)}
-          trend="Current business timezone"
+          trend="Loaded sessions · business timezone"
           icon={CalendarDays}
         />
         <Metric
-          label="Customers"
+          label="Loaded customers"
           value={String(workspace.customers.length)}
-          trend="Authorized customer records"
+          trend="Newest authorized customer records"
           icon={Users}
         />
         <Metric
@@ -329,7 +329,7 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
           trend="Across loaded active appointments"
           icon={CircleDollarSign}
         />
-        <Metric label="Confirmation rate" value={bookingRate} trend={activeAppointments.length ? "Across active bookings" : "No booking data yet"} icon={Activity} />
+        <Metric label="Confirmation rate" value={bookingRate} trend={activeAppointments.length ? "Across loaded active bookings" : "No booking data yet"} icon={Activity} />
       </div>
       <div className="overview-grid">
         <section className="panel chart-panel">
