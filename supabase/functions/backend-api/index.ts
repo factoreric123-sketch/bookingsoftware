@@ -732,6 +732,18 @@ Deno.serve(async (req: Request) => {
     const formId = String(params.p_form_id ?? crypto.randomUUID());
     const { data: member } = await admin.from("business_members").select("role,can_manage_forms").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
     if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_forms))) return json({ error: "Permission denied" }, 403);
+    if (Array.isArray(params.p_fields)) {
+      for (const field of params.p_fields) {
+        if (!field || typeof field !== "object") return json({ error: "Invalid form field" }, 400);
+        if (field.field_type !== "select" && field.field_type !== "radio") continue;
+        const options = Array.isArray(field.options) ? field.options : [];
+        const values = options.map((option: unknown) => option && typeof option === "object" ? String((option as Record<string, unknown>).value ?? "").trim() : "");
+        const labels = options.map((option: unknown) => option && typeof option === "object" ? String((option as Record<string, unknown>).label ?? "").trim() : "");
+        if (values.length < 2 || values.length > 20 || values.some((value: string, index: number) => !value || !labels[index] || value.length > 100 || labels[index]!.length > 100) || new Set(values.map((value: string) => value.toLowerCase())).size !== values.length) {
+          return json({ error: "Choice questions need 2–20 distinct options" }, 400);
+        }
+      }
+    }
     const { data: existing } = await admin.from("forms").select("id,active_version_id").eq("business_id", businessId).eq("id", formId).maybeSingle();
     if (existing && Array.isArray(params.p_fields)) {
       const { data: latest } = await admin.from("form_versions").select("version_number").eq("business_id", businessId).eq("form_id", formId).order("version_number", { ascending: false }).limit(1).maybeSingle();
