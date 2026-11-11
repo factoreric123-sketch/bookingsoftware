@@ -228,8 +228,30 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       }
       setWorkspace((current) => ({ ...current, staff: current.staff.map((member) => member.id === id ? { ...member, name: patch.name, email: patch.email, active: patch.active, weeklyHours: patch.weeklyHours, serviceIds: patch.serviceIds, bufferBefore: patch.bufferBefore ?? member.bufferBefore ?? 0, bufferAfter: patch.bufferAfter ?? member.bufferAfter ?? 0 } : member) }));
     },
-    addForm: async (input) => { const form = { ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString(), submissions: 0 }; await invokeBackend("save_form", { p_business_id: workspace.business.id, p_form_id: form.id, p_name: form.name, p_description: form.description, p_active: form.active, p_fields: form.fields.map((field, index) => ({ field_key: `field_${index + 1}`, label: field.label, field_type: field.type, required: field.required, options: (field.options ?? []).map((option) => ({ value: option, label: option })), customer_mapping: field.customerMapping ?? null })) }); setWorkspace((current) => ({ ...current, forms: [...current.forms, form] })); return form; },
-    updateForm: async (id, patch) => { const current = workspace.forms.find((form) => form.id === id); if (!current) return; const next = { ...current, ...patch }; await invokeBackend("save_form", { p_business_id: workspace.business.id, p_form_id: id, p_name: next.name, p_description: next.description, p_active: next.active, ...(patch.fields ? { p_fields: next.fields.map((field, index) => ({ field_key: `field_${index + 1}`, label: field.label, field_type: field.type, required: field.required, options: (field.options ?? []).map((option) => ({ value: option, label: option })), customer_mapping: field.customerMapping ?? null })) } : {}) }); setWorkspace((state) => ({ ...state, forms: state.forms.map((form) => form.id === id ? next : form) })); },
+    addForm: async (input) => {
+      const form = { ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString(), submissions: 0 };
+      await invokeBackend("save_form", { p_business_id: workspace.business.id, p_form_id: form.id, p_name: form.name, p_description: form.description, p_active: form.active, p_fields: form.fields.map((field, index) => ({ field_key: `field_${index + 1}`, label: field.label, field_type: field.type, required: field.required, options: (field.options ?? []).map((option) => ({ value: option, label: option })), customer_mapping: field.customerMapping ?? null })) });
+      let snapshot: Record<string, any>;
+      try { snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: workspace.business.id }); }
+      catch { throw new Error("Form was saved, but the workspace could not refresh. Reload before editing it."); }
+      const next = mapSnapshot(snapshot);
+      setWorkspace(next);
+      const saved = next.forms.find((item) => item.id === form.id);
+      if (!saved) throw new Error("Form was saved, but it is missing from the refreshed workspace. Reload before editing it.");
+      return saved;
+    },
+    updateForm: async (id, patch) => {
+      const current = workspace.forms.find((form) => form.id === id);
+      if (!current) return;
+      const next = { ...current, ...patch };
+      await invokeBackend("save_form", { p_business_id: workspace.business.id, p_form_id: id, p_name: next.name, p_description: next.description, p_active: next.active, ...(patch.fields ? { p_fields: next.fields.map((field, index) => ({ field_key: `field_${index + 1}`, label: field.label, field_type: field.type, required: field.required, options: (field.options ?? []).map((option) => ({ value: option, label: option })), customer_mapping: field.customerMapping ?? null })) } : {}) });
+      let snapshot: Record<string, any>;
+      try { snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: workspace.business.id }); }
+      catch { throw new Error("Form was saved, but the workspace could not refresh. Reload before editing it."); }
+      const refreshed = mapSnapshot(snapshot);
+      setWorkspace(refreshed);
+      if (!refreshed.forms.some((form) => form.id === id)) throw new Error("Form was saved, but it is missing from the refreshed workspace. Reload before editing it.");
+    },
     addWorkflow: async (input) => { const workflow = { ...input, id: crypto.randomUUID(), runs: 0 }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "workflow", p_operation: "insert", p_id: workflow.id, p_values: { name: workflow.name, trigger_type: workflow.trigger, action_type: "create_task", task_title: `Follow up: ${workflow.name}`, conditions: [], active: false } }); setWorkspace((current) => ({ ...current, workflows: [...current.workflows, { ...workflow, active: false }] })); return { ...workflow, active: false }; },
     addInvoice: async (input) => { const result = await invokeBackend<{ invoice_id: string; invoice_number: string; total_minor: number }>("create_invoice", { p_business_id: workspace.business.id, p_customer_id: input.customerId, p_appointment_id: null, p_items: [{ description: "Services", quantity: 1, unit_price_minor: Math.round(input.amount * 100), discount_minor: 0, tax_rate_bps: 0 }], p_due_date: input.dueDate, p_notes: "", p_request_key: crypto.randomUUID() }); const invoice: Invoice = { ...input, id: result.invoice_id, number: result.invoice_number, amount: result.total_minor / 100, paid: 0, status: "draft", createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, invoices: [...current.invoices, invoice] })); return invoice; },
     recordManualPayment: async (invoiceId, amount, method) => { const result = await invokeBackend<{ paid_minor: number }>("record_manual_payment", { p_invoice_id: invoiceId, p_amount_minor: Math.round(amount * 100), p_method: method, p_request_key: crypto.randomUUID() }); setWorkspace((current) => ({ ...current, invoices: current.invoices.map((invoice) => invoice.id === invoiceId ? { ...invoice, paid: result.paid_minor / 100, status: result.paid_minor >= Math.round(invoice.amount * 100) ? "paid" : "sent" } : invoice) })); },
