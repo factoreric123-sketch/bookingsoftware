@@ -2335,6 +2335,7 @@ function Forms() {
   const [fields, setFields] = useState<FormField[]>([
     { id: "new_name", label: "Full name", type: "text", required: true, customerMapping: "full_name" },
   ]);
+  const [optionDrafts, setOptionDrafts] = useState<Record<string, string>>({});
   const addField = () =>
     setFields([
       ...fields,
@@ -2347,6 +2348,12 @@ function Forms() {
     ]);
   const save = async () => {
     if (!name) return;
+    const invalidChoice = fields.find((field) => (field.type === "select" || field.type === "radio") && (
+      !field.options || field.options.length < 2 || field.options.length > 20 ||
+      field.options.some((option) => !option || option.length > 100) ||
+      new Set(field.options.map((option) => option.toLowerCase())).size !== field.options.length
+    ));
+    if (invalidChoice) { setFormError(`${invalidChoice.label}: add 2–20 distinct options, one per line.`); return; }
     setSavingForm(true); setFormError("");
     try {
       if (editingId) {
@@ -2369,6 +2376,7 @@ function Forms() {
     setEditingId(form.id);
     setName(form.name);
     setFields(form.fields.map((field) => ({ ...field })));
+    setOptionDrafts(Object.fromEntries(form.fields.map((field) => [field.id, (field.options ?? []).join("\n")])));
     setShow(true);
   };
   const selectedForm = workspace.forms.find((form) => form.id === selectedFormId);
@@ -2413,7 +2421,7 @@ function Forms() {
         title="Forms"
         copy="Build branded forms and review every real response connected to your CRM."
         action={
-          <button className="solid-action" onClick={() => setShow(true)}>
+          <button className="solid-action" onClick={() => { setEditingId(""); setName(""); setFields([{ id: "new_name", label: "Full name", type: "text", required: true, customerMapping: "full_name" }]); setOptionDrafts({}); setFormError(""); setShow(true); }}>
             <Plus size={16} />
             Create form
           </button>
@@ -2586,6 +2594,11 @@ function Forms() {
                   <option value="textarea">Long text</option>
                   <option value="select">Dropdown</option>
                   <option value="checkbox">Checkbox</option>
+                  <option value="radio">Multiple choice</option>
+                  <option value="date">Date</option>
+                  <option value="time">Time</option>
+                  <option value="address">Address</option>
+                  <option value="consent">Consent checkbox</option>
                 </select>
                 <label>
                   <input
@@ -2620,6 +2633,14 @@ function Forms() {
                   <option value="company_name">Company name</option>
                   <option value="address">Address</option>
                 </select>
+                {(field.type === "select" || field.type === "radio") && <label className="choice-options">
+                  Choices, one per line
+                  <textarea value={optionDrafts[field.id] ?? (field.options ?? []).join("\n")} onChange={(event) => {
+                    const draft = event.target.value;
+                    setOptionDrafts((current) => ({ ...current, [field.id]: draft }));
+                    setFields((current) => current.map((item) => item.id === field.id ? { ...item, options: draft.split(/\r?\n/).map((option) => option.trim()).filter(Boolean) } : item));
+                  }} placeholder={"First choice\nSecond choice"} />
+                </label>}
               </div>
             ))}
           </div>
