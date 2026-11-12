@@ -1,5 +1,11 @@
 # Phase 1 connected verification
 
+## November 12 follow-up
+
+- `node --env-file=.env scripts/verify-public-booking.mjs 2026-11-13` passed in isolated business B. It checked tenant projection separation, cross-business availability denial, unauthenticated staff-edit denial, unknown management-token denial, concurrent hold conflict, confirmation replay, management-link ownership, cancellation, and slot restoration. The created test appointment was cancelled by the script.
+- The published business B booking page was checked at a 390×844 browser viewport. Document and body scroll widths both stayed at 390 pixels. The service card, full-name date choices, and 16 Friday time choices were in the accessibility tree. Selecting a service and a 09:00 UTC time changed their checked states and enabled the next action. The date strip scrolled inside its card. The browser viewport override was reset. No new hold was created in this browser check.
+- `scripts/verify-database-invariants.sql` was rerun through the connected privileged SQL tool without errors. It uses `BEGIN`/`ROLLBACK` to test consent, webhook/job/payment/usage deduplication, refund and metering bounds, analytics tenant scope, and direct-RPC denial. A follow-up read found zero invalid test jobs and zero `phase1-check` webhook events.
+
 This pass used the connected Supabase project and the existing isolated authorization-test businesses A and B. It did not use real customer accounts. The normal signup endpoint returned `429 over_email_send_rate_limit`, so fresh-signup and fresh-onboarding browser checks remain unverified. Two existing test account password hashes were backed up, temporarily changed to allow sign-in, restored afterward, and compared byte-for-byte with the backups. Temporary credential and token files were cleared. A test booking was cancelled after the checks.
 
 ## Passed
