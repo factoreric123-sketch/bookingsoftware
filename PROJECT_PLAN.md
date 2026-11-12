@@ -43,7 +43,7 @@ This checklist tracks the original product spec against the current implementati
 - [ ] Add a platform super-admin API and dashboard with server-side authorization, audit logging, tenant management, plan editing, usage limits, and aggregate metrics.
 - [ ] Implement subscription entitlements and usage metering independent of Stripe collection; keep plans unpublished until pricing is approved.
 - [ ] Resolve the documented database advisor findings, prioritizing RLS performance and high-traffic foreign-key indexes. Use the Lovable-managed schema path when a migration is required.
-- [ ] Expand the marketing site into the spec's features, industries, pricing, integrations, FAQ, contact, and legal-placeholder pages. The published landing page now has truthful features, industry examples, provider status, FAQ, and pricing status; contact and legal-placeholder pages remain. Do not invent testimonials or prices.
+- [x] Expand the marketing site into the spec's features, industries, pricing, integrations, FAQ, contact, and legal-placeholder pages. The landing page states current provider and pricing status; contact, privacy-status, and terms-status routes are linked in the footer. The privacy and terms pages clearly say final legal text is pending Eric's review. No testimonials or prices were invented.
 - [ ] Run the full release checklist: type check, build, tests, security review, two-tenant browser smoke test, and deployment/sync verification.
 
 ## I can prepare, then need Eric to connect or decide
