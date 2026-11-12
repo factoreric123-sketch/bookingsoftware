@@ -5671,6 +5671,26 @@ export type Database = {
         }
         Returns: Json
       }
+      update_member_access: {
+        Args: {
+          p_active: boolean
+          p_actor_user_id: string
+          p_all_locations: boolean
+          p_business_id: string
+          p_can_manage_automations: boolean
+          p_can_manage_billing: boolean
+          p_can_manage_customers: boolean
+          p_can_manage_forms: boolean
+          p_can_manage_messages: boolean
+          p_can_manage_services: boolean
+          p_can_manage_staff: boolean
+          p_can_view_analytics: boolean
+          p_expected_row_version: number
+          p_member_id: string
+          p_role: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
