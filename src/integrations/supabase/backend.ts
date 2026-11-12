@@ -21,6 +21,7 @@ export type BackendAction =
   | "get_business_analytics"
   | "complete_onboarding"
   | "get_workspace_snapshot"
+  | "export_customer_contacts_page"
   | "get_my_businesses"
   | "get_staff_schedule"
   | "mutate_workspace"

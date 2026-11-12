@@ -963,6 +963,8 @@ function Customers() {
   const [importError, setImportError] = useState("");
   const [importSummary, setImportSummary] = useState("");
   const [importing, setImporting] = useState(false);
+  const [exportingAll, setExportingAll] = useState(false);
+  const [exportError, setExportError] = useState("");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "", tags: ["New"] });
@@ -1088,6 +1090,38 @@ function Customers() {
     link.click();
     URL.revokeObjectURL(url);
   };
+  const exportAllContacts = async () => {
+    if (exportingAll) return;
+    setExportingAll(true);
+    setExportError("");
+    try {
+      type ContactRow = { id: string; full_name: string; email: string | null; phone_e164: string | null; company_name: string | null; address_line1: string | null; address_line2: string | null; city: string | null; region: string | null; postal_code: string | null; country_code: string | null; source: string | null; status: string; created_at: string };
+      const rows: ContactRow[] = [];
+      let cursor: string | null = null;
+      let cutoff: string | null = null;
+      for (;;) {
+        const page: { rows: ContactRow[]; cutoff: string; next_cursor: string | null } = await invokeBackend("export_customer_contacts_page", { p_business_id: workspace.business.id, p_cursor: cursor, p_cutoff: cutoff });
+        rows.push(...page.rows);
+        if (!page.next_cursor) break;
+        if (page.next_cursor === cursor || rows.length > 1_000_000) throw new Error("Export stopped because pagination did not advance.");
+        cursor = page.next_cursor;
+        cutoff = page.cutoff;
+      }
+      const csvRows: Array<Array<string>> = [["Customer ID", "Name", "Email", "Phone", "Company", "Address line 1", "Address line 2", "City", "Region", "Postal code", "Country code", "Source", "Status", "Created"]];
+      for (const row of rows) csvRows.push([row.id, row.full_name, row.email ?? "", row.phone_e164 ?? "", row.company_name ?? "", row.address_line1 ?? "", row.address_line2 ?? "", row.city ?? "", row.region ?? "", row.postal_code ?? "", row.country_code ?? "", row.source ?? "", row.status, row.created_at]);
+      const blob = new Blob([csvRows.map((row) => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `avello-all-contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (caught) {
+      setExportError(caught instanceof Error ? caught.message : "Contact export failed. No file was downloaded.");
+    } finally {
+      setExportingAll(false);
+    }
+  };
   const previewImport = async (file?: File) => {
     setImportRows([]);
     setImportError("");
@@ -1167,6 +1201,7 @@ function Customers() {
         }
       />
       {createError && !show && <p className="form-error" role="alert">{createError}</p>}
+      {exportError && <p className="form-error" role="alert">{exportError}</p>}
       {mergeNotice && <p role="status">{mergeNotice}</p>}
       <div className="panel customer-panel">
         <div className="table-toolbar">
@@ -1184,6 +1219,10 @@ function Customers() {
           <button onClick={exportCsv}>
             <FileText size={15} />
             Export loaded CSV
+          </button>
+          <button onClick={() => void exportAllContacts()} disabled={exportingAll}>
+            <FileText size={15} />
+            {exportingAll ? "Exporting contacts…" : "Export all contacts"}
           </button>
           <button onClick={() => { setImportRows([]); setImportError(""); setImportSummary(""); setShowImport(true); }}>
             <FileText size={15} />

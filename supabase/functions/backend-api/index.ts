@@ -32,6 +32,7 @@ const authenticatedActions = new Set([
   "get_business_analytics",
   "complete_onboarding",
   "get_workspace_snapshot",
+  "export_customer_contacts_page",
   "get_my_businesses",
   "get_staff_schedule",
   "mutate_workspace",
@@ -339,6 +340,30 @@ Deno.serve(async (req: Request) => {
       const business = businesses?.find((item) => item.id === member.business_id);
       return business ? [{ ...business, role: member.role }] : [];
     }) });
+  }
+
+  if (action === "export_customer_contacts_page") {
+    const businessId = String(params.p_business_id ?? "");
+    const cursor = params.p_cursor == null ? null : String(params.p_cursor);
+    const requestedCutoff = params.p_cutoff == null ? null : String(params.p_cutoff);
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuid.test(businessId) || (cursor && !uuid.test(cursor))) return json({ error: "Invalid business or cursor" }, 400);
+    const cutoff = requestedCutoff ?? new Date().toISOString();
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(cutoff) || !Number.isFinite(Date.parse(cutoff)) || Date.parse(cutoff) > Date.now() + 300_000) return json({ error: "Invalid export cutoff" }, 400);
+    const { data: member, error: memberError } = await admin.from("business_members")
+      .select("role,all_locations,can_manage_customers")
+      .eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    if (memberError) return json({ error: memberError.message, code: memberError.code }, 400);
+    if (!member || !(member.role === "owner" || (member.role === "manager" && member.all_locations && member.can_manage_customers))) return json({ error: "Customer export permission denied" }, 403);
+    let query = admin.from("customers")
+      .select("id,full_name,email,phone_e164,company_name,address_line1,address_line2,city,region,postal_code,country_code,source,status,created_at")
+      .eq("business_id", businessId).is("archived_at", null).neq("status", "merged")
+      .lte("created_at", cutoff).order("id").limit(200);
+    if (cursor) query = query.gt("id", cursor);
+    const { data: customers, error: customersError } = await query;
+    if (customersError) return json({ error: customersError.message, code: customersError.code }, 400);
+    const rows = customers ?? [];
+    return json({ data: { rows, cutoff, next_cursor: rows.length === 200 ? rows[rows.length - 1].id : null } });
   }
 
   if (action === "get_workspace_snapshot") {
