@@ -265,6 +265,7 @@ function PageHeader({
 
 function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
   const { workspace } = useAppStore();
+  const [shareMessage, setShareMessage] = useState("");
   const today = businessDate(workspace.business.timezone);
   const todays = workspace.appointments.filter(
     (item) => item.date === today && item.status !== "cancelled",
@@ -415,11 +416,23 @@ function Overview({ onNavigate }: { onNavigate: (section: Section) => void }) {
             <Quick
               icon={Copy}
               label="Share booking link"
-              onClick={() =>
-                navigator.clipboard?.writeText(`${location.origin}/book/${workspace.business.slug}`)
-              }
+              onClick={() => {
+                if (!workspace.business.bookingPagePublished) {
+                  setShareMessage("Publish your booking page before sharing its link.");
+                  onNavigate("Booking Page");
+                  return;
+                }
+                if (!navigator.clipboard?.writeText) {
+                  setShareMessage("Clipboard access is unavailable. Open Booking Page to copy the link manually.");
+                  return;
+                }
+                void navigator.clipboard.writeText(`${location.origin}/book/${workspace.business.slug}`)
+                  .then(() => setShareMessage("Booking link copied."))
+                  .catch(() => setShareMessage("Could not copy the link. Open Booking Page to copy it manually."));
+              }}
             />
           </div>
+          {shareMessage && <p role="status">{shareMessage}</p>}
         </section>
       </div>
     </>
@@ -1923,12 +1936,19 @@ function PhoneAi() {
 function BookingTools() {
   const { workspace } = useAppStore();
   const [copied, setCopied] = useState("");
+  const [copyError, setCopyError] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "https://your-domain.com";
   const bookingUrl = `${origin}/book/${workspace.business.slug}`;
-  const copy = (label: string, value: string) => {
-    navigator.clipboard?.writeText(value);
-    setCopied(label);
-    window.setTimeout(() => setCopied(""), 1800);
+  const copy = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopyError("");
+      setCopied(label);
+      window.setTimeout(() => setCopied(""), 1800);
+    } catch {
+      setCopied("");
+      setCopyError("Clipboard access failed. Select the link or code below to copy it manually.");
+    }
   };
   const buttonCode = `<a href="${bookingUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:12px 20px;border-radius:8px;background:${workspace.business.accent};color:#fff;text-decoration:none;font-family:sans-serif;font-weight:600">Book online</a>`;
   const iframeCode = `<iframe src="${bookingUrl}" title="Book with ${workspace.business.name}" width="100%" height="760" style="border:0;border-radius:12px" loading="lazy"></iframe>`;
@@ -1936,7 +1956,7 @@ function BookingTools() {
     <>
       <PageHeader
         title="Booking page"
-        copy="Publish your booking experience anywhere customers find your business."
+        copy={workspace.business.bookingPagePublished ? "Share your published booking page anywhere customers find your business." : "Your booking page is unpublished. Publish it before sharing these links or embeds."}
         action={
           <Link
             to="/book/$slug"
@@ -1945,23 +1965,21 @@ function BookingTools() {
             className="solid-action"
           >
             <ExternalLink size={15} />
-            Open live page
+            {workspace.business.bookingPagePublished ? "Open live page" : "Preview booking page"}
           </Link>
         }
       />
+      {copyError && <p className="form-error" role="alert">{copyError}</p>}
       <div className="booking-tools-grid">
         <section className="panel share-panel">
           <div className="tool-icon">
             <Link2 size={20} />
           </div>
           <h2>Shareable booking link</h2>
-          <p>
-            Use this link in email, social profiles, text messages, and your Google Business Profile
-            website field.
-          </p>
+          <p>{workspace.business.bookingPagePublished ? "Use this link in email, social profiles, text messages, and your Google Business Profile website field." : "This link will accept bookings after you publish the page."}</p>
           <div className="copy-field">
             <code>{bookingUrl}</code>
-            <button onClick={() => copy("link", bookingUrl)}>
+            <button aria-label="Copy booking link" onClick={() => void copy("link", bookingUrl)}>
               {copied === "link" ? <Check size={15} /> : <Copy size={15} />}
             </button>
           </div>
@@ -1972,7 +1990,7 @@ function BookingTools() {
               .map((service) => (
                 <div key={service.id}>
                   <span>{service.name}</span>
-                  <button onClick={() => copy(service.id, `${bookingUrl}?service=${service.id}`)}>
+                  <button aria-label={`Copy link for ${service.name}`} onClick={() => void copy(service.id, `${bookingUrl}?service=${service.id}`)}>
                     {copied === service.id ? <Check size={14} /> : <Copy size={14} />}
                   </button>
                 </div>
@@ -1980,7 +1998,7 @@ function BookingTools() {
           </div>
         </section>
         <section className="panel booking-preview-card">
-          <span>LIVE PREVIEW</span>
+          <span>{workspace.business.bookingPagePublished ? "LIVE PREVIEW" : "UNPUBLISHED PREVIEW"}</span>
           <div className="preview-business">
             <i style={{ background: workspace.business.accent }}>
               {workspace.business.name.charAt(0)}
@@ -2005,10 +2023,10 @@ function BookingTools() {
               <h2>Website button</h2>
               <p>A styled link that works on any website.</p>
             </div>
-            <span className="ready-pill">Ready</span>
+            <span className="ready-pill">{workspace.business.bookingPagePublished ? "Ready" : "Publish first"}</span>
           </div>
           <pre>{buttonCode}</pre>
-          <button className="secondary-action" onClick={() => copy("button", buttonCode)}>
+          <button className="secondary-action" onClick={() => void copy("button", buttonCode)}>
             {copied === "button" ? <Check size={15} /> : <Copy size={15} />}Copy button code
           </button>
         </section>
@@ -2018,10 +2036,10 @@ function BookingTools() {
               <h2>Inline booking widget</h2>
               <p>Embed the full booking experience on a page.</p>
             </div>
-            <span className="ready-pill">Ready</span>
+            <span className="ready-pill">{workspace.business.bookingPagePublished ? "Ready" : "Publish first"}</span>
           </div>
           <pre>{iframeCode}</pre>
-          <button className="secondary-action" onClick={() => copy("iframe", iframeCode)}>
+          <button className="secondary-action" onClick={() => void copy("iframe", iframeCode)}>
             {copied === "iframe" ? <Check size={15} /> : <Copy size={15} />}Copy iframe code
           </button>
         </section>
