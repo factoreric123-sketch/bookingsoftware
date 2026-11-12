@@ -1,6 +1,6 @@
 # Avello implementation status
 
-Updated November 11, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring. Feature wiring does not imply full browser verification. The latest browser and connected-database results are in `docs/phase1-verification.md`.
+Updated November 12, 2026. This document separates live production behavior, sandbox-only behavior, provider-dependent work, and remaining application wiring. Feature wiring does not imply full browser verification. The Phase 1 core implementation review is in `docs/phase1-core-signoff.md`; latest browser and connected-database results are in `docs/phase1-verification.md`.
 
 ## Functional with the connected Supabase project
 
@@ -27,6 +27,8 @@ Updated November 11, 2026. This document separates live production behavior, san
 - The landing page distinguishes the working booking workspace from sandbox AI and unconfigured provider integrations. It no longer displays copied testimonials, invented results, or unapproved plan prices.
 - Owner Overview booked revenue uses the appointment's captured total. A hosted $20 booking remained $20 in Overview after its service price changed to $30; the test appointment was cancelled and the service price restored.
 - Customer CSV import previews validation and duplicates, then writes approved rows with per-row results. A hosted three-row import added the valid customer with source, tags, and note while skipping the duplicate and rejecting the invalid email.
+- The owner Team screen now lists login memberships separately from scheduling profiles. A service-role-only RPC updates non-owner roles and permission flags with row-version conflict checking and before/after audit history; 26 rollback-only database checks passed. The hosted owner view showed the new section, but a non-owner edit has not yet been browser-tested.
+- A separate paginated all-contact export includes every unarchived, unmerged customer in the authorized business. The hosted owner downloaded 13 rows with the expected 14 columns; the temporary file was removed.
 
 ## Partially connected
 
