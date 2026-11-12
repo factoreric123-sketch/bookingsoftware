@@ -3011,6 +3011,7 @@ function Payments() {
 
 function Analytics() {
   const { workspace } = useAppStore();
+  const formatAmount = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: workspace.business.currency ?? "USD" }).format(amount);
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsError, setAnalyticsError] = useState("");
   useEffect(() => {
@@ -3079,7 +3080,7 @@ function Analytics() {
         />
         <Metric
           label="Collected revenue"
-          value={analytics ? `$${revenue.toLocaleString()}` : "—"}
+          value={analytics ? formatAmount(revenue) : "—"}
           trend="Paid invoices only"
           icon={CircleDollarSign}
         />
@@ -3105,7 +3106,7 @@ function Analytics() {
                 <div>
                   <i style={{ width: `${(item.count / max) * 100}%` }} />
                 </div>
-                <b>${item.count.toLocaleString()}</b>
+                <b>{formatAmount(item.count)}</b>
               </div>
             ))}
           </div>
