@@ -1,0 +1,7 @@
+# Existing member access editing
+
+On November 12, 2026, Lovable applied migration `20261112052445_244662ca-2bae-4e31-bae8-e61cafa8c2ec.sql`. The `update_member_access` RPC accepts a server-verified explicit actor, locks the target membership, checks the expected row version, updates role/active/location-scope/permission flags, and inserts a before/after row into `private.audit_logs`. Execution is granted only to `service_role`. It does not change location assignments or booking records.
+
+Lovable reported 26/26 rollback-only checks passing for owner success, row version advancement, owner/self/non-owner/cross-business denial, invalid flags, stale version rejection, audit contents, location preservation, and direct-call denial. Its synthetic fixtures were rolled back. The migration has no fixture-dependent test block. A fresh database replay was not run.
+
+Edge `backend-api` version 90 adds the authenticated action and replaces any caller-supplied actor ID with the ID from a verified access token. A live unauthenticated request with a forged actor ID returned HTTP 401, `Authentication required`. The owner Team screen now lists account memberships separately from scheduling profiles and edits non-owner access through this RPC. The browser owner edit flow, stale-version refresh, manager permission changes, and post-change login scope have not yet been exercised with isolated accounts.

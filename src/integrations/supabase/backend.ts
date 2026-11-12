@@ -17,6 +17,7 @@ export type BackendAction =
   | "record_manual_payment"
   | "accept_member_invitation"
   | "create_member_invitation"
+  | "update_member_access"
   | "get_business_analytics"
   | "complete_onboarding"
   | "get_workspace_snapshot"

@@ -28,6 +28,7 @@ const authenticatedActions = new Set([
   "record_manual_payment",
   "accept_member_invitation",
   "create_member_invitation",
+  "update_member_access",
   "get_business_analytics",
   "complete_onboarding",
   "get_workspace_snapshot",
@@ -55,6 +56,7 @@ const actorActions = new Set([
   "record_manual_payment",
   "accept_member_invitation",
   "create_member_invitation",
+  "update_member_access",
   "get_business_analytics",
 ]);
 
@@ -357,7 +359,7 @@ Deno.serve(async (req: Request) => {
       admin.from("business_hours").select("*").eq("business_id", businessId).order("iso_weekday"),
       admin.from("services").select("*").eq("business_id", businessId).is("archived_at", null).order("sort_order"),
       admin.from("staff_profiles").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at"),
-      admin.from("business_members").select("user_id,role").eq("business_id", businessId).eq("active", true),
+      admin.from("business_members").select("id,user_id,role,active,all_locations,can_manage_customers,can_manage_services,can_manage_staff,can_manage_forms,can_manage_messages,can_manage_automations,can_view_analytics,can_manage_billing,row_version").eq("business_id", businessId),
       admin.from("staff_services").select("*").eq("business_id", businessId).eq("active", true),
       admin.from("customers").select("*").eq("business_id", businessId).is("archived_at", null).order("created_at", { ascending: false }).limit(500),
       admin.from("customer_notes").select("*").eq("business_id", businessId).order("created_at", { ascending: false }).limit(2000),
@@ -383,7 +385,13 @@ Deno.serve(async (req: Request) => {
     const owner = membership.role === "owner";
     const canCustomers = owner || membership.can_manage_customers;
     const canForms = owner || membership.can_manage_forms;
-    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, team_members: owner || membership.can_manage_staff ? teamMembers : [], staff_services: staffServices, customers: canCustomers ? customers : [], customer_notes: canCustomers ? customerNotes : [], customer_tags: canCustomers ? customerTags : [], customer_tag_assignments: canCustomers ? customerTagAssignments : [], sessions: canCustomers ? sessions : [], blocked_times: blockedTimes, integrations: owner ? integrations : [], forms: canForms ? forms : [], form_fields: canForms ? formFields : [], form_submissions: canForms ? formSubmissions : [], form_submission_answers: canForms ? formSubmissionAnswers : [], workflows: owner || membership.can_manage_automations ? workflows : [], workflow_steps: owner || membership.can_manage_automations ? workflowSteps : [], invoices: owner || membership.can_manage_billing ? invoices : [], ai_settings: owner ? aiSettings : null, calls: owner ? calls : [], booking_pages: bookingPages } });
+    const memberIds = (teamMembers ?? []).map((member) => member.user_id);
+    const { data: profiles, error: profilesError } = memberIds.length
+      ? await admin.from("profiles").select("id,full_name").in("id", memberIds)
+      : { data: [], error: null };
+    if (profilesError) return json({ error: profilesError.message, code: profilesError.code }, 400);
+    const visibleMembers = owner ? (teamMembers ?? []).map((member) => ({ ...member, display_name: profiles?.find((profile) => profile.id === member.user_id)?.full_name ?? null })) : owner || membership.can_manage_staff ? (teamMembers ?? []).map((member) => ({ user_id: member.user_id, role: member.role })) : [];
+    return json({ data: { membership, business, settings, locations, business_hours: businessHours, services, staff, team_members: visibleMembers, staff_services: staffServices, customers: canCustomers ? customers : [], customer_notes: canCustomers ? customerNotes : [], customer_tags: canCustomers ? customerTags : [], customer_tag_assignments: canCustomers ? customerTagAssignments : [], sessions: canCustomers ? sessions : [], blocked_times: blockedTimes, integrations: owner ? integrations : [], forms: canForms ? forms : [], form_fields: canForms ? formFields : [], form_submissions: canForms ? formSubmissions : [], form_submission_answers: canForms ? formSubmissionAnswers : [], workflows: owner || membership.can_manage_automations ? workflows : [], workflow_steps: owner || membership.can_manage_automations ? workflowSteps : [], invoices: owner || membership.can_manage_billing ? invoices : [], ai_settings: owner ? aiSettings : null, calls: owner ? calls : [], booking_pages: bookingPages } });
   }
 
   if (action === "mutate_workspace") {

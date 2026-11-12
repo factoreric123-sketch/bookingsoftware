@@ -9,6 +9,7 @@ export type Appointment = { id: string; serviceId: string; customerId: string; s
 export type Business = { id: string; name: string; slug: string; industry: string; email: string; phone: string; address: string; timezone: string; currency?: string; defaultLocationId?: string; accent: string; setupComplete: boolean; bookingPagePublished?: boolean; hours: Record<string, { open: string; close: string; enabled: boolean }> };
 export type Integration = { id: string; name: string; description: string; status: "connected" | "not-configured" | "pending-approval"; category: string };
 export type Staff = { id: string; name: string; email: string; role: "owner" | "manager" | "staff"; active: boolean; serviceIds: string[]; weeklyHours: number; bufferBefore?: number; bufferAfter?: number };
+export type MemberAccess = { id: string; userId: string; name: string; role: "owner" | "manager" | "staff"; active: boolean; allLocations: boolean; rowVersion: number; permissions: Record<string, boolean> };
 export type FormField = { id: string; label: string; type: "text" | "email" | "phone" | "textarea" | "select" | "checkbox" | "radio" | "date" | "time" | "address" | "consent"; required: boolean; options?: string[]; customerMapping?: "full_name" | "email" | "phone_e164" | "address" | "company_name" };
 export type BusinessForm = { id: string; name: string; description: string; active: boolean; fields: FormField[]; submissions: number; createdAt: string };
 export type FormSubmission = { id: string; formId: string; customerId?: string; fields: Array<{ id: string; label: string }>; answers: Record<string, string | boolean>; submittedAt: string };
@@ -19,7 +20,7 @@ export type Invoice = { id: string; customerId: string; number: string; amount: 
 export type AiReceptionist = { name: string; greeting: string; transferPhone: string; voice: string; afterHours: "take-message" | "offer-callback"; recordingEnabled: boolean; disclosureEnabled: boolean };
 export type CallLog = { id: string; caller: string; startedAt: string; durationSeconds: number; outcome: "booked" | "message" | "transferred"; summary: string; appointmentId?: string; sandbox: true };
 export type BlockedTime = { id: string; staffId?: string; date: string; start: string; end: string; reason: string; createdAt: string };
-export type Workspace = { business: Business; memberRole: "owner" | "manager" | "staff"; memberPermissions: Record<string, boolean>; services: Service[]; customers: Customer[]; appointments: Appointment[]; blockedTimes: BlockedTime[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
+export type Workspace = { business: Business; memberRole: "owner" | "manager" | "staff"; memberPermissions: Record<string, boolean>; members: MemberAccess[]; services: Service[]; customers: Customer[]; appointments: Appointment[]; blockedTimes: BlockedTime[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const defaultHours = Object.fromEntries(days.map((day, index) => [day, { open: "09:00", close: "17:00", enabled: index < 5 }])) as Business["hours"];
@@ -27,6 +28,7 @@ const defaultHours = Object.fromEntries(days.map((day, index) => [day, { open: "
 export const seedWorkspace: Workspace = {
   memberRole: "owner",
   memberPermissions: {},
+  members: [],
   business: { id: "biz_demo", name: "Northstar Studio", slug: "northstar-studio", industry: "Professional services", email: "hello@northstar.example", phone: "(555) 014-0184", address: "128 Market Street, Brooklyn, NY", timezone: "America/New_York", accent: "#6d5dfc", setupComplete: true, bookingPagePublished: true, hours: defaultHours },
   services: [
     { id: "svc_strategy", name: "Strategy session", description: "A focused planning session for your next project.", duration: 60, price: 150, color: "#6d5dfc", active: true },
@@ -109,6 +111,7 @@ function emptyWorkspace(): Workspace {
   return {
     memberRole: "staff",
     memberPermissions: {},
+    members: [],
     business: { id: "", name: "", slug: "", industry: "", email: "", phone: "", address: "", timezone: "America/New_York", accent: "#6d5dfc", setupComplete: false, hours: defaultHours },
     services: [], customers: [], appointments: [], blockedTimes: [], integrations: [], staff: [], forms: [], formSubmissions: [], workflows: [], invoices: [],
     aiReceptionist: { name: "Ava", greeting: "", transferPhone: "", voice: "Warm and professional", afterHours: "take-message", recordingEnabled: false, disclosureEnabled: true },
@@ -142,6 +145,7 @@ function mapSnapshot(snapshot: any): Workspace {
   return {
     memberRole: snapshot.membership?.role ?? "staff",
     memberPermissions: Object.fromEntries(Object.entries(snapshot.membership ?? {}).filter(([key]) => key.startsWith("can_")).map(([key, value]) => [key, value === true])),
+    members: (snapshot.team_members ?? []).filter((item: any) => item.id).map((item: any): MemberAccess => ({ id: item.id, userId: item.user_id, name: item.display_name || snapshot.staff?.find((profile: any) => profile.user_id === item.user_id)?.display_name || "Team member", role: item.role, active: item.active, allLocations: item.all_locations, rowVersion: Number(item.row_version), permissions: Object.fromEntries(Object.entries(item).filter(([key]) => key.startsWith("can_")).map(([key, value]) => [key, value === true])) })),
     business: { id: business.id, name: business.name, slug: business.slug, industry: business.industry, email: business.email ?? "", phone: business.phone_e164 ?? "", address: [location.address_line1, location.address_line2, location.city, location.region, location.postal_code].filter(Boolean).join(", "), timezone: business.timezone, currency: business.currency, defaultLocationId: location.id, accent: business.accent_color, setupComplete: Boolean(business.setup_completed_at), bookingPagePublished: (snapshot.booking_pages ?? []).some((page: any) => page.status === "published" && Boolean(page.published_at)), hours: hourMap },
     services, customers, appointments, blockedTimes, staff,
     integrations: (snapshot.integrations ?? []).map((item: any): Integration => ({ id: item.id, name: String(item.provider).replaceAll("_", " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase()), description: "Provider connection", status: item.status === "connected" ? "connected" : item.status === "pending_approval" ? "pending-approval" : "not-configured", category: "Integration" })),

@@ -44,7 +44,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField, type PaymentMethod, type Staff } from "../lib/app-store";
+import { availableSlots, useAppStore, type AppointmentStatus, type BusinessForm, type FormField, type MemberAccess, type PaymentMethod, type Staff } from "../lib/app-store";
 import { businessDate, calendarWeekStart, shiftCalendarDate } from "../lib/business-date";
 import { previewCustomerCsv, type CustomerImportRow } from "../lib/customer-csv";
 import { csvCell } from "../lib/csv-cell";
@@ -2063,8 +2063,15 @@ function BookingTools() {
 }
 
 function Team() {
-  const { workspace, addStaff, updateStaff } = useAppStore();
+  const { workspace, addStaff, updateStaff, switchBusiness } = useAppStore();
   const [show, setShow] = useState(false);
+  const [members, setMembers] = useState<MemberAccess[]>(workspace.members);
+  const [editingMember, setEditingMember] = useState<MemberAccess | null>(null);
+  const [memberDraft, setMemberDraft] = useState<MemberAccess | null>(null);
+  const [memberError, setMemberError] = useState("");
+  const [memberNotice, setMemberNotice] = useState("");
+  const [savingMember, setSavingMember] = useState(false);
+  useEffect(() => { setMembers(workspace.members); setEditingMember(null); setMemberDraft(null); }, [workspace.members]);
   const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
   const [savingStaff, setSavingStaff] = useState(false);
@@ -2086,6 +2093,37 @@ function Team() {
     ["can_view_analytics", "View analytics"],
     ["can_manage_billing", "Manage billing"],
   ] as const;
+  const editMember = (member: MemberAccess) => {
+    setEditingMember(member);
+    setMemberDraft({ ...member, permissions: { ...member.permissions } });
+    setMemberError("");
+    setMemberNotice("");
+  };
+  const saveMemberAccess = async () => {
+    if (!editingMember || !memberDraft || savingMember) return;
+    setSavingMember(true);
+    setMemberError("");
+    try {
+      const permissions = memberDraft.role === "manager" ? memberDraft.permissions : {};
+      const updated = await invokeBackend<Record<string, unknown>>("update_member_access", {
+        p_business_id: workspace.business.id,
+        p_member_id: editingMember.id,
+        p_expected_row_version: editingMember.rowVersion,
+        p_role: memberDraft.role,
+        p_active: memberDraft.active,
+        p_all_locations: memberDraft.role === "manager" && memberDraft.allLocations,
+        ...Object.fromEntries(managerFlags.map(([key]) => [`p_${key}`, permissions[key] === true])),
+      });
+      setMembers((current) => current.map((member) => member.id === editingMember.id ? { ...memberDraft, rowVersion: Number(updated["row_version"]), permissions } : member));
+      setEditingMember(null);
+      setMemberDraft(null);
+      setMemberNotice("Member access saved and audited.");
+    } catch (caught) {
+      setMemberError(caught instanceof Error ? caught.message : "Member access could not be saved. Reload before retrying.");
+    } finally {
+      setSavingMember(false);
+    }
+  };
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -2167,6 +2205,16 @@ function Team() {
         {inviteError && <p className="form-error" role="alert">{inviteError}</p>}
         {inviteLink && <div role="status"><p>Share this link securely with {inviteEmail}. It is shown once.</p><input readOnly value={inviteLink} aria-label="Invitation link" /><button onClick={() => { void (async () => { try { await navigator.clipboard.writeText(inviteLink); setInviteCopied(true); setInviteError(""); } catch { setInviteError("Could not copy the invitation link. Select the link above to copy it manually."); } })(); }}>{inviteCopied ? "Copied" : "Copy link"}</button></div>}
       </section>
+      {workspace.memberRole === "owner" && <section className="panel settings-form">
+        <h2>Account access</h2>
+        <p>Login permissions are separate from scheduling profiles. Changes take effect on the server.</p>
+        {memberNotice && <p role="status">{memberNotice}</p>}
+        {members.map((member) => <div className="member-access-row" key={member.id}>
+          <div><b>{member.name}</b><small>{member.role} · {member.active ? "Active" : "Inactive"}</small></div>
+          {member.role === "owner" ? <span>Owner access</span> : <button type="button" className="secondary-action" onClick={() => editMember(member)}>Edit access</button>}
+        </div>)}
+        {!members.length && <p>No account memberships loaded.</p>}
+      </section>}
       <div className="team-grid">
         {workspace.staff.map((member) => (
           <article className="team-card" key={member.id}>
@@ -2204,6 +2252,15 @@ function Team() {
           </article>
         ))}
       </div>
+      {editingMember && memberDraft && <Modal title={`Edit access · ${editingMember.name}`} onClose={() => { if (!savingMember) setEditingMember(null); }}>
+        <p>Changing or deactivating access affects this member's next authorized request. Existing booking records stay intact.</p>
+        <label>Account role<select value={memberDraft.role} onChange={(event) => setMemberDraft((current) => current ? { ...current, role: event.target.value as "manager" | "staff", allLocations: event.target.value === "manager" ? current.role === "manager" ? current.allLocations : true : false } : current)}><option value="staff">Staff</option><option value="manager">Manager</option></select></label>
+        <label><input type="checkbox" checked={memberDraft.active} onChange={(event) => setMemberDraft((current) => current ? { ...current, active: event.target.checked } : current)} /> Active account access</label>
+        {memberDraft.role === "manager" && <><label><input type="checkbox" checked={memberDraft.allLocations} onChange={(event) => setMemberDraft((current) => current ? { ...current, allLocations: event.target.checked } : current)} /> Access all locations</label><p>Scoped managers require an existing assigned location.</p><fieldset className="service-checks"><legend>Manager permissions</legend>{managerFlags.map(([key, label]) => <label key={key}><input type="checkbox" checked={memberDraft.permissions[key] === true} onChange={(event) => setMemberDraft((current) => current ? { ...current, permissions: { ...current.permissions, [key]: event.target.checked } } : current)} />{label}</label>)}</fieldset></>}
+        {memberError && <p className="form-error" role="alert">{memberError}</p>}
+        <button type="button" className="solid-action full" disabled={savingMember} onClick={() => void saveMemberAccess()}>{savingMember ? "Saving…" : "Save account access"}</button>
+        {memberError && <button type="button" className="secondary-action" onClick={() => void switchBusiness(workspace.business.id)}>Reload workspace</button>}
+      </Modal>}
       {show && (
         <Modal title={editingId ? "Edit team profile" : "Add team member"} onClose={() => setShow(false)}>
           {error && <div className="booking-error" role="alert">{error}</div>}
