@@ -2074,6 +2074,7 @@ function Team() {
   const [invitePermissions, setInvitePermissions] = useState<Record<string, boolean>>({});
   const [inviteLink, setInviteLink] = useState("");
   const [inviteError, setInviteError] = useState("");
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [inviting, setInviting] = useState(false);
   const managerFlags = [
     ["can_manage_customers", "Manage customers"],
@@ -2128,6 +2129,7 @@ function Team() {
     setInviting(true);
     setInviteError("");
     setInviteLink("");
+    setInviteCopied(false);
     try {
       const result = await invokeBackend<{ token: string }>("create_member_invitation", {
         p_business_id: workspace.business.id,
@@ -2163,7 +2165,7 @@ function Team() {
         {inviteRole === "manager" && <fieldset className="service-checks"><legend>Manager permissions</legend><p>This invitation grants access to all business locations. Select only the permissions this manager needs.</p>{managerFlags.map(([key, label]) => <label key={key}><input type="checkbox" checked={invitePermissions[key] === true} onChange={(event) => { setInvitePermissions((current) => ({ ...current, [key]: event.target.checked })); setInviteLink(""); }} />{label}</label>)}</fieldset>}
         <button className="solid-action" onClick={createInvitation} disabled={inviting || !inviteEmail.trim()}>{inviting ? "Creating…" : "Create invitation link"}</button>
         {inviteError && <p className="form-error" role="alert">{inviteError}</p>}
-        {inviteLink && <div role="status"><p>Share this link securely with {inviteEmail}. It is shown once.</p><input readOnly value={inviteLink} aria-label="Invitation link" /><button onClick={() => void navigator.clipboard.writeText(inviteLink)}>Copy link</button></div>}
+        {inviteLink && <div role="status"><p>Share this link securely with {inviteEmail}. It is shown once.</p><input readOnly value={inviteLink} aria-label="Invitation link" /><button onClick={() => { void (async () => { try { await navigator.clipboard.writeText(inviteLink); setInviteCopied(true); setInviteError(""); } catch { setInviteError("Could not copy the invitation link. Select the link above to copy it manually."); } })(); }}>{inviteCopied ? "Copied" : "Copy link"}</button></div>}
       </section>
       <div className="team-grid">
         {workspace.staff.map((member) => (
@@ -2344,6 +2346,7 @@ function Forms() {
   const { workspace, addForm, updateForm } = useAppStore();
   const [show, setShow] = useState(false);
   const [formError, setFormError] = useState("");
+  const [copiedFormId, setCopiedFormId] = useState("");
   const [savingForm, setSavingForm] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [name, setName] = useState("");
@@ -2481,12 +2484,12 @@ function Forms() {
               </label>
               <span>{form.active ? "Accepting responses" : "Draft"}</span>
               <button
-                onClick={() =>
-                  navigator.clipboard?.writeText(`${location.origin}/forms/${form.id}`)
-                }
+                disabled={!form.active}
+                title={form.active ? "Copy published form link" : "Publish the form before sharing"}
+                onClick={() => { void (async () => { try { await navigator.clipboard.writeText(`${location.origin}/forms/${form.id}`); setCopiedFormId(form.id); setFormError(""); } catch { setFormError("Could not copy the form link. Check browser clipboard permissions."); } })(); }}
               >
                 <Copy size={14} />
-                Copy link
+                {copiedFormId === form.id ? "Copied" : form.active ? "Copy link" : "Publish first"}
               </button>
             </div>
             <button className="submission-action" onClick={() => setSelectedFormId(form.id)}>
