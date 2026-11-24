@@ -17,6 +17,7 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Week-calendar events now open the same appointment summary, and summaries can be copied as plain text for internal handoff.
 - Added one-click booking views for Today, Upcoming, Awaiting approval, Past, and All, plus soonest/latest sorting.
 - Added CSV export for exactly the bookings currently visible after filters and search.
+- Added service catalog search, Bookable/Hidden filtering, result counts, and a recoverable filtered empty state.
 
 ## Verified
 

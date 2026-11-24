@@ -1679,6 +1679,8 @@ function Customers() {
 
 function Services() {
   const { workspace, addService, updateService } = useAppStore();
+  const [search, setSearch] = useState("");
+  const [visibility, setVisibility] = useState<"all" | "bookable" | "hidden">("all");
   const [show, setShow] = useState(false);
   const [editingId, setEditingId] = useState("");
   const [error, setError] = useState("");
@@ -1706,6 +1708,11 @@ function Services() {
     capacity: 1,
     color: "#6d5dfc",
     active: true,
+  });
+  const visibleServices = workspace.services.filter((service) => {
+    const matchesSearch = `${service.name} ${service.description} ${service.appointmentType ?? "individual"}`.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesVisibility = visibility === "all" || (visibility === "bookable" ? service.active : !service.active);
+    return matchesSearch && matchesVisibility;
   });
   const openCreate = () => {
     setEditingId("");
@@ -1747,8 +1754,13 @@ function Services() {
         }
       />
       {error && <div className="booking-error" role="alert">{error}</div>}
+      <div className="service-toolbar panel">
+        <div className="table-search"><Search size={16} /><input aria-label="Search services" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search services…" /></div>
+        <select aria-label="Filter service visibility" value={visibility} onChange={(event) => setVisibility(event.target.value as typeof visibility)}><option value="all">All services</option><option value="bookable">Bookable</option><option value="hidden">Hidden</option></select>
+        <span>{visibleServices.length} of {workspace.services.length}</span>
+      </div>
       <div className="service-grid">
-        {workspace.services.map((service) => (
+        {visibleServices.map((service) => (
           <article className="service-card" key={service.id}>
             <div className="service-color" style={{ background: service.color }} />
             <div className="service-top">
@@ -1784,6 +1796,7 @@ function Services() {
           </article>
         ))}
       </div>
+      {!visibleServices.length && <div className="panel service-empty"><Sparkles size={24} /><b>{workspace.services.length ? "No services match these filters" : "No services yet"}</b><p>{workspace.services.length ? "Try another search or visibility filter." : "Create your first service to start accepting bookings."}</p>{workspace.services.length > 0 && <button type="button" className="secondary-action" onClick={() => { setSearch(""); setVisibility("all"); }}>Clear filters</button>}</div>}
       {show && (
         <Modal title={editingId ? "Edit service" : "Create service"} onClose={() => setShow(false)}>
           <label>

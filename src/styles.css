@@ -137,6 +137,13 @@
 .booking-quick-views span { color: #777480; font-size: 10px; margin-right: 2px; white-space: nowrap; }
 .booking-quick-views button { border: 1px solid #dedce4; background: white; color: #625f6b; padding: 7px 10px; border-radius: 18px; font-size: 9px; white-space: nowrap; }
 .booking-quick-views button.active { border-color: #7568de; background: #eeeaff; color: #5143c2; font-weight: 700; }
+.service-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; margin-bottom: 14px; }
+.service-toolbar .table-search { flex: 1; min-width: 180px; margin: 0; }
+.service-toolbar select { border: 1px solid #dedce4; background: white; border-radius: 7px; padding: 8px 10px; font-size: 10px; }
+.service-toolbar > span { color: #777480; font-size: 9px; white-space: nowrap; }
+.service-empty { text-align: center; padding: 50px 20px; display: grid; justify-items: center; gap: 8px; color: #8b8794; }
+.service-empty b { color: #393640; font-size: 13px; }
+.service-empty p { margin: 0 0 4px; font-size: 10px; }
 .bookings-empty { padding: 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .approval-queue { margin-bottom: 16px; }
 .approval-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-top: 1px solid #e8e7ec; }
@@ -161,6 +168,8 @@
   .workspace-search .global-search { width: 100%; }
   .workspace-search .global-search kbd { display: none; }
   .workspace-search-results { position: fixed; top: 58px; left: 12px; right: 12px; }
+  .service-toolbar { flex-wrap: wrap; }
+  .service-toolbar .table-search { flex-basis: 100%; }
   .app-layout .table-toolbar { height: auto; min-height: 57px; flex-wrap: wrap; padding: 10px 16px; overflow: visible; }
   .app-layout .table-toolbar .table-search { flex: 1 1 100%; min-width: 0; }
 }
