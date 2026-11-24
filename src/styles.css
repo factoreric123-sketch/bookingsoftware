@@ -117,6 +117,7 @@
 .booking-page-editor .editor-checkbox input { width: auto; }
 .booking-page-editor .approval-actions { flex-wrap: wrap; }
 .booking-page-editor > .panel { margin-top: 12px; }
+.schedule-exception-fields { display: grid; gap: 12px; }
 .booking-date-input { display: grid; gap: 6px; margin: 16px 0; width: fit-content; font-weight: 600; }
 .booking-date-input input { border: 1px solid #dedce4; border-radius: 8px; padding: 8px 10px; background: white; color: inherit; }
 @media (max-width: 760px) {

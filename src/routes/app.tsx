@@ -53,6 +53,7 @@ import { invokeBackend } from "../integrations/supabase/backend";
 import { supabase } from "../integrations/supabase/client";
 import { RescheduleSlotPicker, type ReplacementAvailability, type ReplacementSlot } from "../components/RescheduleSlotPicker";
 import { BookingPageEditor, type PageDraft } from "../components/BookingPageEditor";
+import { ScheduleExceptions } from "../components/ScheduleExceptions";
 
 export const Route = createFileRoute("/app")({ head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."), component: Dashboard });
 type Section =
@@ -640,6 +641,10 @@ function CalendarWorkspace() {
             </div>
           ))}
       </div>}
+      {workspace.memberRole === "owner" && workspace.business.defaultLocationId && (
+        <ScheduleExceptions key={workspace.business.defaultLocationId} businessId={workspace.business.id}
+          locationId={workspace.business.defaultLocationId} calendarDate={selectedDay} />
+      )}
       <div className="panel block-list">
         <div className="panel-heading">
           <div>

@@ -21,6 +21,10 @@ const publicActions = new Set([
 ]);
 
 const authenticatedActions = new Set([
+  "get_schedule_exceptions",
+  "preview_schedule_exception",
+  "save_schedule_exception",
+  "remove_schedule_exception",
   "get_booking_page_draft",
   "save_booking_page_draft",
   "set_booking_page_publication",
@@ -53,6 +57,10 @@ const authenticatedActions = new Set([
 ]);
 
 const actorActions = new Set([
+  "get_schedule_exceptions",
+  "preview_schedule_exception",
+  "save_schedule_exception",
+  "remove_schedule_exception",
   "get_booking_page_draft",
   "save_booking_page_draft",
   "set_booking_page_publication",
