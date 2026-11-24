@@ -13,6 +13,7 @@ const publicActions = new Set([
   "create_booking_hold",
   "confirm_booking",
   "get_managed_appointment",
+  "get_reschedule_availability",
   "reschedule_appointment",
   "cancel_appointment",
   "submit_public_form",
@@ -166,6 +167,57 @@ Deno.serve(async (req: Request) => {
     params.p_token = params.p_management_token ?? params.p_token;
     delete params.p_management_token;
     if (typeof params.p_token !== "string" || !params.p_token) return json({ error: "Management token is required" }, 400);
+  }
+
+  if (action === "get_reschedule_availability") {
+    const token = typeof params.p_management_token === "string" ? params.p_management_token : null;
+    if (!token && !userId) return json({ error: "Sign in or use the appointment's management link." }, 401);
+    const date = String(params.p_local_date ?? "");
+    const rowVersion = Number(params.p_expected_row_version);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isSafeInteger(rowVersion) || rowVersion < 1) {
+      return json({ error: "A date and current appointment version are required." }, 400);
+    }
+    if (token) {
+      const { data: managed, error } = await admin.rpc("get_managed_appointment", {
+        p_subject_hash: await subjectHash(req, serviceKey),
+        p_token: token,
+      });
+      if (error || managed?.appointment_id !== params.p_appointment_id) {
+        return json({ error: "Management link does not match this appointment", code: "P0403" }, 403);
+      }
+    }
+    const { data, error } = await admin.rpc("get_appointment_replacement_slots", {
+      p_appointment_id: params.p_appointment_id,
+      p_expected_row_version: rowVersion,
+      p_date: date,
+      p_actor_user_id: token ? null : userId,
+      p_management_token: token,
+    });
+    if (error) return json({ error: error.message, code: error.code }, error.code === "P0403" ? 403 : error.code === "P0409" ? 409 : 400);
+    return json({ data });
+  }
+
+  if ((action === "reschedule_appointment" || action === "reschedule_dashboard_booking") && params.p_slot_date != null) {
+    const date = String(params.p_slot_date);
+    const rowVersion = Number(params.p_expected_row_version);
+    const start = Date.parse(String(params.p_new_starts_at ?? ""));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isSafeInteger(rowVersion) || rowVersion < 1 || !Number.isFinite(start)) {
+      return json({ error: "Choose an available replacement time." }, 400);
+    }
+    const token = action === "reschedule_appointment" && typeof params.p_management_token === "string" ? params.p_management_token : null;
+    const { data, error } = await admin.rpc("get_appointment_replacement_slots", {
+      p_appointment_id: params.p_appointment_id,
+      p_expected_row_version: rowVersion,
+      p_date: date,
+      p_actor_user_id: token ? null : userId,
+      p_management_token: token,
+    });
+    if (error) return json({ error: error.message, code: error.code }, error.code === "P0403" ? 403 : error.code === "P0409" ? 409 : 400);
+    const slots: Array<{ starts_at: string }> = data?.slots ?? [];
+    if (!slots.some((slot) => Date.parse(slot.starts_at) === start)) {
+      return json({ error: "The new time is not available. Your original appointment is unchanged.", code: "P0409" }, 409);
+    }
+    delete params.p_slot_date;
   }
 
   if (action === "get_public_form") {
@@ -685,7 +737,16 @@ Deno.serve(async (req: Request) => {
     ]);
     if (!business || !appointment) return json({ error: "Appointment not found" }, 404);
     let startsAt: string;
-    try { startsAt = localDateTimeToIso(params.p_local_date, params.p_local_time, business.timezone); }
+    try {
+      if (typeof params.p_new_starts_at === "string") {
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/.test(params.p_new_starts_at)) {
+          throw new Error("Choose an available replacement time.");
+        }
+        startsAt = new Date(params.p_new_starts_at).toISOString();
+      } else {
+        startsAt = localDateTimeToIso(params.p_local_date, params.p_local_time, business.timezone);
+      }
+    }
     catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid appointment time" }, 400); }
     const { data, error } = await admin.rpc("reschedule_appointment", {
       p_subject_hash: await subjectHash(req, serviceKey),

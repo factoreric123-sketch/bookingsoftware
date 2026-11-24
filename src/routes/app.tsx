@@ -1,6 +1,6 @@
 import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -51,6 +51,7 @@ import { csvCell } from "../lib/csv-cell";
 import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
 import { supabase } from "../integrations/supabase/client";
+import { RescheduleSlotPicker, type ReplacementAvailability, type ReplacementSlot } from "../components/RescheduleSlotPicker";
 
 export const Route = createFileRoute("/app")({ head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."), component: Dashboard });
 type Section =
@@ -745,8 +746,8 @@ function Bookings({ title }: { title: string }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("month");
   const [reschedulingId, setReschedulingId] = useState("");
-  const [rescheduleDate, setRescheduleDate] = useState("");
-  const [rescheduleTime, setRescheduleTime] = useState("");
+  const [replacement, setReplacement] = useState<ReplacementSlot | null>(null);
+  const [slotRefresh, setSlotRefresh] = useState(0);
   const [rescheduling, setRescheduling] = useState(false);
   const changeStatus = async (id: string, status: AppointmentStatus, pendingRequest = false) => {
     setError("");
@@ -777,6 +778,13 @@ function Bookings({ title }: { title: string }) {
     } finally { setSubmitting(false); }
   };
   const selectedReschedule = workspace.appointments.find((item) => item.id === reschedulingId);
+  const rescheduleVersion = selectedReschedule?.rowVersion;
+  const loadReplacementSlots = useCallback((date: string) => invokeBackend<ReplacementAvailability>("get_reschedule_availability", {
+    p_business_id: workspace.business.id,
+    p_appointment_id: reschedulingId,
+    p_expected_row_version: rescheduleVersion,
+    p_local_date: date,
+  }), [workspace.business.id, reschedulingId, rescheduleVersion]);
   const pendingRequests = workspace.appointments
     .filter((item) => item.status === "pending")
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
@@ -791,14 +799,17 @@ function Bookings({ title }: { title: string }) {
     return matchesSearch && matchesStatus && matchesDate;
   });
   const saveReschedule = async () => {
-    if (!selectedReschedule?.rowVersion || !rescheduleDate || !rescheduleTime) return;
+    if (!selectedReschedule?.rowVersion || !replacement) return;
     setRescheduling(true); setError("");
     try {
-      await rescheduleAppointment(selectedReschedule.id, rescheduleDate, rescheduleTime, selectedReschedule.rowVersion);
+      const slotDate = businessDate(replacement.timezone, new Date(replacement.starts_at));
+      await rescheduleAppointment(selectedReschedule.id, replacement.starts_at, slotDate, selectedReschedule.rowVersion);
       setReschedulingId("");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Appointment could not be rescheduled.";
       setError(message);
+      setReplacement(null);
+      setSlotRefresh((value) => value + 1);
       if (message.startsWith("Reschedule outcome")) setReschedulingId("");
     } finally { setRescheduling(false); }
   };
@@ -891,7 +902,7 @@ function Bookings({ title }: { title: string }) {
                     </select>
                   </span>
                   <span>{item.source === "booking-page" ? "Booking page" : "Dashboard"}</span>
-                  <button disabled={(item.status !== "pending" && item.status !== "confirmed") || !item.rowVersion} onClick={() => { setReschedulingId(item.id); setRescheduleDate(item.date); setRescheduleTime(item.time); setError(""); }}>
+                  <button disabled={(item.status !== "pending" && item.status !== "confirmed") || !item.rowVersion} onClick={() => { setReschedulingId(item.id); setReplacement(null); setError(""); }}>
                     Reschedule
                   </button>
                 </div>
@@ -987,12 +998,9 @@ function Bookings({ title }: { title: string }) {
       )}
       {selectedReschedule && <Modal title="Reschedule appointment" onClose={() => { if (!rescheduling) setReschedulingId(""); }}>
         <p>Choose a new time for {workspace.customers.find((customer) => customer.id === selectedReschedule.customerId)?.name ?? "this customer"}. The current booking stays in place if the new time is unavailable.</p>
-        <div className="field-pair">
-          <label>Date<input type="date" value={rescheduleDate} onChange={(event) => setRescheduleDate(event.target.value)} /></label>
-          <label>Time<input type="time" value={rescheduleTime} onChange={(event) => setRescheduleTime(event.target.value)} /></label>
-        </div>
+        <RescheduleSlotPicker key={slotRefresh} timezone={workspace.business.timezone} initialDate={selectedReschedule.date} loadSlots={loadReplacementSlots} onSelect={setReplacement} disabled={rescheduling} />
         {error && <p className="form-error" role="alert">{error}</p>}
-        <button className="solid-action full" onClick={saveReschedule} disabled={rescheduling || !rescheduleDate || !rescheduleTime || (rescheduleDate === selectedReschedule.date && rescheduleTime === selectedReschedule.time)}>{rescheduling ? "Rescheduling…" : "Save new time"}</button>
+        <button className="solid-action full" onClick={saveReschedule} disabled={rescheduling || !replacement}>{rescheduling ? "Rescheduling…" : "Save new time"}</button>
       </Modal>}
     </>
   );

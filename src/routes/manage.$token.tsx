@@ -1,8 +1,10 @@
 import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarDays, Check, Clock3, Loader2, RefreshCw, X } from "lucide-react";
 import { invokeBackend } from "../integrations/supabase/backend";
+import { RescheduleSlotPicker, type ReplacementAvailability, type ReplacementSlot } from "../components/RescheduleSlotPicker";
+import { businessDate } from "../lib/business-date";
 
 export const Route = createFileRoute("/manage/$token")({ head: () => pageHead("Avello \u2014 Manage appointment", "View, reschedule, or cancel your Avello appointment securely."), component: ManageBooking });
 
@@ -27,7 +29,9 @@ const money = (minor: number, currency: string) => new Intl.NumberFormat("en-US"
 function ManageBooking() {
   const { token } = Route.useParams();
   const [appointment, setAppointment] = useState<ManagedAppointment | null>(null);
-  const [newTime, setNewTime] = useState("");
+  const [replacement, setReplacement] = useState<ReplacementSlot | null>(null);
+  const [slotRefresh, setSlotRefresh] = useState(0);
+  const request = useRef<{ startsAt: string; key: string } | null>(null);
   const [mode, setMode] = useState<"view" | "reschedule" | "cancel">("view");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(true);
@@ -42,17 +46,50 @@ function ManageBooking() {
     finally { setLoading(false); }
   };
   useEffect(() => { void load(); }, [token]);
+  const appointmentId = appointment?.appointment_id;
+  const version = appointment?.row_version;
+  const loadReplacementSlots = useCallback((date: string) => invokeBackend<ReplacementAvailability>("get_reschedule_availability", {
+    p_appointment_id: appointmentId,
+    p_expected_row_version: version,
+    p_management_token: token,
+    p_local_date: date,
+  }), [appointmentId, token, version]);
 
   const reschedule = async () => {
-    if (!appointment || !newTime) return;
+    if (!appointment || !replacement) return;
+    if (request.current?.startsAt !== replacement.starts_at) {
+      request.current = { startsAt: replacement.starts_at, key: crypto.randomUUID() };
+    }
     setLoading(true); setError("");
     try {
-      const [localDate, localTime] = newTime.split("T");
-      await invokeBackend("reschedule_appointment", { p_appointment_id: appointment.appointment_id, p_local_date: localDate, p_local_time: localTime, p_management_token: token, p_expected_row_version: appointment.row_version, p_request_key: crypto.randomUUID() });
+      await invokeBackend("reschedule_appointment", {
+        p_appointment_id: appointment.appointment_id,
+        p_new_starts_at: replacement.starts_at,
+        p_slot_date: businessDate(replacement.timezone, new Date(replacement.starts_at)),
+        p_management_token: token,
+        p_expected_row_version: appointment.row_version,
+        p_request_key: request.current.key,
+      });
+      request.current = null;
       setMessage("Your appointment was rescheduled.");
       setMode("view");
       await load();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "The appointment could not be rescheduled."); setLoading(false); }
+    } catch (caught) {
+      const latest = await invokeBackend<ManagedAppointment>("get_managed_appointment", { p_token: token }).catch(() => null);
+      if (latest) setAppointment(latest);
+      if (latest && Date.parse(latest.starts_at) === Date.parse(replacement.starts_at)) {
+        request.current = null;
+        setReplacement(null);
+        setMessage("Your appointment was rescheduled.");
+        setMode("view");
+        setLoading(false);
+        return;
+      }
+      setError(caught instanceof Error ? caught.message : "The appointment could not be rescheduled.");
+      setReplacement(null);
+      setSlotRefresh((value) => value + 1);
+      setLoading(false);
+    }
   };
 
   const cancel = async () => {
@@ -77,7 +114,23 @@ function ManageBooking() {
     {message && <div className="auth-success"><Check size={16}/>{message}</div>}
     <div className="manage-summary"><div><CalendarDays size={18}/><span><b>{dateTime(appointment.starts_at, appointment.timezone)}</b><small>{appointment.timezone}</small></span></div><div><Clock3 size={18}/><span><b>{service?.name ?? "Appointment"}</b><small>{service?.duration_minutes ?? Math.round((new Date(appointment.ends_at).getTime() - new Date(appointment.starts_at).getTime()) / 60000)} minutes · {money(appointment.total_minor, appointment.currency)}</small></span></div></div>
     {mode === "view" && <div className="manage-actions"><button disabled={!appointment.allowed_actions.can_reschedule || appointment.status === "cancelled"} onClick={() => setMode("reschedule")}><RefreshCw size={16}/>Reschedule</button><button className="danger" disabled={!appointment.allowed_actions.can_cancel || appointment.status === "cancelled"} onClick={() => setMode("cancel")}><X size={16}/>Cancel appointment</button></div>}
-    {mode === "reschedule" && <section className="manage-form"><h2>Choose a new time</h2><p>Enter the time in {appointment.timezone}. The database will verify availability before changing your original booking.</p><label>New date and time<input type="datetime-local" value={newTime} onChange={(event) => setNewTime(event.target.value)}/></label><div><button onClick={() => setMode("view")}>Keep original</button><button className="solid-action" disabled={!newTime || loading} onClick={reschedule}>{loading ? <Loader2 className="spin" size={16}/> : "Confirm new time"}</button></div></section>}
+    {mode === "reschedule" && <section className="manage-form">
+      <h2>Choose a new time</h2>
+      <p>Your original appointment stays booked until the new time is confirmed.</p>
+      <RescheduleSlotPicker
+        key={slotRefresh}
+        timezone={appointment.timezone}
+        loadSlots={loadReplacementSlots}
+        onSelect={setReplacement}
+        disabled={loading}
+      />
+      <div>
+        <button disabled={loading} onClick={() => setMode("view")}>Keep original</button>
+        <button className="solid-action" disabled={!replacement || loading} onClick={reschedule}>
+          {loading ? <Loader2 className="spin" size={16}/> : "Confirm new time"}
+        </button>
+      </div>
+    </section>}
     {mode === "cancel" && <section className="manage-form"><h2>Cancel this appointment?</h2><p>This releases the reserved capacity. It does not automatically issue or claim a refund.</p><label>Reason <small>Optional</small><textarea value={reason} onChange={(event) => setReason(event.target.value)}/></label><div><button onClick={() => setMode("view")}>Keep appointment</button><button className="danger-action" disabled={loading} onClick={cancel}>{loading ? <Loader2 className="spin" size={16}/> : "Cancel appointment"}</button></div></section>}
     {error && <div className="booking-error">{error}</div>}
     {appointment.cancellation_policy && <p className="manage-policy">{appointment.cancellation_policy}</p>}

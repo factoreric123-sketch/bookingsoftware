@@ -7,6 +7,7 @@ export type BackendAction =
   | "create_booking_hold"
   | "confirm_booking"
   | "get_managed_appointment"
+  | "get_reschedule_availability"
   | "reschedule_appointment"
   | "cancel_appointment"
   | "create_blocked_time"

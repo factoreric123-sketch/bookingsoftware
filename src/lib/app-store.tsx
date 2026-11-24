@@ -89,7 +89,7 @@ type Store = {
   mergeCustomer: (sourceId: string, destinationId: string) => Promise<void>;
   addAppointment: (appointment: Omit<Appointment, "id" | "createdAt" | "manageToken">) => Promise<{ appointment?: Appointment; error?: string; warning?: string }>;
   updateAppointment: (id: string, patch: Partial<Appointment>, pendingRequest?: boolean) => Promise<void>;
-  rescheduleAppointment: (id: string, date: string, time: string, rowVersion: number) => Promise<void>;
+  rescheduleAppointment: (id: string, startsAt: string, slotDate: string, rowVersion: number) => Promise<void>;
   addBlockedTime: (block: Omit<BlockedTime, "id" | "createdAt">) => Promise<{ block?: BlockedTime; error?: string }>;
   removeBlockedTime: (id: string) => Promise<void>;
   addStaff: (staff: Omit<Staff, "id">) => Promise<Staff>;
@@ -235,7 +235,27 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         throw new Error("Status was saved, but the schedule could not refresh. Reload before rescheduling.");
       }
     },
-    rescheduleAppointment: async (id, date, time, rowVersion) => { let operationError: unknown; try { await invokeBackend("reschedule_dashboard_booking", { p_business_id: workspace.business.id, p_appointment_id: id, p_local_date: date, p_local_time: time, p_expected_row_version: rowVersion, p_request_key: crypto.randomUUID() }); } catch (caught) { operationError = caught; } let next: Workspace; try { const snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: workspace.business.id }); next = mapSnapshot(snapshot); } catch { throw new Error("Reschedule outcome could not be confirmed. Reload before trying again."); } setWorkspace(next); const moved = next.appointments.find((item) => item.id === id); if (moved?.date === date && moved.time === time) return; if (operationError) throw operationError; },
+    rescheduleAppointment: async (id, startsAt, slotDate, rowVersion) => {
+      let operationError: unknown;
+      try {
+        await invokeBackend("reschedule_dashboard_booking", {
+          p_business_id: workspace.business.id,
+          p_appointment_id: id,
+          p_new_starts_at: startsAt,
+          p_slot_date: slotDate,
+          p_expected_row_version: rowVersion,
+          p_request_key: crypto.randomUUID(),
+        });
+      } catch (caught) { operationError = caught; }
+      const snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: workspace.business.id })
+        .catch(() => { throw new Error("Reschedule outcome could not be confirmed. Reload before trying again."); });
+      setWorkspace(mapSnapshot(snapshot));
+      const sessions: Array<{ starts_at: string; appointments?: Array<{ id: string }> }> = snapshot["sessions"] ?? [];
+      const saved = sessions.find((session) => session.appointments?.some((appointment) => appointment.id === id));
+      if (saved && Date.parse(saved.starts_at) === Date.parse(startsAt)) return;
+      if (operationError) throw operationError;
+      throw new Error("Reschedule outcome could not be confirmed. Reload before trying again.");
+    },
     addBlockedTime: async (input) => { const start = minutes(input.start); const end = minutes(input.end); if (end <= start) return { error: "End time must be after start time." }; try { const result = await invokeBackend<{ blocked_time_id: string }>("create_business_blocked_time", { p_business_id: workspace.business.id, p_location_id: workspace.business.defaultLocationId, p_staff_id: input.staffId || null, p_local_date: input.date, p_local_start: input.start, p_local_end: input.end, p_reason: input.reason }); const block: BlockedTime = { ...input, id: result.blocked_time_id, createdAt: new Date().toISOString() }; setWorkspace((current) => ({ ...current, blockedTimes: [...current.blockedTimes, block] })); return { block }; } catch (caught) { return { error: caught instanceof Error ? caught.message : "The time could not be blocked." }; } },
     removeBlockedTime: async (id) => { await invokeBackend("release_blocked_time", { p_blocked_time_id: id }); setWorkspace((current) => ({ ...current, blockedTimes: current.blockedTimes.filter((item) => item.id !== id) })); },
     addStaff: async (input) => { const staff = { ...input, id: crypto.randomUUID() }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "staff_profile", p_operation: "insert", p_id: staff.id, p_values: { display_name: staff.name, email: staff.email || null, active: staff.active, bookable: true, weekly_capacity_minutes: staff.weeklyHours * 60, buffer_before_minutes: staff.bufferBefore ?? 0, buffer_after_minutes: staff.bufferAfter ?? 0, location_id: workspace.business.defaultLocationId, service_ids: staff.serviceIds } }); setWorkspace((current) => ({ ...current, staff: [...current.staff, staff] })); return staff; },
