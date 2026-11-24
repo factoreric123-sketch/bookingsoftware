@@ -21,6 +21,7 @@ import {
   Clock3,
   Copy,
   CreditCard,
+  Download,
   ExternalLink,
   FileText,
   FormInput,
@@ -555,11 +556,16 @@ function AppointmentRow({ id }: { id: string }) {
 
 function AppointmentDetailsModal({ appointmentId, onClose }: { appointmentId: string; onClose: () => void }) {
   const { workspace } = useAppStore();
+  const [copied, setCopied] = useState(false);
   const appointment = workspace.appointments.find((item) => item.id === appointmentId);
   if (!appointment) return null;
   const customer = workspace.customers.find((item) => item.id === appointment.customerId);
   const service = workspace.services.find((item) => item.id === appointment.serviceId);
   const staff = workspace.staff.find((item) => item.id === appointment.staffId);
+  const copySummary = async () => {
+    const summary = [service?.name ?? "Appointment", `${formatDate(appointment.date)} at ${prettyTime(appointment.time)}`, `${appointment.duration} minutes`, `Customer: ${customer?.name ?? "Unknown"}`, `Staff: ${staff?.name ?? "Unassigned"}`, `Status: ${appointment.status}`].join("\n");
+    try { await navigator.clipboard.writeText(summary); setCopied(true); window.setTimeout(() => setCopied(false), 1800); } catch { setCopied(false); }
+  };
   return <Modal title="Appointment details" onClose={onClose}>
     <div className="appointment-detail-hero"><span className={`status ${appointment.status}`}>{appointment.status}</span><div><b>{service?.name ?? "Appointment"}</b><p>{formatDate(appointment.date)} at {prettyTime(appointment.time)} · {appointment.duration} min</p></div></div>
     <dl className="appointment-detail-list">
@@ -571,7 +577,7 @@ function AppointmentDetailsModal({ appointmentId, onClose }: { appointmentId: st
       {appointment.notes && <div><dt>Booking notes</dt><dd>{appointment.notes}</dd></div>}
       {customer?.notes && <div><dt>Customer notes</dt><dd>{customer.notes}</dd></div>}
     </dl>
-    <button type="button" className="secondary-action" onClick={onClose}>Close</button>
+    <div className="appointment-detail-actions"><button type="button" className="secondary-action" onClick={() => void copySummary()}>{copied ? "Copied" : "Copy summary"}</button><button type="button" className="secondary-action" onClick={onClose}>Close</button></div>
   </Modal>;
 }
 
@@ -583,6 +589,7 @@ function CalendarWorkspace() {
   const specialHoursLocation = workspace.locations.find((location) => location.id === specialHoursLocationId)
     ?? workspace.locations[0];
   const [show, setShow] = useState(false);
+  const [detailId, setDetailId] = useState("");
   const [error, setError] = useState("");
   const weekStart = calendarWeekStart(selectedDay);
   const [form, setForm] = useState({
@@ -692,9 +699,12 @@ function CalendarWorkspace() {
                 return (
                   <div className="calendar-day" key={day}>
                     {appointments.map((item) => (
-                      <span
+                      <button
+                        type="button"
                         className="calendar-event"
                         key={item.id}
+                        onClick={() => setDetailId(item.id)}
+                        aria-label={`Open ${workspace.services.find((service) => service.id === item.serviceId)?.name ?? "appointment"} at ${prettyTime(item.time)}`}
                         style={{
                           borderColor: workspace.services.find(
                             (service) => service.id === item.serviceId,
@@ -708,7 +718,7 @@ function CalendarWorkspace() {
                               ?.name
                           }
                         </small>
-                      </span>
+                      </button>
                     ))}
                     {blocks.map((item) => (
                       <span className="calendar-block" key={item.id}>
@@ -766,6 +776,7 @@ function CalendarWorkspace() {
             ))
         )}
       </div>
+      {detailId && <AppointmentDetailsModal appointmentId={detailId} onClose={() => setDetailId("")} />}
       {show && (
         <Modal title="Block unavailable time" onClose={() => setShow(false)}>
           <label>
@@ -841,6 +852,7 @@ function Bookings({ title }: { title: string }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("upcoming");
+  const [sortOrder, setSortOrder] = useState<"soonest" | "latest">("soonest");
   const [reschedulingId, setReschedulingId] = useState("");
   const [detailId, setDetailId] = useState("");
   const [replacement, setReplacement] = useState<ReplacementSlot | null>(null);
@@ -938,6 +950,30 @@ function Bookings({ title }: { title: string }) {
       || (dateFilter === "month" && item.date.slice(0, 7) === currentMonth);
     return matchesSearch && matchesStatus && matchesDate;
   });
+  const sortedAppointments = [...visibleAppointments].sort((a, b) => {
+    const comparison = `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`);
+    return sortOrder === "soonest" ? comparison : -comparison;
+  });
+  const setQuickView = (view: "today" | "upcoming" | "pending" | "past" | "all") => {
+    setSearch("");
+    setStatusFilter(view === "pending" ? "pending" : "all");
+    setDateFilter(view === "pending" || view === "all" ? "all" : view);
+    setSortOrder(view === "past" ? "latest" : "soonest");
+  };
+  const exportBookings = () => {
+    const rows = [
+      ["Date", "Time", "Duration minutes", "Customer", "Email", "Phone", "Service", "Staff", "Status", "Source"],
+      ...sortedAppointments.map((item) => {
+        const customer = workspace.customers.find((entry) => entry.id === item.customerId);
+        const service = workspace.services.find((entry) => entry.id === item.serviceId);
+        const staff = workspace.staff.find((entry) => entry.id === item.staffId);
+        return [item.date, item.time, item.duration, customer?.name ?? "", customer?.email ?? "", customer?.phone ?? "", service?.name ?? "", staff?.name ?? "Unassigned", item.status, item.source];
+      }),
+    ];
+    const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a"); anchor.href = url; anchor.download = `bookings-${dateFilter}-${businessDate(workspace.business.timezone)}.csv`; anchor.click(); URL.revokeObjectURL(url);
+  };
   const saveReschedule = async () => {
     if (!selectedReschedule?.rowVersion || !replacement) return;
     setRescheduling(true); setError("");
@@ -986,6 +1022,7 @@ function Bookings({ title }: { title: string }) {
           </div>;
         })}
       </section>}
+      <div className="booking-quick-views" role="group" aria-label="Booking views"><span>Quick views</span><button type="button" className={dateFilter === "today" && statusFilter === "all" ? "active" : ""} onClick={() => setQuickView("today")}>Today</button><button type="button" className={dateFilter === "upcoming" && statusFilter === "all" ? "active" : ""} onClick={() => setQuickView("upcoming")}>Upcoming</button><button type="button" className={statusFilter === "pending" ? "active" : ""} onClick={() => setQuickView("pending")}>Awaiting approval</button><button type="button" className={dateFilter === "past" ? "active" : ""} onClick={() => setQuickView("past")}>Past</button><button type="button" className={dateFilter === "all" && statusFilter === "all" ? "active" : ""} onClick={() => setQuickView("all")}>All</button></div>
       <div className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-search">
@@ -994,6 +1031,8 @@ function Bookings({ title }: { title: string }) {
           </div>
           <select aria-label="Filter booking status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="confirmed">Confirmed</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no-show">No-show</option></select>
           <select aria-label="Filter booking date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}><option value="upcoming">Upcoming</option><option value="today">Today</option><option value="next7">Next 7 days</option><option value="next30">Next 30 days</option><option value="month">This month</option><option value="past">Past</option><option value="all">All dates</option></select>
+          <select aria-label="Sort bookings" value={sortOrder} onChange={(event) => setSortOrder(event.target.value as "soonest" | "latest")}><option value="soonest">Soonest first</option><option value="latest">Latest first</option></select>
+          <button type="button" disabled={!visibleAppointments.length} onClick={exportBookings}><Download size={14} /> Export CSV</button>
         </div>
         <div className="table-results" role="status">Showing {visibleAppointments.length} of {workspace.appointments.length} bookings</div>
         <div className="bookings-scroll" role="region" aria-label="Bookings table" tabIndex={0}>
@@ -1006,9 +1045,7 @@ function Bookings({ title }: { title: string }) {
             <span>Source</span>
             <span>Actions</span>
           </div>
-          {[...visibleAppointments]
-            .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
-            .map((item) => {
+          {sortedAppointments.map((item) => {
               const customer = workspace.customers.find((c) => c.id === item.customerId);
               const service = workspace.services.find((s) => s.id === item.serviceId);
               const staff = workspace.staff.find((member) => member.id === item.staffId);

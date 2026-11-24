@@ -74,6 +74,8 @@
 .calendar-day { min-width: 0; }
 .calendar-day .calendar-event, .calendar-day .calendar-block { overflow-wrap: anywhere; }
 .calendar-day .calendar-event { cursor: default; }
+.calendar-day button.calendar-event { width: 100%; border-top: 0; border-right: 0; border-bottom: 0; text-align: left; color: inherit; cursor: pointer; }
+.calendar-day button.calendar-event:hover, .calendar-day button.calendar-event:focus-visible { background: #ebe7ff; outline: 2px solid #8276e8; outline-offset: 1px; }
 .calendar-day .calendar-event b, .calendar-day .calendar-block b { font-size: 11px; }
 .calendar-day .calendar-event small, .calendar-day .calendar-block small { font-size: 10px; }
 .calendar-day.calendar-date { cursor: pointer; }
@@ -130,6 +132,11 @@
 .appointment-detail-list dt { color: #85818e; }
 .appointment-detail-list dd { margin: 0; overflow-wrap: anywhere; }
 .appointment-detail-list a { color: #5d4ed0; }
+.appointment-detail-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.booking-quick-views { display: flex; align-items: center; gap: 7px; overflow-x: auto; padding: 0 0 12px; }
+.booking-quick-views span { color: #777480; font-size: 10px; margin-right: 2px; white-space: nowrap; }
+.booking-quick-views button { border: 1px solid #dedce4; background: white; color: #625f6b; padding: 7px 10px; border-radius: 18px; font-size: 9px; white-space: nowrap; }
+.booking-quick-views button.active { border-color: #7568de; background: #eeeaff; color: #5143c2; font-weight: 700; }
 .bookings-empty { padding: 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .approval-queue { margin-bottom: 16px; }
 .approval-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-top: 1px solid #e8e7ec; }
