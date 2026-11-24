@@ -10,5 +10,5 @@
 
 - [x] Implement and verify authenticated/token-authorized individual replacement slots.
 - [x] Implement and verify isolated booking-page drafts and owner publishing controls (database contracts verified; Codex Edge/frontend wiring remains).
-- [ ] Implement and verify location/date operating-hours exceptions.
+- [ ] Implement and verify location/date operating-hours exceptions (current scoped batch: owner/versioned contracts, all booking paths, rollback-only timezone checks).
 - [ ] Implement and verify service intake snapshots and appointment-linked submissions.

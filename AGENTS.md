@@ -34,3 +34,4 @@ use the editor.
 - Leaf routes use the shared pageHead helper for unique metadata while keeping public capability tokens out of metadata.
 - Replacement-slot reads use a separate stable RPC and collision helper with own-session exclusion; never deactivate reservations to preview slots, so previews remain read-only.
 - Booking-page drafts and live service selections stay in private tenant-scoped tables; shared booking cores apply public visibility only on public paths, with explicit-actor dashboard wrappers for authorized non-public bookings.
+- Location/date exceptions use shared effective staff windows across public/dashboard availability and replacement reads; final reschedules validate replacement slots, and location locks serialize exception writes with booking moves.
