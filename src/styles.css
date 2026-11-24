@@ -76,3 +76,11 @@
 .month-date b { font-size: 11px; }
 .month-date span, .month-date small { font-size: 10px; color: #6d5dfc; }
 @media (max-width: 700px) { .calendar-toolbar { flex-wrap: wrap; gap: 10px; } .month-date { min-height: 70px; padding: 5px; } .month-date b { font-size: 9px; } .month-date span, .month-date small { font-size: 8px; } }
+.day-agenda section + section { margin-top: 24px; border-top: 1px solid #e8e7ec; padding-top: 18px; }
+.day-agenda h2 { font-size: 16px; margin: 0 0 12px; }
+.agenda-hour { display: grid; grid-template-columns: 85px minmax(0, 1fr); min-height: 44px; border-top: 1px solid #efedf2; }
+.agenda-hour time { padding: 10px 8px; font-size: 11px; color: #777480; }
+.agenda-hour > div { border-left: 1px solid #efedf2; padding: 4px 8px; display: flex; flex-direction: column; gap: 4px; }
+.agenda-hour .calendar-event, .agenda-hour .calendar-block { padding: 7px 10px; }
+.agenda-hour .calendar-event b, .agenda-hour .calendar-block b { font-size: 11px; }
+.agenda-hour .calendar-event small { font-size: 10px; }
