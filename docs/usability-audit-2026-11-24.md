@@ -23,6 +23,8 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Added form search across names, descriptions, and questions, plus Published/Draft filtering, counts, and recoverable empty states.
 - Service intake now summarizes every configured service-to-form assignment and provides direct edit actions.
 - Submission empty states now distinguish a filtered search from a form that has not received responses.
+- Added invoice quick views for Outstanding, Overdue, Paid, and All, plus invoice/customer search and due-date/amount sorting.
+- Added filtered invoice CSV export, visible result counts, recoverable empty states, and client-side currency precision validation.
 
 ## Verified
 

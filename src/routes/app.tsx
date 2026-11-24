@@ -3227,6 +3227,8 @@ function Payments() {
   const { workspace, addInvoice, recordManualPayment } = useAppStore();
   const [show, setShow] = useState(false);
   const [invoiceFilter, setInvoiceFilter] = useState("all");
+  const [invoiceSearch, setInvoiceSearch] = useState("");
+  const [invoiceSort, setInvoiceSort] = useState<"due-soon" | "due-latest" | "amount-high">("due-soon");
   const [paymentError, setPaymentError] = useState("");
   const [saving, setSaving] = useState(false);
   const [payingId, setPayingId] = useState("");
@@ -3246,6 +3248,22 @@ function Payments() {
   const paymentInvoice = workspace.invoices.find((invoice) => invoice.id === paymentInvoiceId);
   const paymentBalance = paymentInvoice ? Math.round((paymentInvoice.amount - paymentInvoice.paid) * 100) / 100 : 0;
   const validPaymentAmount = Number.isFinite(paymentAmount) && paymentAmount > 0 && Math.abs(paymentAmount * 100 - Math.round(paymentAmount * 100)) < 0.000001 && Math.round(paymentAmount * 100) <= Math.round(paymentBalance * 100);
+  const validInvoiceAmount = Number.isFinite(form.amount) && form.amount > 0 && Math.abs(form.amount * 100 - Math.round(form.amount * 100)) < 0.000001;
+  const visibleInvoices = workspace.invoices.filter((invoice) => {
+    const customer = workspace.customers.find((item) => item.id === invoice.customerId);
+    const matchesSearch = `${invoice.number} ${customer?.name ?? ""} ${customer?.email ?? ""}`.toLowerCase().includes(invoiceSearch.trim().toLowerCase());
+    const matchesStatus = invoiceFilter === "all" || (invoiceFilter === "outstanding" ? invoice.status !== "paid" && invoice.status !== "void" && invoice.amount > invoice.paid : invoice.status === invoiceFilter);
+    return matchesSearch && matchesStatus;
+  }).sort((a, b) => invoiceSort === "amount-high" ? b.amount - a.amount : invoiceSort === "due-latest" ? b.dueDate.localeCompare(a.dueDate) : a.dueDate.localeCompare(b.dueDate));
+  const setInvoiceView = (view: "outstanding" | "overdue" | "paid" | "all") => { setInvoiceSearch(""); setInvoiceFilter(view); setInvoiceSort(view === "paid" ? "due-latest" : "due-soon"); };
+  const exportInvoices = () => {
+    const rows = [
+      ["Invoice", "Customer", "Email", "Created", "Due", "Amount", "Paid", "Outstanding", "Status"],
+      ...visibleInvoices.map((invoice) => { const customer = workspace.customers.find((item) => item.id === invoice.customerId); return [invoice.number, customer?.name ?? "", customer?.email ?? "", invoice.createdAt, invoice.dueDate, invoice.amount, invoice.paid, Math.max(0, invoice.amount - invoice.paid), invoice.status]; }),
+    ];
+    const blob = new Blob([rows.map((row) => row.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `invoices-${invoiceFilter}-${businessDate(workspace.business.timezone)}.csv`; link.click(); URL.revokeObjectURL(url);
+  };
   const save = async () => {
     if (!form.customerId || form.amount <= 0) return;
     setSaving(true); setPaymentError("");
@@ -3293,11 +3311,15 @@ function Payments() {
         />
         <Metric label="Stripe status" value="Offline" trend="No payment claims" icon={CreditCard} />
       </div>
+      <div className="invoice-quick-views" role="group" aria-label="Invoice views"><span>Quick views</span><button type="button" className={invoiceFilter === "outstanding" ? "active" : ""} onClick={() => setInvoiceView("outstanding")}>Outstanding</button><button type="button" className={invoiceFilter === "overdue" ? "active" : ""} onClick={() => setInvoiceView("overdue")}>Overdue</button><button type="button" className={invoiceFilter === "paid" ? "active" : ""} onClick={() => setInvoiceView("paid")}>Paid</button><button type="button" className={invoiceFilter === "all" ? "active" : ""} onClick={() => setInvoiceView("all")}>All</button></div>
       <div className="panel table-panel">
         <div className="table-toolbar">
-          <b className="toolbar-title">Invoices</b>
-          <select aria-label="Filter invoice status" value={invoiceFilter} onChange={(event) => setInvoiceFilter(event.target.value)}><option value="all">All statuses</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="overdue">Overdue</option><option value="paid">Paid</option><option value="void">Void</option></select>
+          <div className="table-search"><Search size={16} /><input aria-label="Search invoices" value={invoiceSearch} onChange={(event) => setInvoiceSearch(event.target.value)} placeholder="Search invoice or customer…" /></div>
+          <select aria-label="Filter invoice status" value={invoiceFilter} onChange={(event) => setInvoiceFilter(event.target.value)}><option value="all">All statuses</option><option value="outstanding">Outstanding</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="overdue">Overdue</option><option value="paid">Paid</option><option value="void">Void</option></select>
+          <select aria-label="Sort invoices" value={invoiceSort} onChange={(event) => setInvoiceSort(event.target.value as typeof invoiceSort)}><option value="due-soon">Due soonest</option><option value="due-latest">Due latest</option><option value="amount-high">Highest amount</option></select>
+          <button type="button" disabled={!visibleInvoices.length} onClick={exportInvoices}><Download size={14} /> Export CSV</button>
         </div>
+        <div className="table-results" role="status">Showing {visibleInvoices.length} of {workspace.invoices.length} invoices</div>
         <div className="invoice-table">
           <div className="invoice-row header">
             <span>Invoice</span>
@@ -3306,7 +3328,7 @@ function Payments() {
             <span>Amount</span>
             <span>Status</span>
           </div>
-          {workspace.invoices.filter((invoice) => invoiceFilter === "all" || invoice.status === invoiceFilter).map((invoice) => (
+          {visibleInvoices.map((invoice) => (
             <div className="invoice-row" key={invoice.id}>
               <span>
                 <b>{invoice.number}</b>
@@ -3322,6 +3344,7 @@ function Payments() {
             </div>
           ))}
         </div>
+        {!visibleInvoices.length && <div className="bookings-empty"><p>{workspace.invoices.length ? "No invoices match these filters." : "No invoices yet."}</p>{workspace.invoices.length > 0 && <button type="button" className="secondary-action" onClick={() => { setInvoiceSearch(""); setInvoiceFilter("all"); setInvoiceSort("due-soon"); }}>Clear filters</button>}</div>}
       </div>
       {paymentError && !show && !paymentInvoiceId && <p role="alert" className="form-error">{paymentError}</p>}
       <div className="panel provider-note">
@@ -3355,7 +3378,8 @@ function Payments() {
               Amount
               <input
                 type="number"
-                min="0"
+                min="0.01"
+                step="0.01"
                 value={form.amount}
                 onChange={(e) => setForm({ ...form, amount: Number(e.target.value) })}
               />
@@ -3370,7 +3394,8 @@ function Payments() {
             </label>
           </div>
           {paymentError && <p role="alert" className="form-error">{paymentError}</p>}
-          <button className="solid-action full" onClick={save} disabled={saving || !form.customerId || form.amount <= 0}>
+          {!validInvoiceAmount && form.amount > 0 && <p className="form-error">Enter an amount with no more than two decimal places.</p>}
+          <button className="solid-action full" onClick={save} disabled={saving || !form.customerId || !form.dueDate || !validInvoiceAmount}>
             {saving ? "Saving…" : "Save draft invoice"}
           </button>
         </Modal>

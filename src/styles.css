@@ -170,6 +170,10 @@
 .intake-assignment-list > button b { color: #302d37; font-size: 10px; }
 .intake-assignment-list > button small { color: #85818e; font-size: 8px; margin-top: 3px; }
 .intake-assignment-list > p { color: #918e99; font-size: 9px; }
+.invoice-quick-views { display: flex; align-items: center; gap: 7px; overflow-x: auto; padding: 0 0 12px; }
+.invoice-quick-views span { color: #777480; font-size: 10px; margin-right: 2px; white-space: nowrap; }
+.invoice-quick-views button { border: 1px solid #dedce4; background: white; color: #625f6b; padding: 7px 10px; border-radius: 18px; font-size: 9px; white-space: nowrap; }
+.invoice-quick-views button.active { border-color: #7568de; background: #eeeaff; color: #5143c2; font-weight: 700; }
 .bookings-empty { padding: 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .approval-queue { margin-bottom: 16px; }
 .approval-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 12px 0; border-top: 1px solid #e8e7ec; }
