@@ -5583,6 +5583,16 @@ export type Database = {
         Returns: Json
       }
       expire_holds: { Args: never; Returns: number }
+      get_appointment_replacement_slots: {
+        Args: {
+          p_actor_user_id: string
+          p_appointment_id: string
+          p_date: string
+          p_expected_row_version: number
+          p_management_token: string
+        }
+        Returns: Json
+      }
       get_availability: {
         Args: {
           p_addon_quantities: Json
