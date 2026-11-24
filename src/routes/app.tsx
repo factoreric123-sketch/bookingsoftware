@@ -2702,6 +2702,8 @@ function WeeklyHoursDialog({ member, businessId, locationId, onClose }: { member
 function Forms() {
   const { workspace, addForm, updateForm } = useAppStore();
   const [show, setShow] = useState(false);
+  const [formSearch, setFormSearch] = useState("");
+  const [formStatus, setFormStatus] = useState<"all" | "published" | "draft">("all");
   const [formError, setFormError] = useState("");
   const [copiedFormId, setCopiedFormId] = useState("");
   const [savingForm, setSavingForm] = useState(false);
@@ -2714,6 +2716,14 @@ function Forms() {
     { id: "new_name", label: "Full name", type: "text", required: true, customerMapping: "full_name" },
   ]);
   const [optionDrafts, setOptionDrafts] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!workspace.forms.some((form) => form.id === selectedFormId)) setSelectedFormId(workspace.forms[0]?.id ?? "");
+  }, [workspace.forms, selectedFormId]);
+  const visibleForms = workspace.forms.filter((form) => {
+    const matchesSearch = `${form.name} ${form.description} ${form.fields.map((field) => field.label).join(" ")}`.toLowerCase().includes(formSearch.trim().toLowerCase());
+    const matchesStatus = formStatus === "all" || (formStatus === "published" ? form.active : !form.active);
+    return matchesSearch && matchesStatus;
+  });
   const addField = () =>
     setFields([
       ...fields,
@@ -2809,8 +2819,13 @@ function Forms() {
       {formError && !show && <p className="form-error" role="alert">{formError}</p>}
       {workspace.memberRole === "owner" && <ServiceIntakeSettings key={workspace.business.id}
         businessId={workspace.business.id} services={workspace.services} forms={workspace.forms} />}
+      <div className="forms-toolbar panel">
+        <div className="table-search"><Search size={16} /><input aria-label="Search forms" value={formSearch} onChange={(event) => setFormSearch(event.target.value)} placeholder="Search forms or questions…" /></div>
+        <select aria-label="Filter form status" value={formStatus} onChange={(event) => setFormStatus(event.target.value as typeof formStatus)}><option value="all">All forms</option><option value="published">Accepting responses</option><option value="draft">Drafts</option></select>
+        <span>{visibleForms.length} of {workspace.forms.length}</span>
+      </div>
       <div className="forms-grid">
-        {workspace.forms.map((form) => (
+        {visibleForms.map((form) => (
           <article
             className={`form-card ${selectedFormId === form.id ? "selected" : ""}`}
             key={form.id}
@@ -2858,6 +2873,7 @@ function Forms() {
           </article>
         ))}
       </div>
+      {!visibleForms.length && <div className="panel forms-empty"><FormInput size={24} /><b>{workspace.forms.length ? "No forms match these filters" : "No forms yet"}</b><p>{workspace.forms.length ? "Try another form name, question, or status." : "Create a form to collect structured customer information."}</p>{workspace.forms.length > 0 && <button type="button" className="secondary-action" onClick={() => { setFormSearch(""); setFormStatus("all"); }}>Clear filters</button>}</div>}
       <section className="panel submissions-panel">
         <div className="panel-heading">
           <div>
@@ -2931,7 +2947,8 @@ function Forms() {
           <div className="submission-empty">
             <FormInput size={27} />
             <h3>No matching submissions</h3>
-            <p>Share the public form link to start collecting real responses.</p>
+            <p>{query.trim() ? "Clear or change the search to see other saved responses." : selectedForm ? "Share this form or attach it to a service to collect responses." : "Choose or create a form first."}</p>
+            {query.trim() && <button type="button" className="secondary-action" onClick={() => setQuery("")}>Clear submission search</button>}
           </div>
         )}
       </section>

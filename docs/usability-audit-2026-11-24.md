@@ -20,6 +20,9 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Added service catalog search, Bookable/Hidden filtering, result counts, and a recoverable filtered empty state.
 - Grouped the long sidebar into Operate, Setup, Engage, and Business sections while preserving permission-based visibility.
 - Added team search across names, email, roles, and assigned services, with role/status filters, counts, and a recoverable empty state.
+- Added form search across names, descriptions, and questions, plus Published/Draft filtering, counts, and recoverable empty states.
+- Service intake now summarizes every configured service-to-form assignment and provides direct edit actions.
+- Submission empty states now distinguish a filtered search from a form that has not received responses.
 
 ## Verified
 

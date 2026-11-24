@@ -85,5 +85,16 @@ export function ServiceIntakeSettings({ businessId, services, forms }: {
     )}
     {error && <p className="booking-error" role="alert">{error}</p>}
     {notice && <p role="status">{notice}</p>}
+    {!loading && <div className="intake-assignment-list">
+      <div><b>Current service assignments</b><span>{assignments.length} configured</span></div>
+      {assignments.length ? assignments.map((assignment) => {
+        const service = services.find((item) => item.id === assignment.service_id);
+        const form = forms.find((item) => item.id === assignment.form_id);
+        return <button type="button" key={assignment.service_id} onClick={() => chooseService(assignment.service_id)}>
+          <span><b>{service?.name ?? "Unavailable service"}</b><small>{form?.name ?? "Unavailable form"} · {assignment.timing === "required_before" ? "Required before booking" : "Optional after booking"}</small></span>
+          <span>Edit</span>
+        </button>;
+      }) : <p>No services have an intake form attached.</p>}
+    </div>}
   </section>;
 }
