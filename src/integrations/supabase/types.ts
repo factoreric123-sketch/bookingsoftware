@@ -5558,6 +5558,21 @@ export type Database = {
         }
         Returns: Json
       }
+      create_dashboard_booking_hold: {
+        Args: {
+          p_actor_user_id: string
+          p_addon_quantities: Json
+          p_booking_page_id: string
+          p_request_key: string
+          p_seat_count: number
+          p_service_id: string
+          p_session_id: string
+          p_staff_id: string
+          p_starts_at: string
+          p_subject_hash: string
+        }
+        Returns: Json
+      }
       create_invoice: {
         Args: {
           p_actor_user_id: string
@@ -5605,12 +5620,29 @@ export type Database = {
         }
         Returns: Json
       }
+      get_booking_page_draft: {
+        Args: { p_actor_user_id: string; p_business_id: string }
+        Returns: Json
+      }
       get_business_analytics: {
         Args: {
           p_actor_user_id: string
           p_business_id: string
           p_from_date: string
           p_location_id: string
+          p_through_date: string
+        }
+        Returns: Json
+      }
+      get_dashboard_booking_availability: {
+        Args: {
+          p_actor_user_id: string
+          p_addon_quantities: Json
+          p_booking_page_id: string
+          p_from_date: string
+          p_seat_count: number
+          p_service_id: string
+          p_staff_id: string
           p_through_date: string
         }
         Returns: Json
@@ -5667,6 +5699,27 @@ export type Database = {
           p_new_starts_at: string
           p_request_key: string
           p_subject_hash: string
+        }
+        Returns: Json
+      }
+      save_booking_page_draft: {
+        Args: {
+          p_actor_user_id: string
+          p_business_id: string
+          p_description: string
+          p_expected_row_version: number
+          p_service_ids: string[]
+          p_staff_selection_enabled: boolean
+          p_title: string
+        }
+        Returns: Json
+      }
+      set_booking_page_publication: {
+        Args: {
+          p_actor_user_id: string
+          p_business_id: string
+          p_expected_row_version: number
+          p_published: boolean
         }
         Returns: Json
       }
