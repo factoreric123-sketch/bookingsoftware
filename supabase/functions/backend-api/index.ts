@@ -8,6 +8,8 @@ const corsHeaders = {
 };
 
 const publicActions = new Set([
+  "get_appointment_intake",
+  "submit_appointment_intake",
   "get_public_booking_page",
   "get_availability",
   "create_booking_hold",
@@ -21,6 +23,8 @@ const publicActions = new Set([
 ]);
 
 const authenticatedActions = new Set([
+  "get_service_intake_settings",
+  "save_service_intake_settings",
   "get_schedule_exceptions",
   "preview_schedule_exception",
   "save_schedule_exception",
@@ -57,6 +61,8 @@ const authenticatedActions = new Set([
 ]);
 
 const actorActions = new Set([
+  "get_service_intake_settings",
+  "save_service_intake_settings",
   "get_schedule_exceptions",
   "preview_schedule_exception",
   "save_schedule_exception",
@@ -77,6 +83,8 @@ const actorActions = new Set([
 ]);
 
 const subjectActions = new Set([
+  "get_appointment_intake",
+  "submit_appointment_intake",
   "create_booking_hold",
   "confirm_booking",
   "get_managed_appointment",

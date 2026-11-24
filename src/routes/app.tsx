@@ -54,6 +54,7 @@ import { supabase } from "../integrations/supabase/client";
 import { RescheduleSlotPicker, type ReplacementAvailability, type ReplacementSlot } from "../components/RescheduleSlotPicker";
 import { BookingPageEditor, type PageDraft } from "../components/BookingPageEditor";
 import { ScheduleExceptions } from "../components/ScheduleExceptions";
+import { ServiceIntakeSettings } from "../components/ServiceIntakeSettings";
 
 export const Route = createFileRoute("/app")({ head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."), component: Dashboard });
 type Section =
@@ -2571,6 +2572,7 @@ function Forms() {
   const selectedSubmission = workspace.formSubmissions.find(
     (submission) => submission.id === selectedSubmissionId,
   );
+  const intakeAppointment = workspace.appointments.find((appointment) => appointment.id === selectedSubmission?.appointmentId);
   const exportSubmissions = () => {
     if (!selectedForm) return;
     const headers = ["Submission ID", "Submitted", "Customer", "Question", "Answer"];
@@ -2607,6 +2609,8 @@ function Forms() {
         }
       />
       {formError && !show && <p className="form-error" role="alert">{formError}</p>}
+      {workspace.memberRole === "owner" && <ServiceIntakeSettings key={workspace.business.id}
+        businessId={workspace.business.id} services={workspace.services} forms={workspace.forms} />}
       <div className="forms-grid">
         {workspace.forms.map((form) => (
           <article
@@ -2863,6 +2867,9 @@ function Forms() {
             ))}
           </div>
           {selectedSubmission.customerId && <p>Linked customer: {workspace.customers.find((customer) => customer.id === selectedSubmission.customerId)?.name ?? "Customer record"}</p>}
+          {selectedSubmission.appointmentId && <p>{intakeAppointment
+            ? `Linked appointment: ${formatDate(intakeAppointment.date)} at ${prettyTime(intakeAppointment.time)}`
+            : "Linked to a booking"}</p>}
         </Modal>
       )}
     </>

@@ -5,6 +5,7 @@ import { CalendarDays, Check, Clock3, Loader2, RefreshCw, X } from "lucide-react
 import { invokeBackend } from "../integrations/supabase/backend";
 import { RescheduleSlotPicker, type ReplacementAvailability, type ReplacementSlot } from "../components/RescheduleSlotPicker";
 import { businessDate } from "../lib/business-date";
+import { BookingIntakeFields, type BookingIntakeForm } from "../components/BookingIntakeFields";
 
 export const Route = createFileRoute("/manage/$token")({ head: () => pageHead("Avello \u2014 Manage appointment", "View, reschedule, or cancel your Avello appointment securely."), component: ManageBooking });
 
@@ -34,6 +35,11 @@ function ManageBooking() {
   const request = useRef<{ startsAt: string; key: string } | null>(null);
   const [mode, setMode] = useState<"view" | "reschedule" | "cancel">("view");
   const [reason, setReason] = useState("");
+  const [intake, setIntake] = useState<{ form: BookingIntakeForm; submitted: boolean } | null>(null);
+  const [intakeAnswers, setIntakeAnswers] = useState<Record<string, unknown>>({});
+  const [intakeError, setIntakeError] = useState("");
+  const [intakeOpen, setIntakeOpen] = useState(false);
+  const intakeRequest = useRef(crypto.randomUUID());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -45,7 +51,20 @@ function ManageBooking() {
     catch (caught) { setError(caught instanceof Error ? caught.message : "This management link is invalid or expired."); }
     finally { setLoading(false); }
   };
-  useEffect(() => { void load(); }, [token]);
+  useEffect(() => {
+    let current = true;
+    setIntake(null);
+    setIntakeOpen(false);
+    setIntakeAnswers({});
+    setIntakeError("");
+    intakeRequest.current = crypto.randomUUID();
+    void load();
+    invokeBackend<{ form: BookingIntakeForm; submitted: boolean } | null>("get_appointment_intake", {
+      p_management_token: token,
+    }).then((result) => { if (current) setIntake(result); })
+      .catch(() => { if (current) setIntakeError("Intake information could not be loaded. Refresh to retry."); });
+    return () => { current = false; };
+  }, [token]);
   const appointmentId = appointment?.appointment_id;
   const version = appointment?.row_version;
   const loadReplacementSlots = useCallback((date: string) => invokeBackend<ReplacementAvailability>("get_reschedule_availability", {
@@ -98,9 +117,29 @@ function ManageBooking() {
     try {
       await invokeBackend("cancel_appointment", { p_appointment_id: appointment.appointment_id, p_reason: reason.trim() || "Cancelled by customer", p_management_token: token, p_expected_row_version: appointment.row_version, p_request_key: crypto.randomUUID() });
       setMessage("Your appointment was cancelled.");
+      setIntake(null);
+      setIntakeOpen(false);
       setMode("view");
       await load();
     } catch (caught) { setError(caught instanceof Error ? caught.message : "The appointment could not be cancelled."); setLoading(false); }
+  };
+
+  const submitIntake = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!intake || intake.submitted || loading) return;
+    setLoading(true);
+    setIntakeError("");
+    try {
+      await invokeBackend("submit_appointment_intake", {
+        p_management_token: token,
+        p_intake: { version_id: intake.form.version_id, answers: intakeAnswers },
+        p_request_key: intakeRequest.current,
+      });
+      setIntake({ ...intake, submitted: true });
+      setIntakeAnswers({});
+      setIntakeOpen(false);
+    } catch (caught) { setIntakeError(caught instanceof Error ? caught.message : "Your intake form could not be submitted."); }
+    finally { setLoading(false); }
   };
 
   if (loading && !appointment) return <div className="manage-page"><main className="manage-card"><Loader2 className="spin"/> Loading appointment…</main></div>;
@@ -132,6 +171,17 @@ function ManageBooking() {
       </div>
     </section>}
     {mode === "cancel" && <section className="manage-form"><h2>Cancel this appointment?</h2><p>This releases the reserved capacity. It does not automatically issue or claim a refund.</p><label>Reason <small>Optional</small><textarea value={reason} onChange={(event) => setReason(event.target.value)}/></label><div><button onClick={() => setMode("view")}>Keep appointment</button><button className="danger-action" disabled={loading} onClick={cancel}>{loading ? <Loader2 className="spin" size={16}/> : "Cancel appointment"}</button></div></section>}
+    {mode === "view" && intake && <section className="manage-form">
+      <h2>Appointment intake</h2>
+      {intake.submitted ? <p role="status">Your intake form was received.</p> : (
+        intakeOpen ? <form onSubmit={submitIntake}>
+          <BookingIntakeFields form={intake.form} answers={intakeAnswers} disabled={loading}
+            onChange={(key, value) => setIntakeAnswers((current) => ({ ...current, [key]: value }))} />
+          <button type="submit" disabled={loading} className="solid-action">Submit intake form</button>
+        </form> : <button className="secondary-action" onClick={() => setIntakeOpen(true)}>Complete optional intake</button>
+      )}
+    </section>}
+    {mode === "view" && intakeError && <div className="booking-error" role="alert">{intakeError}</div>}
     {error && <div className="booking-error">{error}</div>}
     {appointment.cancellation_policy && <p className="manage-policy">{appointment.cancellation_policy}</p>}
   </main></div>;
