@@ -51,7 +51,7 @@ function Onboarding() {
   useEffect(() => {
     if (!user) return;
     supabase.from("business_members").select("id", { count: "exact", head: true }).eq("active", true).then(({ count }) => {
-      if (count) navigate({ to: "/app", replace: true });
+      if (count) navigate({ to: "/app", search: { section: undefined }, replace: true });
     });
   }, [navigate, user]);
 

@@ -56,7 +56,6 @@ import { BookingPageEditor, type PageDraft } from "../components/BookingPageEdit
 import { ScheduleExceptions } from "../components/ScheduleExceptions";
 import { ServiceIntakeSettings } from "../components/ServiceIntakeSettings";
 
-export const Route = createFileRoute("/app")({ head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."), component: Dashboard });
 type Section =
   | "Overview"
   | "Calendar"
@@ -73,6 +72,21 @@ type Section =
   | "Analytics"
   | "Integrations"
   | "Settings";
+
+const sectionSlugs: Record<Section, string> = {
+  Overview: "overview", Calendar: "calendar", Bookings: "bookings", "Booking Page": "booking-page",
+  Customers: "customers", Services: "services", Team: "team", Messages: "messages", "Phone & AI": "phone-ai",
+  Forms: "forms", Automations: "automations", Payments: "payments", Analytics: "analytics",
+  Integrations: "integrations", Settings: "settings",
+};
+const sectionFromSlug = (value: unknown): Section =>
+  (Object.entries(sectionSlugs).find(([, slug]) => slug === value)?.[0] as Section | undefined) ?? "Overview";
+
+export const Route = createFileRoute("/app")({
+  validateSearch: (search: Record<string, unknown>) => ({ section: typeof search["section"] === "string" ? search["section"] : undefined }),
+  head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."),
+  component: Dashboard,
+});
 
 const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
   { label: "Overview", icon: LayoutDashboard },
@@ -94,12 +108,13 @@ const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
 
 function Dashboard() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const { user, loading: authLoading, signOut } = useAuth();
   const { workspace, businessChoices, switchBusiness, isPreview, isLoading, loadError } = useAppStore();
   const [switchError, setSwitchError] = useState("");
   const accountName = typeof user?.user_metadata?.["full_name"] === "string" && user.user_metadata["full_name"].trim()
     ? user.user_metadata["full_name"].trim() : user?.email ?? "Account";
-  const [section, setSection] = useState<Section>("Overview");
+  const section = sectionFromSlug(search.section);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [hasMembership, setHasMembership] = useState<boolean | null>(null);
   const canView = (label: Section) => {
@@ -117,8 +132,15 @@ function Dashboard() {
   };
   const visibleNavigation = navigation.filter((item) => canView(item.label));
   useEffect(() => {
-    if (workspace.business.id && !canView(section)) setSection(visibleNavigation[0]?.label ?? "Booking Page");
+    if (workspace.business.id && !canView(section)) {
+      void navigate({ to: "/app", search: { section: sectionSlugs[visibleNavigation[0]?.label ?? "Booking Page"] }, replace: true });
+    }
   }, [section, workspace.business.id, workspace.memberRole, workspace.memberPermissions]);
+  const openSection = (target: Section) => {
+    if (!canView(target)) return;
+    void navigate({ to: "/app", search: { section: sectionSlugs[target] } });
+    setMobileOpen(false);
+  };
   useEffect(() => {
     if (!authLoading && !user) navigate({ to: "/login", replace: true });
   }, [authLoading, navigate, user]);
@@ -149,7 +171,7 @@ function Dashboard() {
           </button>
         </div>
         <div className="business-switch">
-          <span className="business-avatar">N</span>
+          <span className="business-avatar">{initials(workspace.business.name)}</span>
           <span>
             {businessChoices.length > 1 ? <select aria-label="Current business" value={workspace.business.id} onChange={(event) => { setSwitchError(""); void switchBusiness(event.target.value).catch((caught) => setSwitchError(caught instanceof Error ? caught.message : "Business could not be loaded.")); }}>{businessChoices.map((business) => <option key={business.id} value={business.id}>{business.name} · {business.role}</option>)}</select> : <b>{workspace.business.name}</b>}
             <small>Business workspace</small>
@@ -161,10 +183,7 @@ function Dashboard() {
             <button
               key={label}
               className={section === label ? "active" : ""}
-              onClick={() => {
-                setSection(label);
-                setMobileOpen(false);
-              }}
+              onClick={() => openSection(label)}
             >
               <Icon size={18} />
               {label}
@@ -190,6 +209,7 @@ function Dashboard() {
           <button className="app-menu" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
             <Menu size={20} />
           </button>
+          <WorkspaceSearch onNavigate={openSection} visibleSections={visibleNavigation.map((item) => item.label)} />
           <div className="top-actions">
             <Link
               to="/book/$slug"
@@ -212,11 +232,40 @@ function Dashboard() {
           </div>
         )}
         <main className="dashboard-content">
-          <SectionView section={canView(section) ? section : visibleNavigation[0]?.label ?? "Booking Page"} onNavigate={(target) => { if (canView(target)) setSection(target); }} />
+          <SectionView section={canView(section) ? section : visibleNavigation[0]?.label ?? "Booking Page"} onNavigate={openSection} />
         </main>
       </div>
     </div>
   );
+}
+
+function WorkspaceSearch({ onNavigate, visibleSections }: { onNavigate: (section: Section) => void; visibleSections: Section[] }) {
+  const { workspace } = useAppStore();
+  const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && !(event.target instanceof HTMLInputElement) && !(event.target instanceof HTMLTextAreaElement)) {
+        event.preventDefault(); inputRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleShortcut);
+    return () => document.removeEventListener("keydown", handleShortcut);
+  }, []);
+  const normalized = query.trim().toLowerCase();
+  const results = normalized ? [
+    ...visibleSections.filter((label) => label.toLowerCase().includes(normalized)).map((label) => ({ key: `section-${label}`, label, detail: "Workspace", section: label })),
+    ...workspace.customers.filter((item) => `${item.name} ${item.email} ${item.phone}`.toLowerCase().includes(normalized)).slice(0, 4).map((item) => ({ key: `customer-${item.id}`, label: item.name, detail: item.email || "Customer", section: "Customers" as Section })),
+    ...workspace.services.filter((item) => item.name.toLowerCase().includes(normalized)).slice(0, 3).map((item) => ({ key: `service-${item.id}`, label: item.name, detail: item.active ? "Active service" : "Inactive service", section: "Services" as Section })),
+  ].slice(0, 8) : [];
+  return <div className="workspace-search">
+    <div className="global-search"><Search size={16} /><input ref={inputRef} aria-label="Search workspace" value={query} onFocus={() => setFocused(true)} onBlur={() => window.setTimeout(() => setFocused(false), 120)} onChange={(event) => setQuery(event.target.value)} placeholder="Search workspace…" /><kbd>/</kbd></div>
+    {focused && normalized && <div className="workspace-search-results" role="listbox" aria-label="Workspace search results">
+      {results.map((result) => <button type="button" role="option" aria-selected="false" key={result.key} onMouseDown={(event) => event.preventDefault()} onClick={() => { onNavigate(result.section); setQuery(""); setFocused(false); }}><span><b>{result.label}</b><small>{result.detail}</small></span><ArrowRight size={14} /></button>)}
+      {!results.length && <p>No matching pages, customers, or services.</p>}
+    </div>}
+  </div>;
 }
 
 function SectionView({
@@ -537,6 +586,15 @@ function CalendarWorkspace() {
     else { const next = new Date(`${monthStart}T12:00:00`); next.setMonth(next.getMonth() + offset); setSelectedDay(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`); }
   };
   const periodLabel = view === "day" ? formatDate(selectedDay) : view === "month" ? new Date(`${monthStart}T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : `${new Date(`${days[0]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${new Date(`${days[6]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  const selectedWeekday = new Date(`${selectedDay}T12:00:00`).toLocaleDateString("en-US", { weekday: "long" });
+  const selectedHours = workspace.business.hours[selectedWeekday];
+  const selectedItems = [
+    ...workspace.appointments.filter((item) => item.date === selectedDay && item.status !== "cancelled").flatMap((item) => [Number(item.time.slice(0, 2)), Math.ceil((Number(item.time.slice(0, 2)) * 60 + Number(item.time.slice(3, 5)) + item.duration) / 60)]),
+    ...workspace.blockedTimes.filter((item) => item.date === selectedDay).flatMap((item) => [Number(item.start.slice(0, 2)), Math.ceil((Number(item.end.slice(0, 2)) * 60 + Number(item.end.slice(3, 5))) / 60)]),
+  ];
+  const agendaStart = Math.max(0, Math.min(selectedHours?.enabled ? Number(selectedHours.open.slice(0, 2)) : 8, ...selectedItems));
+  const agendaEnd = Math.min(24, Math.max(selectedHours?.enabled ? Math.ceil((Number(selectedHours.close.slice(0, 2)) * 60 + Number(selectedHours.close.slice(3, 5))) / 60) : 18, ...selectedItems));
+  const agendaHours = Array.from({ length: Math.max(1, agendaEnd - agendaStart) }, (_, index) => agendaStart + index);
   const save = async () => {
     const result = await addBlockedTime(form);
     if (result.error) {
@@ -580,7 +638,7 @@ function CalendarWorkspace() {
         <div className="calendar-view-switch" role="group" aria-label="Calendar view">{(["day", "week", "month"] as const).map((option) => <button key={option} aria-pressed={view === option} className={view === option ? "active" : ""} onClick={() => setView(option)}>{option === "day" ? "Day" : option === "week" ? "Week" : "Month"}</button>)}</div>
       </div>
       {error && <div className="booking-error" role="alert">{error}</div>}
-      {view === "month" ? <div className="month-calendar panel">{days.map((day) => { const appointments = workspace.appointments.filter((item) => item.date === day && item.status !== "cancelled"); const blocks = workspace.blockedTimes.filter((item) => item.date === day); return <button key={day} type="button" className={day.slice(0, 7) === selectedDay.slice(0, 7) ? "month-date" : "month-date outside"} onClick={() => { setSelectedDay(day); setView("day"); }}><b>{new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}</b><span>{appointments.length ? `${appointments.length} booking${appointments.length === 1 ? "" : "s"}` : ""}</span>{blocks.length > 0 && <small>{blocks.length} blocked</small>}</button>; })}</div> : view === "day" ? <div className="day-agenda panel">{calendarStaff.map((member) => <section key={member.id}><h2>{member.name}</h2>{member.label === "Inactive staff" && <p>Inactive staff</p>}{Array.from({ length: 24 }, (_, hour) => { const hourBookings = workspace.appointments.filter((item) => calendarStaffFor(item.staffId) === member.id && item.date === selectedDay && item.status !== "cancelled" && Number(item.time.slice(0, 2)) === hour).sort((a, b) => a.time.localeCompare(b.time)); const hourBlocks = workspace.blockedTimes.filter((item) => member.id && (!item.staffId || item.staffId === member.id) && item.date === selectedDay && Number(item.start.slice(0, 2)) <= hour && Number(item.end.slice(0, 2)) >= hour); return <div className="agenda-hour" key={hour}><time>{prettyTime(`${String(hour).padStart(2, "0")}:00`)}</time><div>{hourBookings.map((item) => <div className="calendar-event" key={item.id}><b>{prettyTime(item.time)} · {workspace.services.find((service) => service.id === item.serviceId)?.name}</b><small>{workspace.customers.find((customer) => customer.id === item.customerId)?.name} · {item.duration} min</small></div>)}{hourBlocks.map((item) => <div className="calendar-block" key={item.id}><b>{prettyTime(item.start)}–{prettyTime(item.end)} · {item.reason}</b></div>)}</div></div>; })}</section>)}</div> : <div className={`team-calendar panel calendar-${view}`}>
+      {view === "month" ? <div className="month-calendar panel">{days.map((day) => { const appointments = workspace.appointments.filter((item) => item.date === day && item.status !== "cancelled"); const blocks = workspace.blockedTimes.filter((item) => item.date === day); return <button key={day} type="button" className={day.slice(0, 7) === selectedDay.slice(0, 7) ? "month-date" : "month-date outside"} onClick={() => { setSelectedDay(day); setView("day"); }}><b>{new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}</b><span>{appointments.length ? `${appointments.length} booking${appointments.length === 1 ? "" : "s"}` : ""}</span>{blocks.length > 0 && <small>{blocks.length} blocked</small>}</button>; })}</div> : view === "day" ? <div className="day-agenda panel"><div className="agenda-summary"><b>{selectedHours?.enabled ? `${prettyTime(selectedHours.open)}–${prettyTime(selectedHours.close)}` : "Normally closed"}</b><span>{agendaHours.length} hours shown · click an empty hour to block it</span></div>{calendarStaff.map((member) => <section key={member.id}><h2>{member.name}</h2>{member.label === "Inactive staff" && <p>Inactive staff</p>}{agendaHours.map((hour) => { const hourBookings = workspace.appointments.filter((item) => calendarStaffFor(item.staffId) === member.id && item.date === selectedDay && item.status !== "cancelled" && Number(item.time.slice(0, 2)) === hour).sort((a, b) => a.time.localeCompare(b.time)); const hourBlocks = workspace.blockedTimes.filter((item) => member.id && (!item.staffId || item.staffId === member.id) && item.date === selectedDay && Number(item.start.slice(0, 2)) === hour); const isEmpty = !hourBookings.length && !hourBlocks.length; return <div className="agenda-hour" key={hour}><time>{prettyTime(`${String(hour).padStart(2, "0")}:00`)}</time><div>{hourBookings.map((item) => <div className="calendar-event" key={item.id}><b>{prettyTime(item.time)} · {workspace.services.find((service) => service.id === item.serviceId)?.name}</b><small>{workspace.customers.find((customer) => customer.id === item.customerId)?.name} · {item.duration} min</small></div>)}{hourBlocks.map((item) => <div className="calendar-block" key={item.id}><b>{prettyTime(item.start)}–{prettyTime(item.end)} · {item.reason}</b></div>)}{isEmpty && member.id && <button type="button" className="agenda-block-action" onClick={() => { const nextHour = Math.min(hour + 1, 23); setForm({ staffId: member.id, date: selectedDay, start: `${String(hour).padStart(2, "0")}:00`, end: `${String(nextHour).padStart(2, "0")}:00`, reason: "Unavailable" }); setError(""); setShow(true); }}>Block this hour</button>}</div></div>; })}</section>)}</div> : <div className={`team-calendar panel calendar-${view}`}>
         <div className="calendar-head">
           <span>Team member</span>
           {days.map((day) => (
@@ -760,7 +818,7 @@ function Bookings({ title }: { title: string }) {
   const [updatingId, setUpdatingId] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("month");
+  const [dateFilter, setDateFilter] = useState("upcoming");
   const [reschedulingId, setReschedulingId] = useState("");
   const [replacement, setReplacement] = useState<ReplacementSlot | null>(null);
   const [slotRefresh, setSlotRefresh] = useState(0);
@@ -839,12 +897,22 @@ function Bookings({ title }: { title: string }) {
     .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const monthParts = new Intl.DateTimeFormat("en-US", { timeZone: workspace.business.timezone, year: "numeric", month: "2-digit" }).formatToParts(new Date());
   const currentMonth = `${monthParts.find((part) => part.type === "year")?.value}-${monthParts.find((part) => part.type === "month")?.value}`;
+  const today = businessDate(workspace.business.timezone);
+  const nextSevenDays = shiftCalendarDate(today, 6);
+  const nextThirtyDays = shiftCalendarDate(today, 29);
   const visibleAppointments = workspace.appointments.filter((item) => {
     const customer = workspace.customers.find((entry) => entry.id === item.customerId);
     const service = workspace.services.find((entry) => entry.id === item.serviceId);
-    const matchesSearch = `${customer?.name ?? ""} ${customer?.email ?? ""} ${service?.name ?? ""}`.toLowerCase().includes(search.toLowerCase());
+    const staff = workspace.staff.find((entry) => entry.id === item.staffId);
+    const matchesSearch = `${customer?.name ?? ""} ${customer?.email ?? ""} ${customer?.phone ?? ""} ${service?.name ?? ""} ${staff?.name ?? ""} ${item.status} ${item.source}`.toLowerCase().includes(search.trim().toLowerCase());
     const matchesStatus = statusFilter === "all" || item.status === statusFilter;
-    const matchesDate = dateFilter === "all" || item.date.slice(0, 7) === currentMonth;
+    const matchesDate = dateFilter === "all"
+      || (dateFilter === "today" && item.date === today)
+      || (dateFilter === "upcoming" && item.date >= today)
+      || (dateFilter === "next7" && item.date >= today && item.date <= nextSevenDays)
+      || (dateFilter === "next30" && item.date >= today && item.date <= nextThirtyDays)
+      || (dateFilter === "past" && item.date < today)
+      || (dateFilter === "month" && item.date.slice(0, 7) === currentMonth);
     return matchesSearch && matchesStatus && matchesDate;
   });
   const saveReschedule = async () => {
@@ -902,8 +970,9 @@ function Bookings({ title }: { title: string }) {
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search bookings…" />
           </div>
           <select aria-label="Filter booking status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="confirmed">Confirmed</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no-show">No-show</option></select>
-          <select aria-label="Filter booking date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}><option value="month">This month</option><option value="all">All dates</option></select>
+          <select aria-label="Filter booking date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}><option value="upcoming">Upcoming</option><option value="today">Today</option><option value="next7">Next 7 days</option><option value="next30">Next 30 days</option><option value="month">This month</option><option value="past">Past</option><option value="all">All dates</option></select>
         </div>
+        <div className="table-results" role="status">Showing {visibleAppointments.length} of {workspace.appointments.length} bookings</div>
         <div className="bookings-scroll" role="region" aria-label="Bookings table" tabIndex={0}>
         <div className="data-table bookings-table">
           <div className="data-row header">
