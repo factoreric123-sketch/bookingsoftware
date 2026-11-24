@@ -49,12 +49,16 @@ function BookingPage() {
 
   useEffect(() => {
     if (!date || !serviceId || !page) return;
+    let current = true;
     setLoading(true);
     setError("");
+    setSlots([]);
+    setSlot(null);
     invokeBackend<Slot[]>("get_availability", { p_booking_page_id: page.booking_page_id, p_service_id: serviceId, p_from_date: date, p_through_date: date, p_staff_id: staffId, p_addon_quantities: [], p_seat_count: 1 })
-      .then((data) => setSlots(data ?? []))
-      .catch((caught) => setError(caught instanceof Error ? caught.message : "Availability could not be loaded"))
-      .finally(() => setLoading(false));
+      .then((data) => { if (current) setSlots(data ?? []); })
+      .catch((caught) => { if (current) setError(caught instanceof Error ? caught.message : "Availability could not be loaded"); })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
   }, [date, page, serviceId, staffId, availabilityRefresh]);
 
   useEffect(() => {

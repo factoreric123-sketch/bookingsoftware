@@ -506,7 +506,7 @@ function CalendarWorkspace() {
   const [selectedDay, setSelectedDay] = useState(() => businessDate(workspace.business.timezone));
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
-  const [weekStart, setWeekStart] = useState(() => calendarWeekStart(businessDate(workspace.business.timezone)));
+  const weekStart = calendarWeekStart(selectedDay);
   const [form, setForm] = useState({
     staffId: "",
     date: businessDate(workspace.business.timezone),
@@ -519,7 +519,7 @@ function CalendarWorkspace() {
   const days = view === "day" ? [selectedDay] : Array.from({ length: view === "month" ? 42 : 7 }, (_, index) => shiftCalendarDate(view === "month" ? monthGridStart : weekStart, index));
   const movePeriod = (offset: number) => {
     if (view === "day") setSelectedDay((current) => shiftCalendarDate(current, offset));
-    else if (view === "week") setWeekStart((current) => shiftCalendarDate(current, offset * 7));
+    else if (view === "week") setSelectedDay(shiftCalendarDate(selectedDay, offset * 7));
     else { const next = new Date(`${monthStart}T12:00:00`); next.setMonth(next.getMonth() + offset); setSelectedDay(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`); }
   };
   const periodLabel = view === "day" ? formatDate(selectedDay) : view === "month" ? new Date(`${monthStart}T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : `${new Date(`${days[0]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${new Date(`${days[6]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
@@ -546,20 +546,24 @@ function CalendarWorkspace() {
         title="Calendar"
         copy="See team schedules and protect unavailable time from every booking channel."
         action={
-          <button className="solid-action" onClick={() => setShow(true)}>
+          <button className="solid-action" onClick={() => {
+            setError("");
+            setForm((current) => ({ ...current, date: selectedDay }));
+            setShow(true);
+          }}>
             <Plus size={16} />
             Block time
           </button>
         }
       />
       <div className="calendar-toolbar">
-        <button className="secondary-action" onClick={() => { const today = businessDate(workspace.business.timezone); setSelectedDay(today); setWeekStart(calendarWeekStart(today)); }}>Today</button>
+        <button className="secondary-action" onClick={() => setSelectedDay(businessDate(workspace.business.timezone))}>Today</button>
         <div>
           <button aria-label="Previous period" onClick={() => movePeriod(-1)}>‹</button>
           <b>{periodLabel}</b>
           <button aria-label="Next period" onClick={() => movePeriod(1)}>›</button>
         </div>
-        <div className="calendar-view-switch" role="group" aria-label="Calendar view">{(["day", "week", "month"] as const).map((option) => <button key={option} className={view === option ? "active" : ""} onClick={() => setView(option)}>{option === "day" ? "Day" : option === "week" ? "Week" : "Month"}</button>)}</div>
+        <div className="calendar-view-switch" role="group" aria-label="Calendar view">{(["day", "week", "month"] as const).map((option) => <button key={option} aria-pressed={view === option} className={view === option ? "active" : ""} onClick={() => setView(option)}>{option === "day" ? "Day" : option === "week" ? "Week" : "Month"}</button>)}</div>
       </div>
       {error && <div className="booking-error" role="alert">{error}</div>}
       {view === "month" ? <div className="month-calendar panel">{days.map((day) => { const appointments = workspace.appointments.filter((item) => item.date === day && item.status !== "cancelled"); const blocks = workspace.blockedTimes.filter((item) => item.date === day); return <button key={day} type="button" className={day.slice(0, 7) === selectedDay.slice(0, 7) ? "month-date" : "month-date outside"} onClick={() => { setSelectedDay(day); setView("day"); }}><b>{new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}</b><span>{appointments.length ? `${appointments.length} booking${appointments.length === 1 ? "" : "s"}` : ""}</span>{blocks.length > 0 && <small>{blocks.length} blocked</small>}</button>; })}</div> : view === "day" ? <div className="day-agenda panel">{workspace.staff.filter((member) => member.active).map((member) => <section key={member.id}><h2>{member.name}</h2>{Array.from({ length: 24 }, (_, hour) => { const hourBookings = workspace.appointments.filter((item) => item.staffId === member.id && item.date === selectedDay && item.status !== "cancelled" && Number(item.time.slice(0, 2)) === hour).sort((a, b) => a.time.localeCompare(b.time)); const hourBlocks = workspace.blockedTimes.filter((item) => (!item.staffId || item.staffId === member.id) && item.date === selectedDay && Number(item.start.slice(0, 2)) <= hour && Number(item.end.slice(0, 2)) >= hour); return <div className="agenda-hour" key={hour}><time>{prettyTime(`${String(hour).padStart(2, "0")}:00`)}</time><div>{hourBookings.map((item) => <div className="calendar-event" key={item.id}><b>{prettyTime(item.time)} · {workspace.services.find((service) => service.id === item.serviceId)?.name}</b><small>{workspace.customers.find((customer) => customer.id === item.customerId)?.name} · {item.duration} min</small></div>)}{hourBlocks.map((item) => <div className="calendar-block" key={item.id}><b>{prettyTime(item.start)}–{prettyTime(item.end)} · {item.reason}</b></div>)}</div></div>; })}</section>)}</div> : <div className={`team-calendar panel calendar-${view}`}>
@@ -817,14 +821,15 @@ function Bookings({ title }: { title: string }) {
           <select aria-label="Filter booking status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="confirmed">Confirmed</option><option value="pending">Pending</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="no-show">No-show</option></select>
           <select aria-label="Filter booking date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)}><option value="month">This month</option><option value="all">All dates</option></select>
         </div>
-        <div className="data-table">
+        <div className="bookings-scroll" role="region" aria-label="Bookings table" tabIndex={0}>
+        <div className="data-table bookings-table">
           <div className="data-row header">
             <span>Date & time</span>
             <span>Customer</span>
             <span>Service & staff</span>
             <span>Status</span>
             <span>Source</span>
-            <span />
+            <span>Actions</span>
           </div>
           {[...visibleAppointments]
             .sort((a, b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`))
@@ -870,6 +875,15 @@ function Bookings({ title }: { title: string }) {
               );
             })}
         </div>
+        </div>
+        {!visibleAppointments.length && <div className="bookings-empty">
+          <p>{workspace.appointments.length ? "No bookings match these filters." : "No bookings yet."}</p>
+          {workspace.appointments.length > 0 && <button className="secondary-action" onClick={() => {
+            setSearch("");
+            setStatusFilter("all");
+            setDateFilter("all");
+          }}>Clear filters</button>}
+        </div>}
       </div>
       {showForm && (
         <Modal title="Create booking" onClose={() => setShowForm(false)}>

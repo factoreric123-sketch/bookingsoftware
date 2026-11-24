@@ -84,3 +84,29 @@
 .agenda-hour .calendar-event, .agenda-hour .calendar-block { padding: 7px 10px; }
 .agenda-hour .calendar-event b, .agenda-hour .calendar-block b { font-size: 11px; }
 .agenda-hour .calendar-event small { font-size: 10px; }
+.app-sidebar { overflow-y: auto; overscroll-behavior-y: contain; }
+.app-sidebar > * { flex-shrink: 0; }
+.modal-card, .modal-card.wide {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100dvh - 40px);
+  overflow: hidden;
+}
+.modal-head { flex-shrink: 0; }
+.modal-body { min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; }
+.app-layout .table-panel:has(.bookings-scroll) { overflow: hidden; }
+.bookings-scroll { overflow-x: auto; }
+.bookings-scroll:focus-visible { outline-offset: -2px; }
+.app-layout .bookings-table { min-width: 800px; }
+.bookings-table .data-row {
+  grid-template-columns: minmax(110px, 1fr) minmax(140px, 1.2fr) minmax(130px, 1fr) 115px 90px 90px;
+  min-width: 0;
+}
+.bookings-table .data-row > * { overflow-wrap: anywhere; }
+.bookings-table .data-row > :nth-child(5),
+.bookings-table .data-row > :nth-child(6) { display: block; }
+.bookings-empty { padding: 16px; display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 760px) {
+  .app-layout .table-toolbar { height: auto; min-height: 57px; flex-wrap: wrap; padding: 10px 16px; overflow: visible; }
+  .app-layout .table-toolbar .table-search { flex: 1 1 100%; min-width: 0; }
+}
