@@ -502,6 +502,8 @@ function AppointmentRow({ id }: { id: string }) {
 
 function CalendarWorkspace() {
   const { workspace, addBlockedTime, removeBlockedTime } = useAppStore();
+  const [view, setView] = useState<"day" | "week" | "month">("week");
+  const [selectedDay, setSelectedDay] = useState(() => businessDate(workspace.business.timezone));
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [weekStart, setWeekStart] = useState(() => calendarWeekStart(businessDate(workspace.business.timezone)));
@@ -512,11 +514,15 @@ function CalendarWorkspace() {
     end: "13:00",
     reason: "Unavailable",
   });
-  const days = Array.from({ length: 7 }, (_, index) => {
-    return shiftCalendarDate(weekStart, index);
-  });
-  const moveWeek = (offset: number) => setWeekStart((current) => shiftCalendarDate(current, offset * 7));
-  const weekLabel = `${new Date(`${days[0]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${new Date(`${days[6]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+  const monthStart = `${selectedDay.slice(0, 7)}-01`;
+  const monthGridStart = calendarWeekStart(monthStart);
+  const days = view === "day" ? [selectedDay] : Array.from({ length: view === "month" ? 42 : 7 }, (_, index) => shiftCalendarDate(view === "month" ? monthGridStart : weekStart, index));
+  const movePeriod = (offset: number) => {
+    if (view === "day") setSelectedDay((current) => shiftCalendarDate(current, offset));
+    else if (view === "week") setWeekStart((current) => shiftCalendarDate(current, offset * 7));
+    else { const next = new Date(`${monthStart}T12:00:00`); next.setMonth(next.getMonth() + offset); setSelectedDay(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`); }
+  };
+  const periodLabel = view === "day" ? formatDate(selectedDay) : view === "month" ? new Date(`${monthStart}T12:00:00`).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : `${new Date(`${days[0]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" })}–${new Date(`${days[6]}T12:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
   const save = async () => {
     const result = await addBlockedTime(form);
     if (result.error) {
@@ -547,25 +553,25 @@ function CalendarWorkspace() {
         }
       />
       <div className="calendar-toolbar">
-        <button className="secondary-action" onClick={() => setWeekStart(calendarWeekStart(businessDate(workspace.business.timezone)))}>Today</button>
+        <button className="secondary-action" onClick={() => { const today = businessDate(workspace.business.timezone); setSelectedDay(today); setWeekStart(calendarWeekStart(today)); }}>Today</button>
         <div>
-          <button onClick={() => moveWeek(-1)}>‹</button>
-          <b>{weekLabel}</b>
-          <button onClick={() => moveWeek(1)}>›</button>
+          <button aria-label="Previous period" onClick={() => movePeriod(-1)}>‹</button>
+          <b>{periodLabel}</b>
+          <button aria-label="Next period" onClick={() => movePeriod(1)}>›</button>
         </div>
-        <span>Week view</span>
+        <div className="calendar-view-switch" role="group" aria-label="Calendar view">{(["day", "week", "month"] as const).map((option) => <button key={option} className={view === option ? "active" : ""} onClick={() => setView(option)}>{option === "day" ? "Day" : option === "week" ? "Week" : "Month"}</button>)}</div>
       </div>
       {error && <div className="booking-error" role="alert">{error}</div>}
-      <div className="team-calendar panel">
+      {view === "month" ? <div className="month-calendar panel">{days.map((day) => { const appointments = workspace.appointments.filter((item) => item.date === day && item.status !== "cancelled"); const blocks = workspace.blockedTimes.filter((item) => item.date === day); return <button key={day} type="button" className={day.slice(0, 7) === selectedDay.slice(0, 7) ? "month-date" : "month-date outside"} onClick={() => { setSelectedDay(day); setView("day"); }}><b>{new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}</b><span>{appointments.length ? `${appointments.length} booking${appointments.length === 1 ? "" : "s"}` : ""}</span>{blocks.length > 0 && <small>{blocks.length} blocked</small>}</button>; })}</div> : <div className={`team-calendar panel calendar-${view}`}>
         <div className="calendar-head">
           <span>Team member</span>
           {days.map((day) => (
-            <div key={day}>
+            <button type="button" key={day} className="calendar-date" onClick={() => { setSelectedDay(day); setView("day"); }} aria-label={`Open ${formatDate(day)} day view`}>
               <small>
                 {new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short" })}
               </small>
               <b>{new Date(`${day}T12:00:00`).getDate()}</b>
-            </div>
+            </button>
           ))}
         </div>
         {workspace.staff
@@ -627,7 +633,7 @@ function CalendarWorkspace() {
               })}
             </div>
           ))}
-      </div>
+      </div>}
       <div className="panel block-list">
         <div className="panel-heading">
           <div>

@@ -179,7 +179,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       if (active) setLoadError(error instanceof Error ? error.message : "Unable to load workspace.");
     }).finally(() => { if (active) setIsLoading(false); });
     return () => { active = false; };
-  }, [user]);
+  }, [user?.id]);
 
   const store = useMemo<Store>(() => ({
     workspace,
