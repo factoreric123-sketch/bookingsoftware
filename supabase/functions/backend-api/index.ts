@@ -185,6 +185,16 @@ Deno.serve(async (req: Request) => {
       if (error || managed?.appointment_id !== params.p_appointment_id) {
         return json({ error: "Management link does not match this appointment", code: "P0403" }, 403);
       }
+    } else {
+      const businessId = String(params.p_business_id ?? "");
+      const { data: member } = await admin.from("business_members").select("role,can_manage_customers")
+        .eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+      if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) {
+        return json({ error: "Permission denied", code: "P0403" }, 403);
+      }
+      const { data: appointment } = await admin.from("appointments").select("id")
+        .eq("business_id", businessId).eq("id", params.p_appointment_id).maybeSingle();
+      if (!appointment) return json({ error: "Appointment not found", code: "P0404" }, 404);
     }
     const { data, error } = await admin.rpc("get_appointment_replacement_slots", {
       p_appointment_id: params.p_appointment_id,
@@ -197,14 +207,14 @@ Deno.serve(async (req: Request) => {
     return json({ data });
   }
 
-  if ((action === "reschedule_appointment" || action === "reschedule_dashboard_booking") && params.p_slot_date != null) {
+  const checkReplacement = async (token: string | null) => {
+    if (params.p_slot_date == null) return null;
     const date = String(params.p_slot_date);
     const rowVersion = Number(params.p_expected_row_version);
     const start = Date.parse(String(params.p_new_starts_at ?? ""));
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isSafeInteger(rowVersion) || rowVersion < 1 || !Number.isFinite(start)) {
       return json({ error: "Choose an available replacement time." }, 400);
     }
-    const token = action === "reschedule_appointment" && typeof params.p_management_token === "string" ? params.p_management_token : null;
     const { data, error } = await admin.rpc("get_appointment_replacement_slots", {
       p_appointment_id: params.p_appointment_id,
       p_expected_row_version: rowVersion,
@@ -218,6 +228,14 @@ Deno.serve(async (req: Request) => {
       return json({ error: "The new time is not available. Your original appointment is unchanged.", code: "P0409" }, 409);
     }
     delete params.p_slot_date;
+    return null;
+  };
+
+  if (action === "reschedule_appointment" && params.p_slot_date != null) {
+    const token = typeof params.p_management_token === "string" ? params.p_management_token : null;
+    if (!token) return json({ error: "A management link is required.", code: "P0403" }, 403);
+    const checkError = await checkReplacement(token);
+    if (checkError) return checkError;
   }
 
   if (action === "get_public_form") {
@@ -736,6 +754,8 @@ Deno.serve(async (req: Request) => {
       admin.from("appointments").select("id").eq("business_id", businessId).eq("id", appointmentId).maybeSingle(),
     ]);
     if (!business || !appointment) return json({ error: "Appointment not found" }, 404);
+    const checkError = await checkReplacement(null);
+    if (checkError) return checkError;
     let startsAt: string;
     try {
       if (typeof params.p_new_starts_at === "string") {
