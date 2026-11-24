@@ -21,6 +21,9 @@ const publicActions = new Set([
 ]);
 
 const authenticatedActions = new Set([
+  "get_booking_page_draft",
+  "save_booking_page_draft",
+  "set_booking_page_publication",
   "provision_business",
   "create_blocked_time",
   "release_blocked_time",
@@ -50,6 +53,9 @@ const authenticatedActions = new Set([
 ]);
 
 const actorActions = new Set([
+  "get_booking_page_draft",
+  "save_booking_page_draft",
+  "set_booking_page_publication",
   "provision_business",
   "create_blocked_time",
   "release_blocked_time",
@@ -708,15 +714,16 @@ Deno.serve(async (req: Request) => {
     const businessId = String(params.p_business_id ?? "");
     const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
     if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
-    const { data: page } = await admin.from("booking_pages").select("id").eq("business_id", businessId).eq("status", "published").limit(1).maybeSingle();
-    if (!page) return json({ error: "Publish a booking page before creating appointments" }, 409);
+    const { data: page } = await admin.from("booking_pages").select("id").eq("business_id", businessId)
+      .in("status", ["draft", "published"]).limit(1).maybeSingle();
+    if (!page) return json({ error: "Create a booking page before scheduling appointments." }, 409);
     const { data: business } = await admin.from("businesses").select("timezone").eq("id", businessId).single();
     let startsAt: string;
     try { startsAt = localDateTimeToIso(params.p_local_date, params.p_local_time, business?.timezone ?? "UTC"); }
     catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid appointment time" }, 400); }
     const requestKey = String(params.p_request_key ?? crypto.randomUUID());
     const subject = await subjectHash(req, serviceKey);
-    const { data: hold, error: holdError } = await admin.rpc("create_booking_hold", {
+    const { data: hold, error: holdError } = await admin.rpc("create_dashboard_booking_hold", {
       p_subject_hash: subject,
       p_booking_page_id: page.id,
       p_service_id: params.p_service_id,
@@ -726,6 +733,7 @@ Deno.serve(async (req: Request) => {
       p_addon_quantities: [],
       p_seat_count: 1,
       p_request_key: requestKey,
+      p_actor_user_id: userId,
     });
     if (holdError) return json({ error: holdError.message, code: holdError.code }, holdError.code === "P0409" ? 409 : 400);
     const { data: confirmed, error: confirmError } = await admin.rpc("confirm_booking", {

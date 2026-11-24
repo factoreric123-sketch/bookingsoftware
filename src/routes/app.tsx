@@ -52,6 +52,7 @@ import { useAuth } from "../lib/auth-context";
 import { invokeBackend } from "../integrations/supabase/backend";
 import { supabase } from "../integrations/supabase/client";
 import { RescheduleSlotPicker, type ReplacementAvailability, type ReplacementSlot } from "../components/RescheduleSlotPicker";
+import { BookingPageEditor, type PageDraft } from "../components/BookingPageEditor";
 
 export const Route = createFileRoute("/app")({ head: () => pageHead("Avello \u2014 Business workspace", "Manage your Avello appointments, customers, team, payments, and business analytics."), component: Dashboard });
 type Section =
@@ -2025,10 +2026,14 @@ function PhoneAi() {
 
 function BookingTools() {
   const { workspace } = useAppStore();
+  const [publication, setPublication] = useState<PageDraft | null>(null);
+  const published = publication?.published ?? workspace.business.bookingPagePublished;
+  const liveServices = publication?.live_service_ids;
+  const bookingSlug = publication?.slug ?? workspace.business.slug;
   const [copied, setCopied] = useState("");
   const [copyError, setCopyError] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "https://your-domain.com";
-  const bookingUrl = `${origin}/book/${workspace.business.slug}`;
+  const bookingUrl = `${origin}/book/${bookingSlug}`;
   const copy = async (label: string, value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -2046,27 +2051,28 @@ function BookingTools() {
     <>
       <PageHeader
         title="Booking page"
-        copy={workspace.business.bookingPagePublished ? "Share your published booking page anywhere customers find your business." : "Your booking page is unpublished. Publish it before sharing these links or embeds."}
+        copy={published ? "Share your published booking page anywhere customers find your business." : "Publish your booking page to accept online bookings."}
         action={
-          <Link
+          published && <Link
             to="/book/$slug"
-            params={{ slug: workspace.business.slug }}
+            params={{ slug: bookingSlug }}
             target="_blank"
             className="solid-action"
           >
             <ExternalLink size={15} />
-            {workspace.business.bookingPagePublished ? "Open live page" : "Preview booking page"}
+            Open live page
           </Link>
         }
       />
       {copyError && <p className="form-error" role="alert">{copyError}</p>}
+      {workspace.memberRole === "owner" && <BookingPageEditor key={workspace.business.id} businessId={workspace.business.id} services={workspace.services} onPublishedState={setPublication} />}
       <div className="booking-tools-grid">
         <section className="panel share-panel">
           <div className="tool-icon">
             <Link2 size={20} />
           </div>
           <h2>Shareable booking link</h2>
-          <p>{workspace.business.bookingPagePublished ? "Use this link in email, social profiles, text messages, and your Google Business Profile website field." : "This link will accept bookings after you publish the page."}</p>
+          <p>{published ? "Use this link in email, social profiles, text messages, and your Google Business Profile website field." : "This link will accept bookings after you publish the page."}</p>
           <div className="copy-field">
             <code>{bookingUrl}</code>
             <button aria-label="Copy booking link" onClick={() => void copy("link", bookingUrl)}>
@@ -2076,7 +2082,7 @@ function BookingTools() {
           <div className="service-links">
             <b>Direct service links</b>
             {workspace.services
-              .filter((service) => service.active)
+              .filter((service) => service.active && (!liveServices || liveServices.includes(service.id)))
               .map((service) => (
                 <div key={service.id}>
                   <span>{service.name}</span>
@@ -2088,7 +2094,7 @@ function BookingTools() {
           </div>
         </section>
         <section className="panel booking-preview-card">
-          <span>{workspace.business.bookingPagePublished ? "LIVE PREVIEW" : "UNPUBLISHED PREVIEW"}</span>
+          <span>{published ? "Booking link" : "Unpublished"}</span>
           <div className="preview-business">
             <i style={{ background: workspace.business.accent }}>
               {workspace.business.name.charAt(0)}
@@ -2100,9 +2106,9 @@ function BookingTools() {
           </div>
           <h2>Book your next appointment.</h2>
           <p>Choose a service and find a time that works for you.</p>
-          <Link to="/book/$slug" params={{ slug: workspace.business.slug }} target="_blank" style={{ background: workspace.business.accent }}>
+          {published && <Link to="/book/$slug" params={{ slug: bookingSlug }} target="_blank" style={{ background: workspace.business.accent }}>
             Book an appointment <ArrowRight size={15} />
-          </Link>
+          </Link>}
           <small>Powered by Avello</small>
         </section>
       </div>
@@ -2113,7 +2119,7 @@ function BookingTools() {
               <h2>Website button</h2>
               <p>A styled link that works on any website.</p>
             </div>
-            <span className="ready-pill">{workspace.business.bookingPagePublished ? "Ready" : "Publish first"}</span>
+            <span className="ready-pill">{published ? "Ready" : "Publish first"}</span>
           </div>
           <pre>{buttonCode}</pre>
           <button className="secondary-action" onClick={() => void copy("button", buttonCode)}>
@@ -2126,7 +2132,7 @@ function BookingTools() {
               <h2>Inline booking widget</h2>
               <p>Embed the full booking experience on a page.</p>
             </div>
-            <span className="ready-pill">{workspace.business.bookingPagePublished ? "Ready" : "Publish first"}</span>
+            <span className="ready-pill">{published ? "Ready" : "Publish first"}</span>
           </div>
           <pre>{iframeCode}</pre>
           <button className="secondary-action" onClick={() => void copy("iframe", iframeCode)}>
