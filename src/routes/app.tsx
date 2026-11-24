@@ -748,11 +748,11 @@ function Bookings({ title }: { title: string }) {
   const [rescheduleDate, setRescheduleDate] = useState("");
   const [rescheduleTime, setRescheduleTime] = useState("");
   const [rescheduling, setRescheduling] = useState(false);
-  const changeStatus = async (id: string, status: AppointmentStatus) => {
+  const changeStatus = async (id: string, status: AppointmentStatus, pendingRequest = false) => {
     setError("");
     setUpdatingId(id);
     try {
-      await updateAppointment(id, { status });
+      await updateAppointment(id, { status }, pendingRequest);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Appointment status could not be saved.");
     } finally {
@@ -777,6 +777,9 @@ function Bookings({ title }: { title: string }) {
     } finally { setSubmitting(false); }
   };
   const selectedReschedule = workspace.appointments.find((item) => item.id === reschedulingId);
+  const pendingRequests = workspace.appointments
+    .filter((item) => item.status === "pending")
+    .sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time));
   const monthParts = new Intl.DateTimeFormat("en-US", { timeZone: workspace.business.timezone, year: "numeric", month: "2-digit" }).formatToParts(new Date());
   const currentMonth = `${monthParts.find((part) => part.type === "year")?.value}-${monthParts.find((part) => part.type === "month")?.value}`;
   const visibleAppointments = workspace.appointments.filter((item) => {
@@ -812,6 +815,26 @@ function Bookings({ title }: { title: string }) {
         }
       />
       {error && !showForm && <div className="booking-error" role="alert">{error}</div>}
+      {pendingRequests.length > 0 && <section className="panel approval-queue" aria-labelledby="approval-heading">
+        <div className="panel-heading"><div><h2 id="approval-heading">Awaiting approval</h2>
+          <p>These requests reserve capacity until they are declined or cancelled.</p></div></div>
+        {pendingRequests.map((item) => {
+          const customer = workspace.customers.find((entry) => entry.id === item.customerId);
+          const service = workspace.services.find((entry) => entry.id === item.serviceId);
+          return <div className="approval-row" key={item.id}>
+            <div><b>{customer?.name ?? "Customer"}</b>
+              <p>{service?.name ?? "Appointment"} · {formatDate(item.date)} at {prettyTime(item.time)}</p></div>
+            <div className="approval-actions">
+              <button className="secondary-action" disabled={Boolean(updatingId)} onClick={() => {
+                if (window.confirm("Decline this request and release its reserved capacity?")) void changeStatus(item.id, "cancelled", true);
+              }}>Decline</button>
+              <button className="solid-action" disabled={Boolean(updatingId)} onClick={() => void changeStatus(item.id, "confirmed", true)}>
+                {updatingId === item.id ? "Saving…" : "Approve"}
+              </button>
+            </div>
+          </div>;
+        })}
+      </section>}
       <div className="panel table-panel">
         <div className="table-toolbar">
           <div className="table-search">
