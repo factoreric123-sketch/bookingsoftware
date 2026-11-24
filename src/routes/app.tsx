@@ -89,23 +89,24 @@ export const Route = createFileRoute("/app")({
   component: Dashboard,
 });
 
-const navigation: { label: Section; icon: typeof LayoutDashboard }[] = [
-  { label: "Overview", icon: LayoutDashboard },
-  { label: "Calendar", icon: CalendarDays },
-  { label: "Bookings", icon: Clock3 },
-  { label: "Booking Page", icon: ExternalLink },
-  { label: "Customers", icon: Users },
-  { label: "Services", icon: Sparkles },
-  { label: "Team", icon: UserPlus },
-  { label: "Messages", icon: MessageSquareText },
-  { label: "Phone & AI", icon: PhoneCall },
-  { label: "Forms", icon: FormInput },
-  { label: "Automations", icon: WandSparkles },
-  { label: "Payments", icon: CreditCard },
-  { label: "Analytics", icon: Activity },
-  { label: "Integrations", icon: Link2 },
-  { label: "Settings", icon: Settings },
+const navigation: { label: Section; icon: typeof LayoutDashboard; group: "Operate" | "Setup" | "Engage" | "Business" }[] = [
+  { label: "Overview", icon: LayoutDashboard, group: "Operate" },
+  { label: "Calendar", icon: CalendarDays, group: "Operate" },
+  { label: "Bookings", icon: Clock3, group: "Operate" },
+  { label: "Customers", icon: Users, group: "Operate" },
+  { label: "Booking Page", icon: ExternalLink, group: "Setup" },
+  { label: "Services", icon: Sparkles, group: "Setup" },
+  { label: "Team", icon: UserPlus, group: "Setup" },
+  { label: "Forms", icon: FormInput, group: "Setup" },
+  { label: "Messages", icon: MessageSquareText, group: "Engage" },
+  { label: "Phone & AI", icon: PhoneCall, group: "Engage" },
+  { label: "Automations", icon: WandSparkles, group: "Engage" },
+  { label: "Integrations", icon: Link2, group: "Engage" },
+  { label: "Payments", icon: CreditCard, group: "Business" },
+  { label: "Analytics", icon: Activity, group: "Business" },
+  { label: "Settings", icon: Settings, group: "Business" },
 ];
+const navigationGroups = ["Operate", "Setup", "Engage", "Business"] as const;
 
 function Dashboard() {
   const navigate = useNavigate();
@@ -180,16 +181,12 @@ function Dashboard() {
         </div>
         {switchError && <p className="booking-error" role="alert">{switchError}</p>}
         <nav>
-          {visibleNavigation.map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              className={section === label ? "active" : ""}
-              onClick={() => openSection(label)}
-            >
-              <Icon size={18} />
-              {label}
-            </button>
-          ))}
+          {navigationGroups.map((group) => {
+            const items = visibleNavigation.filter((item) => item.group === group);
+            return items.length ? <div className="nav-group" key={group}><span className="nav-group-label">{group}</span>{items.map(({ label, icon: Icon }) => (
+              <button key={label} className={section === label ? "active" : ""} onClick={() => openSection(label)}><Icon size={18} />{label}</button>
+            ))}</div> : null;
+          })}
         </nav>
         <div className="sidebar-bottom">
           <button onClick={() => void signOut()}>
@@ -2351,6 +2348,9 @@ function BookingTools() {
 
 function Team() {
   const { workspace, addStaff, updateStaff, switchBusiness } = useAppStore();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | Staff["role"]>("all");
   const [show, setShow] = useState(false);
   const [members, setMembers] = useState<MemberAccess[]>(workspace.members);
   const [editingMember, setEditingMember] = useState<MemberAccess | null>(null);
@@ -2420,6 +2420,12 @@ function Team() {
     weeklyHours: 40,
     bufferBefore: 0,
     bufferAfter: 0,
+  });
+  const visibleStaff = workspace.staff.filter((member) => {
+    const serviceNames = member.serviceIds.map((id) => workspace.services.find((service) => service.id === id)?.name ?? "").join(" ");
+    const matchesSearch = `${member.name} ${member.email} ${member.role} ${serviceNames}`.toLowerCase().includes(search.trim().toLowerCase());
+    const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? member.active : !member.active);
+    return matchesSearch && matchesStatus && (roleFilter === "all" || member.role === roleFilter);
   });
   const save = async () => {
     if (!form.name.trim() || (!editingId && !form.email.trim()) || form.weeklyHours < 0 || !Number.isInteger(form.bufferBefore) || !Number.isInteger(form.bufferAfter) || form.bufferBefore < 0 || form.bufferAfter < 0 || form.bufferBefore > 1440 || form.bufferAfter > 1440) return;
@@ -2502,8 +2508,14 @@ function Team() {
         </div>)}
         {!members.length && <p>No account memberships loaded.</p>}
       </section>}
+      <div className="team-toolbar panel">
+        <div className="table-search"><Search size={16} /><input aria-label="Search team" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, email, role, or service…" /></div>
+        <select aria-label="Filter team status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
+        <select aria-label="Filter team role" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value as typeof roleFilter)}><option value="all">All roles</option><option value="owner">Owner</option><option value="manager">Manager</option><option value="staff">Staff</option></select>
+        <span>{visibleStaff.length} of {workspace.staff.length}</span>
+      </div>
       <div className="team-grid">
-        {workspace.staff.map((member) => (
+        {visibleStaff.map((member) => (
           <article className="team-card" key={member.id}>
             <div className="team-avatar">{initials(member.name)}</div>
             <div className="team-title">
@@ -2539,6 +2551,7 @@ function Team() {
           </article>
         ))}
       </div>
+      {!visibleStaff.length && <div className="panel team-empty"><Users size={24} /><b>{workspace.staff.length ? "No team profiles match these filters" : "No scheduling profiles yet"}</b><p>{workspace.staff.length ? "Try another name, role, service, or status." : "Add a team member to create a bookable scheduling profile."}</p>{workspace.staff.length > 0 && <button type="button" className="secondary-action" onClick={() => { setSearch(""); setStatusFilter("all"); setRoleFilter("all"); }}>Clear filters</button>}</div>}
       {editingMember && memberDraft && <Modal title={`Edit access · ${editingMember.name}`} onClose={() => { if (!savingMember) setEditingMember(null); }}>
         <p>Changing or deactivating access affects this member's next authorized request. Existing booking records stay intact.</p>
         <label>Account role<select value={memberDraft.role} onChange={(event) => setMemberDraft((current) => current ? { ...current, role: event.target.value as "manager" | "staff", allLocations: event.target.value === "manager" ? current.role === "manager" ? current.allLocations : true : false } : current)}><option value="staff">Staff</option><option value="manager">Manager</option></select></label>

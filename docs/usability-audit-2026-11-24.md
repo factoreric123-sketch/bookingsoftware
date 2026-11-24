@@ -18,6 +18,8 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Added one-click booking views for Today, Upcoming, Awaiting approval, Past, and All, plus soonest/latest sorting.
 - Added CSV export for exactly the bookings currently visible after filters and search.
 - Added service catalog search, Bookable/Hidden filtering, result counts, and a recoverable filtered empty state.
+- Grouped the long sidebar into Operate, Setup, Engage, and Business sections while preserving permission-based visibility.
+- Added team search across names, email, roles, and assigned services, with role/status filters, counts, and a recoverable empty state.
 
 ## Verified
 
