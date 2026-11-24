@@ -28,8 +28,9 @@ BEGIN
  INSERT INTO public.resource_reservations(business_id,staff_id,session_id,starts_at,ends_at) VALUES(b,s,bs,t-interval '15 minutes',t+interval '110 minutes');
  PERFORM set_config('role','service_role',true);
  result:=public.get_appointment_replacement_slots(a,d,NULL,u,1);
- IF jsonb_array_length(result->'slots')<>10 THEN RAISE EXCEPTION 'expected 10 replacement slots at daily cap 1'; END IF;
- IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(result->'slots') x WHERE (x->>'starts_at')::timestamptz=t) THEN RAISE EXCEPTION 'own reservation not excluded'; END IF;
+ IF jsonb_array_length(result->'slots')<>9 THEN RAISE EXCEPTION 'expected 9 replacement slots at daily cap 1'; END IF;
+ IF EXISTS(SELECT 1 FROM jsonb_array_elements(result->'slots') x WHERE (x->>'starts_at')::timestamptz=t) THEN RAISE EXCEPTION 'current start was offered as a replacement'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM jsonb_array_elements(result->'slots') x WHERE (x->>'starts_at')::timestamptz=t+interval '30 minutes') THEN RAISE EXCEPTION 'own reservation incorrectly prevents overlapping moves'; END IF;
  IF EXISTS(SELECT 1 FROM jsonb_array_elements(result->'slots') x WHERE (x->>'ends_at')::timestamptz-(x->>'starts_at')::timestamptz<>interval '90 minutes') THEN RAISE EXCEPTION 'saved duration changed to current service duration'; END IF;
  IF EXISTS(SELECT 1 FROM jsonb_array_elements(result->'slots') x WHERE ((x->>'starts_at')::timestamptz AT TIME ZONE 'America/New_York')::time<time '09:00' OR ((x->>'ends_at')::timestamptz AT TIME ZONE 'America/New_York')::time>time '15:00') THEN RAISE EXCEPTION 'staff/business intersection not enforced'; END IF;
  BEGIN PERFORM public.get_appointment_replacement_slots(a,d,NULL,NULL,1); RAISE EXCEPTION 'id-only request allowed'; EXCEPTION WHEN SQLSTATE 'P0403' THEN NULL; END;

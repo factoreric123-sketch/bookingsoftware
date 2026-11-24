@@ -42,6 +42,7 @@ export type BackendAction =
   | "set_staff_weekly_hours_day"
   | "get_public_form"
   | "create_dashboard_booking"
+  | "get_dashboard_booking_slots"
   | "reschedule_dashboard_booking"
   | "create_business_blocked_time"
   | "set_appointment_status"

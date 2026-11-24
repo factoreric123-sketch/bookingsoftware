@@ -7,7 +7,11 @@ import { RescheduleSlotPicker, type ReplacementAvailability, type ReplacementSlo
 import { businessDate } from "../lib/business-date";
 import { BookingIntakeFields, type BookingIntakeForm } from "../components/BookingIntakeFields";
 
-export const Route = createFileRoute("/manage/$token")({ head: () => pageHead("Avello \u2014 Manage appointment", "View, reschedule, or cancel your Avello appointment securely."), component: ManageBooking });
+export const Route = createFileRoute("/manage/$token")({
+  head: () => pageHead("Avello \u2014 Manage appointment", "View, reschedule, or cancel your Avello appointment securely."),
+  validateSearch: (search: Record<string, unknown>): { intake?: true } => search["intake"] === true ? { intake: true } : {},
+  component: ManageBooking,
+});
 
 type ManagedAppointment = {
   appointment_id: string;
@@ -29,6 +33,7 @@ const money = (minor: number, currency: string) => new Intl.NumberFormat("en-US"
 
 function ManageBooking() {
   const { token } = Route.useParams();
+  const { intake: openIntake } = Route.useSearch();
   const [appointment, setAppointment] = useState<ManagedAppointment | null>(null);
   const [replacement, setReplacement] = useState<ReplacementSlot | null>(null);
   const [slotRefresh, setSlotRefresh] = useState(0);
@@ -54,7 +59,7 @@ function ManageBooking() {
   useEffect(() => {
     let current = true;
     setIntake(null);
-    setIntakeOpen(false);
+    setIntakeOpen(openIntake === true);
     setIntakeAnswers({});
     setIntakeError("");
     intakeRequest.current = crypto.randomUUID();
@@ -64,7 +69,7 @@ function ManageBooking() {
     }).then((result) => { if (current) setIntake(result); })
       .catch(() => { if (current) setIntakeError("Intake information could not be loaded. Refresh to retry."); });
     return () => { current = false; };
-  }, [token]);
+  }, [token, openIntake]);
   const appointmentId = appointment?.appointment_id;
   const version = appointment?.row_version;
   const loadReplacementSlots = useCallback((date: string) => invokeBackend<ReplacementAvailability>("get_reschedule_availability", {

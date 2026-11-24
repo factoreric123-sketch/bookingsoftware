@@ -508,6 +508,9 @@ function CalendarWorkspace() {
   const { workspace, addBlockedTime, removeBlockedTime } = useAppStore();
   const [view, setView] = useState<"day" | "week" | "month">("week");
   const [selectedDay, setSelectedDay] = useState(() => businessDate(workspace.business.timezone));
+  const [specialHoursLocationId, setSpecialHoursLocationId] = useState(workspace.business.defaultLocationId ?? "");
+  const specialHoursLocation = workspace.locations.find((location) => location.id === specialHoursLocationId)
+    ?? workspace.locations[0];
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const weekStart = calendarWeekStart(selectedDay);
@@ -521,6 +524,13 @@ function CalendarWorkspace() {
   const monthStart = `${selectedDay.slice(0, 7)}-01`;
   const monthGridStart = calendarWeekStart(monthStart);
   const days = view === "day" ? [selectedDay] : Array.from({ length: view === "month" ? 42 : 7 }, (_, index) => shiftCalendarDate(view === "month" ? monthGridStart : weekStart, index));
+  const inPeriod = workspace.appointments.filter((item) => item.status !== "cancelled" && days.includes(item.date));
+  const knownStaff = new Set(workspace.staff.map((member) => member.id));
+  const calendarStaffFor = (staffId?: string) => staffId && knownStaff.has(staffId) ? staffId : "";
+  const scheduledStaff = new Set(inPeriod.map((item) => calendarStaffFor(item.staffId)));
+  const calendarStaff = workspace.staff.filter((member) => member.active || scheduledStaff.has(member.id))
+    .map((member) => ({ id: member.id, name: member.name, label: member.active ? member.role : "Inactive staff" }));
+  if (scheduledStaff.has("")) calendarStaff.push({ id: "", name: "Unassigned", label: "No active staff assignment" });
   const movePeriod = (offset: number) => {
     if (view === "day") setSelectedDay((current) => shiftCalendarDate(current, offset));
     else if (view === "week") setSelectedDay(shiftCalendarDate(selectedDay, offset * 7));
@@ -570,7 +580,7 @@ function CalendarWorkspace() {
         <div className="calendar-view-switch" role="group" aria-label="Calendar view">{(["day", "week", "month"] as const).map((option) => <button key={option} aria-pressed={view === option} className={view === option ? "active" : ""} onClick={() => setView(option)}>{option === "day" ? "Day" : option === "week" ? "Week" : "Month"}</button>)}</div>
       </div>
       {error && <div className="booking-error" role="alert">{error}</div>}
-      {view === "month" ? <div className="month-calendar panel">{days.map((day) => { const appointments = workspace.appointments.filter((item) => item.date === day && item.status !== "cancelled"); const blocks = workspace.blockedTimes.filter((item) => item.date === day); return <button key={day} type="button" className={day.slice(0, 7) === selectedDay.slice(0, 7) ? "month-date" : "month-date outside"} onClick={() => { setSelectedDay(day); setView("day"); }}><b>{new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}</b><span>{appointments.length ? `${appointments.length} booking${appointments.length === 1 ? "" : "s"}` : ""}</span>{blocks.length > 0 && <small>{blocks.length} blocked</small>}</button>; })}</div> : view === "day" ? <div className="day-agenda panel">{workspace.staff.filter((member) => member.active).map((member) => <section key={member.id}><h2>{member.name}</h2>{Array.from({ length: 24 }, (_, hour) => { const hourBookings = workspace.appointments.filter((item) => item.staffId === member.id && item.date === selectedDay && item.status !== "cancelled" && Number(item.time.slice(0, 2)) === hour).sort((a, b) => a.time.localeCompare(b.time)); const hourBlocks = workspace.blockedTimes.filter((item) => (!item.staffId || item.staffId === member.id) && item.date === selectedDay && Number(item.start.slice(0, 2)) <= hour && Number(item.end.slice(0, 2)) >= hour); return <div className="agenda-hour" key={hour}><time>{prettyTime(`${String(hour).padStart(2, "0")}:00`)}</time><div>{hourBookings.map((item) => <div className="calendar-event" key={item.id}><b>{prettyTime(item.time)} · {workspace.services.find((service) => service.id === item.serviceId)?.name}</b><small>{workspace.customers.find((customer) => customer.id === item.customerId)?.name} · {item.duration} min</small></div>)}{hourBlocks.map((item) => <div className="calendar-block" key={item.id}><b>{prettyTime(item.start)}–{prettyTime(item.end)} · {item.reason}</b></div>)}</div></div>; })}</section>)}</div> : <div className={`team-calendar panel calendar-${view}`}>
+      {view === "month" ? <div className="month-calendar panel">{days.map((day) => { const appointments = workspace.appointments.filter((item) => item.date === day && item.status !== "cancelled"); const blocks = workspace.blockedTimes.filter((item) => item.date === day); return <button key={day} type="button" className={day.slice(0, 7) === selectedDay.slice(0, 7) ? "month-date" : "month-date outside"} onClick={() => { setSelectedDay(day); setView("day"); }}><b>{new Date(`${day}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}</b><span>{appointments.length ? `${appointments.length} booking${appointments.length === 1 ? "" : "s"}` : ""}</span>{blocks.length > 0 && <small>{blocks.length} blocked</small>}</button>; })}</div> : view === "day" ? <div className="day-agenda panel">{calendarStaff.map((member) => <section key={member.id}><h2>{member.name}</h2>{member.label === "Inactive staff" && <p>Inactive staff</p>}{Array.from({ length: 24 }, (_, hour) => { const hourBookings = workspace.appointments.filter((item) => calendarStaffFor(item.staffId) === member.id && item.date === selectedDay && item.status !== "cancelled" && Number(item.time.slice(0, 2)) === hour).sort((a, b) => a.time.localeCompare(b.time)); const hourBlocks = workspace.blockedTimes.filter((item) => member.id && (!item.staffId || item.staffId === member.id) && item.date === selectedDay && Number(item.start.slice(0, 2)) <= hour && Number(item.end.slice(0, 2)) >= hour); return <div className="agenda-hour" key={hour}><time>{prettyTime(`${String(hour).padStart(2, "0")}:00`)}</time><div>{hourBookings.map((item) => <div className="calendar-event" key={item.id}><b>{prettyTime(item.time)} · {workspace.services.find((service) => service.id === item.serviceId)?.name}</b><small>{workspace.customers.find((customer) => customer.id === item.customerId)?.name} · {item.duration} min</small></div>)}{hourBlocks.map((item) => <div className="calendar-block" key={item.id}><b>{prettyTime(item.start)}–{prettyTime(item.end)} · {item.reason}</b></div>)}</div></div>; })}</section>)}</div> : <div className={`team-calendar panel calendar-${view}`}>
         <div className="calendar-head">
           <span>Team member</span>
           {days.map((day) => (
@@ -582,24 +592,22 @@ function CalendarWorkspace() {
             </button>
           ))}
         </div>
-        {workspace.staff
-          .filter((member) => member.active)
-          .map((member) => (
+        {calendarStaff.map((member) => (
             <div className="calendar-staff-row" key={member.id}>
               <div className="calendar-person">
                 <i>{initials(member.name)}</i>
                 <span>
                   <b>{member.name}</b>
-                  <small>{member.role}</small>
+                  <small>{member.label}</small>
                 </span>
               </div>
               {days.map((day) => {
                 const appointments = workspace.appointments.filter(
                   (item) =>
-                    item.staffId === member.id && item.date === day && item.status !== "cancelled",
+                    calendarStaffFor(item.staffId) === member.id && item.date === day && item.status !== "cancelled",
                 );
                 const blocks = workspace.blockedTimes.filter(
-                  (item) => (!item.staffId || item.staffId === member.id) && item.date === day,
+                  (item) => member.id && (!item.staffId || item.staffId === member.id) && item.date === day,
                 );
                 return (
                   <div className="calendar-day" key={day}>
@@ -642,9 +650,10 @@ function CalendarWorkspace() {
             </div>
           ))}
       </div>}
-      {workspace.memberRole === "owner" && workspace.business.defaultLocationId && (
-        <ScheduleExceptions key={workspace.business.defaultLocationId} businessId={workspace.business.id}
-          locationId={workspace.business.defaultLocationId} calendarDate={selectedDay} />
+      {workspace.memberRole === "owner" && specialHoursLocation && (
+        <ScheduleExceptions key={specialHoursLocation.id} businessId={workspace.business.id}
+          locationId={specialHoursLocation.id} calendarDate={selectedDay} location={specialHoursLocation}
+          locations={workspace.locations} onChangeLocation={setSpecialHoursLocationId} />
       )}
       <div className="panel block-list">
         <div className="panel-heading">
@@ -756,6 +765,12 @@ function Bookings({ title }: { title: string }) {
   const [replacement, setReplacement] = useState<ReplacementSlot | null>(null);
   const [slotRefresh, setSlotRefresh] = useState(0);
   const [rescheduling, setRescheduling] = useState(false);
+  type DashboardSlot = ReplacementSlot & { staff_id: string; session_id: string | null; remaining_capacity: number };
+  const [bookingSlots, setBookingSlots] = useState<DashboardSlot[]>([]);
+  const [slotIndex, setSlotIndex] = useState("");
+  const [bookingSlotsLoading, setBookingSlotsLoading] = useState(false);
+  const [bookingSlotsError, setBookingSlotsError] = useState("");
+  const [bookingSlotRefresh, setBookingSlotRefresh] = useState(0);
   const changeStatus = async (id: string, status: AppointmentStatus, pendingRequest = false) => {
     setError("");
     setUpdatingId(id);
@@ -769,18 +784,45 @@ function Bookings({ title }: { title: string }) {
   };
   const [form, setForm] = useState({
     customerId: workspace.customers[0]?.id ?? "",
-    serviceId: workspace.services[0]?.id ?? "",
-    staffId: workspace.staff[0]?.id ?? "",
+    serviceId: workspace.services.find((service) => service.active)?.id ?? "",
+    staffId: "",
     date: businessDate(workspace.business.timezone),
-    time: "09:00",
   });
+  useEffect(() => {
+    let current = true;
+    setBookingSlots([]);
+    setSlotIndex("");
+    setBookingSlotsError("");
+    if (!showForm || !form.serviceId || !form.date) {
+      setBookingSlotsLoading(false);
+      return;
+    }
+    setBookingSlotsLoading(true);
+    invokeBackend<DashboardSlot[]>("get_dashboard_booking_slots", {
+      p_business_id: workspace.business.id, p_service_id: form.serviceId,
+      p_staff_id: form.staffId || null, p_local_date: form.date,
+    }).then((slots) => { if (current) setBookingSlots(slots); })
+      .catch((caught) => { if (current) setBookingSlotsError(caught instanceof Error ? caught.message : "Availability could not be loaded."); })
+      .finally(() => { if (current) setBookingSlotsLoading(false); });
+    return () => { current = false; };
+  }, [showForm, form.serviceId, form.date, form.staffId, workspace.business.id, bookingSlotRefresh]);
+  const selectedBookingSlot = slotIndex === "" ? undefined : bookingSlots[Number(slotIndex)];
+  const bookingTime = (slot: DashboardSlot) => new Intl.DateTimeFormat("en-US", {
+    hour: "numeric", minute: "2-digit", timeZoneName: "short", timeZone: slot.timezone,
+  }).format(new Date(slot.starts_at));
   const submit = async () => {
     const service = workspace.services.find((s) => s.id === form.serviceId);
-    if (!service) return;
+    if (!service || !selectedBookingSlot || submitting) return;
+    const slot = selectedBookingSlot;
+    const startsAt = new Date(slot.starts_at);
     setSubmitting(true); setError("");
     try {
-      const result = await addAppointment({ ...form, duration: service.duration, status: "confirmed", source: "dashboard" });
-      if (result.error) setError(result.error);
+      const result = await addAppointment({
+        ...form, staffId: slot.staff_id, date: businessDate(workspace.business.timezone, startsAt),
+        time: new Intl.DateTimeFormat("en-GB", { timeZone: workspace.business.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(startsAt),
+        duration: Math.round((Date.parse(slot.ends_at) - startsAt.getTime()) / 60000), status: "confirmed", source: "dashboard",
+      }, slot);
+      if (result.error) { setError(result.error); setBookingSlotRefresh((value) => value + 1); }
       else { setShowForm(false); setError(result.warning ?? ""); }
     } finally { setSubmitting(false); }
   };
@@ -897,12 +939,12 @@ function Bookings({ title }: { title: string }) {
                   <span>
                     <select
                       value={item.status}
-                      disabled={updatingId === item.id || item.status === "cancelled"}
+                      disabled={updatingId === item.id || item.status === "cancelled" || item.status === "pending"}
                       onChange={(e) => void changeStatus(item.id, e.target.value as AppointmentStatus)}
                       className={`status-select ${item.status}`}
                     >
                       <option value="confirmed">Confirmed</option>
-                      <option value="pending">Pending</option>
+                      {item.status === "pending" && <option value="pending">Pending approval</option>}
                       <option value="completed">Completed</option>
                       <option value="cancelled" disabled={item.status !== "pending" && item.status !== "confirmed" && item.status !== "cancelled"}>Cancelled</option>
                       <option value="no-show">No-show</option>
@@ -947,11 +989,8 @@ function Bookings({ title }: { title: string }) {
               <select
                 value={form.serviceId}
                 onChange={(e) => {
-                  const serviceId = e.target.value;
-                  const eligible = workspace.staff.find(
-                    (member) => member.active && member.serviceIds.includes(serviceId),
-                  );
-                  setForm({ ...form, serviceId, staffId: eligible?.id ?? "" });
+                  setSlotIndex("");
+                  setForm({ ...form, serviceId: e.target.value, staffId: "" });
                 }}
               >
                 {workspace.services
@@ -967,8 +1006,9 @@ function Bookings({ title }: { title: string }) {
               Team member
               <select
                 value={form.staffId}
-                onChange={(e) => setForm({ ...form, staffId: e.target.value })}
+                onChange={(e) => { setSlotIndex(""); setForm({ ...form, staffId: e.target.value }); }}
               >
+                <option value="">Anyone available</option>
                 {workspace.staff
                   .filter((member) => member.active && member.serviceIds.includes(form.serviceId))
                   .map((member) => (
@@ -985,20 +1025,24 @@ function Bookings({ title }: { title: string }) {
               <input
                 type="date"
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                onChange={(e) => { setSlotIndex(""); setForm({ ...form, date: e.target.value }); }}
               />
             </label>
             <label>
-              Time
-              <input
-                type="time"
-                value={form.time}
-                onChange={(e) => setForm({ ...form, time: e.target.value })}
-              />
+              Available time
+              <select value={slotIndex} disabled={bookingSlotsLoading || submitting} onChange={(event) => setSlotIndex(event.target.value)}>
+                <option value="">{bookingSlotsLoading ? "Checking availability…" : "Choose a time"}</option>
+                {bookingSlots.map((slot, index) => <option key={`${slot.starts_at}:${slot.staff_id}:${slot.session_id ?? "new"}`} value={index}>
+                  {bookingTime(slot)} · {workspace.staff.find((member) => member.id === slot.staff_id)?.name ?? "Team member"}
+                  {slot.session_id && ` · ${slot.remaining_capacity} seats left`}
+                </option>)}
+              </select>
             </label>
           </div>
           {error && <p className="form-error">{error}</p>}
-          <button className="solid-action full" onClick={submit} disabled={submitting || !form.customerId || !form.serviceId || !form.staffId || !form.date || !form.time}>
+          {bookingSlotsError && <p className="form-error" role="alert">{bookingSlotsError}</p>}
+          {!bookingSlotsLoading && !bookingSlotsError && form.serviceId && form.date && !bookingSlots.length && <p>No times on this date. Try another date or team member.</p>}
+          <button className="solid-action full" onClick={submit} disabled={submitting || bookingSlotsLoading || !form.customerId || !selectedBookingSlot}>
             {submitting ? "Creating…" : "Create booking"}
           </button>
         </Modal>

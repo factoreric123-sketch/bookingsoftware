@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { invokeBackend } from "../integrations/supabase/backend";
+import type { WorkspaceLocation } from "../lib/app-store";
 
 type Exception = {
   id: string;
@@ -15,10 +16,13 @@ type Impact = {
   affected: Array<{ appointment_id: string; starts_at: string; timezone: string; service_name: string }>;
 };
 
-export function ScheduleExceptions({ businessId, locationId, calendarDate }: {
+export function ScheduleExceptions({ businessId, locationId, calendarDate, location, locations, onChangeLocation }: {
   businessId: string;
   locationId: string;
   calendarDate: string;
+  location: WorkspaceLocation;
+  locations: WorkspaceLocation[];
+  onChangeLocation: (id: string) => void;
 }) {
   const [exceptions, setExceptions] = useState<Exception[]>([]);
   const [editing, setEditing] = useState<Exception | null>(null);
@@ -85,6 +89,12 @@ export function ScheduleExceptions({ businessId, locationId, calendarDate }: {
         id: "", date: calendarDate, closed: true, opens_at: "09:00", closes_at: "17:00", reason: "", row_version: 0,
       })}>Add exception</button>
     </div>
+    {locations.length > 1 ? <label>Location
+      <select value={locationId} disabled={busy || Boolean(editing)} onChange={(event) => onChangeLocation(event.target.value)}>
+        {locations.map((option) => <option key={option.id} value={option.id}>{option.name}</option>)}
+      </select>
+    </label> : <p>{location.name}</p>}
+    <p>Times use {location.timezone}. Special hours still require staff availability.</p>
     {error && <p className="booking-error" role="alert">{error}</p>}
     {exceptions.map((item) => (
       <div className="approval-row" key={item.id}>

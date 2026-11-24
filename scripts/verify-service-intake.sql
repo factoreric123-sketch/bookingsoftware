@@ -45,6 +45,7 @@ BEGIN
   hold:=public.create_booking_hold('intake-rollback-optional',page,svc,(slot->>'staff_id')::uuid,
     NULL,(slot->>'starts_at')::timestamptz,'[]',1,gen_random_uuid());
   IF hold->'intake_form' IS DISTINCT FROM 'null'::jsonb THEN RAISE EXCEPTION 'Optional intake interrupted checkout'; END IF;
+  IF hold->>'optional_intake' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'Optional intake was not signaled to checkout'; END IF;
   booked:=public.confirm_booking('intake-rollback-optional',hold->>'hold_token',NULL,NULL,contact,'','[]',gen_random_uuid());
   BEGIN
     PERFORM public.get_appointment_intake(gen_random_uuid()::text,'intake-rollback-optional');

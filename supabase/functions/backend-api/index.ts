@@ -52,6 +52,7 @@ const authenticatedActions = new Set([
   "get_staff_weekly_hours",
   "set_staff_weekly_hours_day",
   "create_dashboard_booking",
+  "get_dashboard_booking_slots",
   "reschedule_dashboard_booking",
   "save_form",
   "save_customer_profile",
@@ -726,16 +727,33 @@ Deno.serve(async (req: Request) => {
     return json({ data: saved });
   }
 
-  if (action === "create_dashboard_booking") {
+  if (action === "create_dashboard_booking" || action === "get_dashboard_booking_slots") {
     const businessId = String(params.p_business_id ?? "");
     const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
     if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
     const { data: page } = await admin.from("booking_pages").select("id").eq("business_id", businessId)
       .in("status", ["draft", "published"]).limit(1).maybeSingle();
     if (!page) return json({ error: "Create a booking page before scheduling appointments." }, 409);
+    if (action === "get_dashboard_booking_slots") {
+      const date = String(params.p_local_date ?? "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "Choose a booking date." }, 400);
+      const { error: expiryError } = await admin.rpc("expire_holds");
+      if (expiryError) return json({ error: "Availability could not be checked." }, 503);
+      const { data, error } = await admin.rpc("get_dashboard_booking_availability", {
+        p_booking_page_id: page.id, p_service_id: params.p_service_id,
+        p_from_date: date, p_through_date: date, p_staff_id: params.p_staff_id ?? null,
+        p_addon_quantities: [], p_seat_count: 1, p_actor_user_id: userId,
+      });
+      if (error) return json({ error: error.message, code: error.code }, error.code === "P0403" ? 403 : 400);
+      return json({ data });
+    }
     const { data: business } = await admin.from("businesses").select("timezone").eq("id", businessId).single();
     let startsAt: string;
-    try { startsAt = localDateTimeToIso(params.p_local_date, params.p_local_time, business?.timezone ?? "UTC"); }
+    try {
+      startsAt = typeof params.p_starts_at === "string"
+        ? new Date(params.p_starts_at).toISOString()
+        : localDateTimeToIso(params.p_local_date, params.p_local_time, business?.timezone ?? "UTC");
+    }
     catch (error) { return json({ error: error instanceof Error ? error.message : "Invalid appointment time" }, 400); }
     const requestKey = String(params.p_request_key ?? crypto.randomUUID());
     const subject = await subjectHash(req, serviceKey);
@@ -744,7 +762,7 @@ Deno.serve(async (req: Request) => {
       p_booking_page_id: page.id,
       p_service_id: params.p_service_id,
       p_staff_id: params.p_staff_id ?? null,
-      p_session_id: null,
+      p_session_id: params.p_session_id ?? null,
       p_starts_at: startsAt,
       p_addon_quantities: [],
       p_seat_count: 1,
@@ -826,24 +844,45 @@ Deno.serve(async (req: Request) => {
     const appointmentId = String(params.p_appointment_id ?? "");
     const nextStatus = String(params.p_status ?? "").replace("no-show", "no_show");
     if (!["pending","confirmed","completed","cancelled","no_show"].includes(nextStatus)) return json({ error: "Unsupported appointment status" }, 400);
-    const { data: member } = await admin.from("business_members").select("role,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
+    const { data: member } = await admin.from("business_members").select("id,role,all_locations,can_manage_customers").eq("business_id", businessId).eq("user_id", userId!).eq("active", true).maybeSingle();
     if (!member || (member.role !== "owner" && (member.role !== "manager" || !member.can_manage_customers))) return json({ error: "Permission denied" }, 403);
     const { data: appointment } = await admin.from("appointments").select("status,session_id,row_version").eq("business_id", businessId).eq("id", appointmentId).single();
     if (!appointment) return json({ error: "Appointment not found" }, 404);
-    const pendingDecision = params.p_pending_request === true;
-    if (pendingDecision && (appointment.status !== "pending" || !["confirmed", "cancelled"].includes(nextStatus))) {
-      return json({ error: "This booking is no longer awaiting this decision. Refresh the schedule.", code: "P0409" }, 409);
+    if (member.role !== "owner" && !member.all_locations) {
+      const { data: session } = await admin.from("booking_sessions").select("location_id")
+        .eq("business_id", businessId).eq("id", appointment.session_id).maybeSingle();
+      const { data: assignment } = session
+        ? await admin.from("member_locations").select("location_id").eq("business_id", businessId)
+          .eq("business_member_id", member.id).eq("location_id", session.location_id).maybeSingle()
+        : { data: null };
+      if (!assignment) return json({ error: "Permission denied", code: "P0403" }, 403);
+    }
+    const pendingDecision = params.p_pending_request === true || (appointment.status === "pending" && nextStatus !== "pending");
+    if (pendingDecision) {
+      if (!["confirmed", "cancelled"].includes(nextStatus)) return json({ error: "Choose Approve or Decline." }, 400);
+      const version = Number(params.p_expected_row_version ?? appointment.row_version);
+      if (!Number.isSafeInteger(version) || version < 1) return json({ error: "A current appointment version is required." }, 400);
+      const { data, error } = await admin.rpc("decide_pending_booking", {
+        p_business_id: businessId,
+        p_appointment_id: appointmentId,
+        p_actor_user_id: userId,
+        p_approve: nextStatus === "confirmed",
+        p_expected_row_version: version,
+        p_request_key: crypto.randomUUID(),
+      });
+      if (error) return json({ error: error.message, code: error.code }, error.code === "P0403" ? 403 : error.code === "P0409" ? 409 : 400);
+      return json({ data });
+    }
+    if (nextStatus === "pending" && appointment.status !== "pending") {
+      return json({ error: "Only new booking requests can be pending." }, 409);
     }
     if (appointment.status === nextStatus) return json({ data: { appointment_id: appointmentId, status: nextStatus } });
     if (appointment.status === "cancelled") return json({ error: "Cancelled appointments cannot be changed" }, 409);
     if (nextStatus === "cancelled") {
-      const { count, error: countError } = await admin.from("appointments").select("id", { count: "exact", head: true }).eq("business_id", businessId).eq("session_id", appointment.session_id).neq("status", "cancelled");
-      if (countError) return json({ error: countError.message, code: countError.code }, 400);
-      if (!pendingDecision && (count ?? 0) > 1) return json({ error: "Group bookings must be cancelled through the attendee management flow" }, 409);
       const { data, error } = await admin.rpc("cancel_appointment", {
         p_subject_hash: await subjectHash(req, serviceKey),
         p_appointment_id: appointmentId,
-        p_reason: pendingDecision ? "Booking request declined" : String(params.p_reason ?? "Cancelled by staff"),
+        p_reason: String(params.p_reason ?? "Cancelled by staff"),
         p_management_token: null,
         p_actor_user_id: userId,
         p_expected_row_version: appointment.row_version,
@@ -857,7 +896,7 @@ Deno.serve(async (req: Request) => {
       .select("id").maybeSingle();
     if (updateError) return json({ error: updateError.message, code: updateError.code }, 400);
     if (!updated) return json({ error: "Appointment changed. Refresh the schedule before retrying.", code: "P0409" }, 409);
-    const { error: historyError } = await admin.from("appointment_status_history").insert({ business_id: businessId, appointment_id: appointmentId, from_status: appointment.status, to_status: nextStatus, actor_user_id: userId, actor_type: "user", reason: pendingDecision ? "Booking request approved" : String(params.p_reason ?? "") });
+    const { error: historyError } = await admin.from("appointment_status_history").insert({ business_id: businessId, appointment_id: appointmentId, from_status: appointment.status, to_status: nextStatus, actor_user_id: userId, actor_type: "user", reason: String(params.p_reason ?? "") });
     if (historyError) return json({ error: historyError.message, code: historyError.code }, 400);
     return json({ data: { appointment_id: appointmentId, status: nextStatus } });
   }
@@ -950,10 +989,11 @@ Deno.serve(async (req: Request) => {
     const { data: customer, error: customerError } = await admin.from("customers").select("id").eq("business_id", businessId).eq("id", customerId).is("archived_at", null).maybeSingle();
     if (customerError) return json({ error: customerError.message, code: customerError.code }, 400);
     if (!customer) return json({ error: "Customer not found in this business" }, 404);
-    const note = typeof params.p_note === "string" ? params.p_note.trim() : "";
-    if (note) {
-      const { data: latest } = await admin.from("customer_notes").select("body").eq("business_id", businessId).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (latest?.body !== note) {
+    if (typeof params.p_note === "string") {
+      const note = params.p_note.trim();
+      const { data: latest, error: latestNoteError } = await admin.from("customer_notes").select("body").eq("business_id", businessId).eq("customer_id", customerId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+      if (latestNoteError) return json({ error: latestNoteError.message, code: latestNoteError.code }, 400);
+      if ((latest?.body ?? "") !== note) {
         const { error: noteError } = await admin.from("customer_notes").insert({ business_id: businessId, customer_id: customerId, author_user_id: userId, body: note });
         if (noteError) return json({ error: noteError.message, code: noteError.code }, 400);
       }

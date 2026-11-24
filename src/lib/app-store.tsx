@@ -20,7 +20,8 @@ export type Invoice = { id: string; customerId: string; number: string; amount: 
 export type AiReceptionist = { name: string; greeting: string; transferPhone: string; voice: string; afterHours: "take-message" | "offer-callback"; recordingEnabled: boolean; disclosureEnabled: boolean };
 export type CallLog = { id: string; caller: string; startedAt: string; durationSeconds: number; outcome: "booked" | "message" | "transferred"; summary: string; appointmentId?: string; sandbox: true };
 export type BlockedTime = { id: string; staffId?: string; date: string; start: string; end: string; reason: string; createdAt: string };
-export type Workspace = { business: Business; memberRole: "owner" | "manager" | "staff"; memberPermissions: Record<string, boolean>; members: MemberAccess[]; services: Service[]; customers: Customer[]; appointments: Appointment[]; blockedTimes: BlockedTime[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
+export type WorkspaceLocation = { id: string; name: string; timezone: string };
+export type Workspace = { business: Business; locations: WorkspaceLocation[]; memberRole: "owner" | "manager" | "staff"; memberPermissions: Record<string, boolean>; members: MemberAccess[]; services: Service[]; customers: Customer[]; appointments: Appointment[]; blockedTimes: BlockedTime[]; integrations: Integration[]; staff: Staff[]; forms: BusinessForm[]; formSubmissions: FormSubmission[]; workflows: Workflow[]; invoices: Invoice[]; aiReceptionist: AiReceptionist; callLogs: CallLog[] };
 
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const defaultHours = Object.fromEntries(days.map((day, index) => [day, { open: "09:00", close: "17:00", enabled: index < 5 }])) as Business["hours"];
@@ -60,6 +61,7 @@ export const seedWorkspace: Workspace = {
   forms: [
     { id: "form_intake", name: "New client intake", description: "Collect goals and project context before the first appointment.", active: true, submissions: 0, createdAt: "2026-10-12", fields: [{ id: "fld_name", label: "Full name", type: "text", required: true }, { id: "fld_email", label: "Email", type: "email", required: true }, { id: "fld_goals", label: "What would you like to accomplish?", type: "textarea", required: true }] },
   ],
+  locations: [],
   formSubmissions: [],
   workflows: [
     { id: "flow_confirmation", name: "Booking confirmation", trigger: "New booking", action: "Send confirmation email", active: false, runs: 0 },
@@ -87,7 +89,7 @@ type Store = {
   addCustomer: (customer: Omit<Customer, "id" | "createdAt">, source?: "manual" | "import") => Promise<Customer>;
   updateCustomer: (id: string, patch: Partial<Customer>) => Promise<void>;
   mergeCustomer: (sourceId: string, destinationId: string) => Promise<void>;
-  addAppointment: (appointment: Omit<Appointment, "id" | "createdAt" | "manageToken">) => Promise<{ appointment?: Appointment; error?: string; warning?: string }>;
+  addAppointment: (appointment: Omit<Appointment, "id" | "createdAt" | "manageToken">, slot: { starts_at: string; session_id: string | null }) => Promise<{ appointment?: Appointment; error?: string; warning?: string }>;
   updateAppointment: (id: string, patch: Partial<Appointment>, pendingRequest?: boolean) => Promise<void>;
   rescheduleAppointment: (id: string, startsAt: string, slotDate: string, rowVersion: number) => Promise<void>;
   addBlockedTime: (block: Omit<BlockedTime, "id" | "createdAt">) => Promise<{ block?: BlockedTime; error?: string }>;
@@ -113,7 +115,7 @@ function emptyWorkspace(): Workspace {
     memberPermissions: {},
     members: [],
     business: { id: "", name: "", slug: "", industry: "", email: "", phone: "", address: "", timezone: "America/New_York", accent: "#6d5dfc", setupComplete: false, hours: defaultHours },
-    services: [], customers: [], appointments: [], blockedTimes: [], integrations: [], staff: [], forms: [], formSubmissions: [], workflows: [], invoices: [],
+    locations: [], services: [], customers: [], appointments: [], blockedTimes: [], integrations: [], staff: [], forms: [], formSubmissions: [], workflows: [], invoices: [],
     aiReceptionist: { name: "Ava", greeting: "", transferPhone: "", voice: "Warm and professional", afterHours: "take-message", recordingEnabled: false, disclosureEnabled: true },
     callLogs: [],
   };
@@ -147,6 +149,7 @@ function mapSnapshot(snapshot: any): Workspace {
     memberPermissions: Object.fromEntries(Object.entries(snapshot.membership ?? {}).filter(([key]) => key.startsWith("can_")).map(([key, value]) => [key, value === true])),
     members: (snapshot.team_members ?? []).filter((item: any) => item.id).map((item: any): MemberAccess => ({ id: item.id, userId: item.user_id, name: item.display_name || snapshot.staff?.find((profile: any) => profile.user_id === item.user_id)?.display_name || "Team member", role: item.role, active: item.active, allLocations: item.all_locations, rowVersion: Number(item.row_version), permissions: Object.fromEntries(Object.entries(item).filter(([key]) => key.startsWith("can_")).map(([key, value]) => [key, value === true])) })),
     business: { id: business.id, name: business.name, slug: business.slug, industry: business.industry, email: business.email ?? "", phone: business.phone_e164 ?? "", address: [location.address_line1, location.address_line2, location.city, location.region, location.postal_code].filter(Boolean).join(", "), timezone: business.timezone, currency: business.currency, defaultLocationId: location.id, accent: business.accent_color, setupComplete: Boolean(business.setup_completed_at), bookingPagePublished: (snapshot.booking_pages ?? []).some((page: any) => page.status === "published" && Boolean(page.published_at)), hours: hourMap },
+    locations: (snapshot.locations ?? []).filter((row: any) => row.active !== false).map((row: any) => ({ id: row.id, name: row.name || "Location", timezone: row.timezone || business.timezone })),
     services, customers, appointments, blockedTimes, staff,
     integrations: (snapshot.integrations ?? []).map((item: any): Integration => ({ id: item.id, name: String(item.provider).replaceAll("_", " ").replace(/\b\w/g, (letter: string) => letter.toUpperCase()), description: "Provider connection", status: item.status === "connected" ? "connected" : item.status === "pending_approval" ? "pending-approval" : "not-configured", category: "Integration" })),
     forms: (snapshot.forms ?? []).map((item: any): BusinessForm => ({ id: item.id, name: item.name, description: item.description, active: item.status === "published", fields: (snapshot.form_fields ?? []).filter((field: any) => field.form_version_id === item.active_version_id).map((field: any): FormField => ({ id: field.id, label: field.label, type: field.field_type === "name" ? "text" : field.field_type, required: field.required, options: (field.options ?? []).map((option: any) => option.label), customerMapping: field.customer_mapping ?? undefined })), submissions: (snapshot.form_submissions ?? []).filter((submission: any) => submission.form_id === item.id).length, createdAt: item.created_at })),
@@ -203,15 +206,14 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     addCustomer: async (input, source = "manual") => { const customer = { ...input, id: crypto.randomUUID(), createdAt: new Date().toISOString() }; await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "customer", p_operation: "insert", p_id: customer.id, p_values: { full_name: customer.name, email: customer.email || null, phone_e164: customer.phone || null, source } }); setWorkspace((current) => ({ ...current, customers: [...current.customers, { ...customer, notes: "", tags: [] }] })); if (customer.notes || customer.tags.length) { try { await invokeBackend("save_customer_profile", { p_business_id: workspace.business.id, p_customer_id: customer.id, p_note: customer.notes, p_tags: customer.tags }); } catch (caught) { throw new Error(`Customer was created, but notes or tags could not be saved: ${caught instanceof Error ? caught.message : "Unknown error"}`); } } setWorkspace((current) => ({ ...current, customers: current.customers.map((item) => item.id === customer.id ? customer : item) })); return customer; },
     updateCustomer: async (id, patch) => { await invokeBackend("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "customer", p_operation: "update", p_id: id, p_values: { full_name: patch.name, email: patch.email, phone_e164: patch.phone } }); setWorkspace((current) => ({ ...current, customers: current.customers.map((customer) => customer.id === id ? { ...customer, name: patch.name ?? customer.name, email: patch.email ?? customer.email, phone: patch.phone ?? customer.phone } : customer) })); if (patch.notes !== undefined || patch.tags !== undefined) { const current = workspace.customers.find((customer) => customer.id === id); try { await invokeBackend("save_customer_profile", { p_business_id: workspace.business.id, p_customer_id: id, p_note: patch.notes ?? current?.notes ?? "", p_tags: patch.tags ?? current?.tags ?? [] }); } catch (caught) { throw new Error(`Contact details were saved, but notes or tags could not be saved: ${caught instanceof Error ? caught.message : "Unknown error"}`); } } setWorkspace((current) => ({ ...current, customers: current.customers.map((customer) => customer.id === id ? { ...customer, ...patch } : customer) })); },
     mergeCustomer: async (sourceId, destinationId) => { let mergeError: unknown; try { await invokeBackend("merge_customers", { p_source_customer_id: sourceId, p_destination_customer_id: destinationId, p_request_key: crypto.randomUUID() }); } catch (caught) { mergeError = caught; } let snapshot: Record<string, any>; try { snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: workspace.business.id }); } catch { throw new Error("Merge outcome could not be confirmed. Reload the page before trying again."); } setWorkspace(mapSnapshot(snapshot)); const source = (snapshot["customers"] ?? []).find((item: any) => item.id === sourceId); if (source?.status === "merged" && source?.merged_into_customer_id === destinationId) return; if (mergeError) throw mergeError; },
-    addAppointment: async (input) => {
-      const start = minutes(input.time); const end = start + input.duration;
-      const conflict = workspace.appointments.some((item) => item.date === input.date && item.status !== "cancelled" && (!input.staffId || !item.staffId || item.staffId === input.staffId) && start < minutes(item.time) + item.duration && end > minutes(item.time));
-      if (conflict) return { error: "That time is no longer available. Choose another time." };
-      const blocked = workspace.blockedTimes.some((item) => item.date === input.date && (!item.staffId || !input.staffId || item.staffId === input.staffId) && start < minutes(item.end) && end > minutes(item.start));
-      if (blocked) return { error: "That team member is unavailable during the selected time." };
+    addAppointment: async (input, slot) => {
       try {
-        const result = await invokeBackend<{ appointment_id: string }>("create_dashboard_booking", { p_business_id: workspace.business.id, p_service_id: input.serviceId, p_customer_id: input.customerId, p_staff_id: input.staffId ?? null, p_local_date: input.date, p_local_time: input.time, p_notes: input.notes ?? "", p_request_key: crypto.randomUUID() });
-        const appointment = { ...input, id: result.appointment_id, createdAt: new Date().toISOString(), manageToken: "" };
+        const result = await invokeBackend<{ appointment_id: string; status: AppointmentStatus }>("create_dashboard_booking", {
+          p_business_id: workspace.business.id, p_service_id: input.serviceId, p_customer_id: input.customerId,
+          p_staff_id: input.staffId ?? null, p_starts_at: slot.starts_at, p_session_id: slot.session_id,
+          p_notes: input.notes ?? "", p_request_key: crypto.randomUUID(),
+        });
+        const appointment = { ...input, status: result.status, id: result.appointment_id, createdAt: new Date().toISOString(), manageToken: "" };
         try { const snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: workspace.business.id }); setWorkspace(mapSnapshot(snapshot)); return { appointment }; }
         catch { setWorkspace((current) => ({ ...current, appointments: [...current.appointments, appointment] })); return { appointment, warning: "Booking created, but the schedule could not refresh. Reload before changing it." }; }
       } catch (caught) { return { error: caught instanceof Error ? caught.message : "The appointment could not be created." }; }
@@ -222,7 +224,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         p_business_id: workspace.business.id,
         p_appointment_id: id,
         p_status: patch.status,
-        ...(pendingRequest && { p_pending_request: true }),
+        ...(pendingRequest && {
+          p_pending_request: true,
+          p_expected_row_version: workspace.appointments.find((appointment) => appointment.id === id)?.rowVersion,
+        }),
       });
       try {
         const snapshot = await invokeBackend<Record<string, any>>("get_workspace_snapshot", { p_business_id: workspace.business.id });
