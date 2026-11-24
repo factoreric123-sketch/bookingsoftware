@@ -33,3 +33,4 @@ use the editor.
 - Connected authorization regression tests are opt-in and require isolated test-user tokens from environment variables, preventing ordinary tests from mutating production data.
 - Leaf routes use the shared pageHead helper for unique metadata while keeping public capability tokens out of metadata.
 - Replacement-slot reads use a separate stable RPC and collision helper with own-session exclusion; never deactivate reservations to preview slots, so previews remain read-only.
+- Booking-page drafts and live service selections stay in private tenant-scoped tables; shared booking cores apply public visibility only on public paths, with explicit-actor dashboard wrappers for authorized non-public bookings.
