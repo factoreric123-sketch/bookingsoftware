@@ -13,6 +13,7 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Multi-hour blocked time renders once in day view instead of repeating in every covered hour.
 - Empty day-calendar hours expose a keyboard-accessible quick action to prefill a one-hour staff block.
 - The sidebar business avatar now uses the active business initials instead of a hard-coded letter.
+- Booking rows now open an in-context appointment summary with status, customer contact links, staff, source, and available booking/customer notes.
 
 ## Verified
 
@@ -28,7 +29,7 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 2. Add pending team-invitation management: list, expiry, copy link, revoke, and reissue. Email delivery can remain deferred.
 3. Add form-specific paginated submissions and answer export so one busy form cannot crowd older submissions out of the workspace snapshot.
 4. Add customer phone collection modes (hidden, optional, required) to the booking-page draft and enforce the published setting in the booking transaction.
-5. Add appointment details drawers from Calendar and Bookings so staff can inspect notes, customer details, history, and intake without leaving context.
+5. Extend the new booking-list appointment summary to Calendar events, status history, and intake answers.
 6. Add saved operational views for common filters such as “Today”, “Awaiting approval”, and “My appointments”.
 7. Split the large dashboard route into lazy-loaded section modules; the current production build warns that the main app chunk exceeds 500 kB.
 8. Add direct item targeting from global search, not only section navigation, after customer and service detail routes exist.

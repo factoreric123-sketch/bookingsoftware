@@ -553,6 +553,28 @@ function AppointmentRow({ id }: { id: string }) {
   );
 }
 
+function AppointmentDetailsModal({ appointmentId, onClose }: { appointmentId: string; onClose: () => void }) {
+  const { workspace } = useAppStore();
+  const appointment = workspace.appointments.find((item) => item.id === appointmentId);
+  if (!appointment) return null;
+  const customer = workspace.customers.find((item) => item.id === appointment.customerId);
+  const service = workspace.services.find((item) => item.id === appointment.serviceId);
+  const staff = workspace.staff.find((item) => item.id === appointment.staffId);
+  return <Modal title="Appointment details" onClose={onClose}>
+    <div className="appointment-detail-hero"><span className={`status ${appointment.status}`}>{appointment.status}</span><div><b>{service?.name ?? "Appointment"}</b><p>{formatDate(appointment.date)} at {prettyTime(appointment.time)} · {appointment.duration} min</p></div></div>
+    <dl className="appointment-detail-list">
+      <div><dt>Customer</dt><dd>{customer?.name ?? "Unknown customer"}</dd></div>
+      <div><dt>Email</dt><dd>{customer?.email ? <a href={`mailto:${customer.email}`}>{customer.email}</a> : "Not provided"}</dd></div>
+      <div><dt>Phone</dt><dd>{customer?.phone ? <a href={`tel:${customer.phone}`}>{customer.phone}</a> : "Not provided"}</dd></div>
+      <div><dt>Staff</dt><dd>{staff?.name ?? "Unassigned"}</dd></div>
+      <div><dt>Source</dt><dd>{appointment.source === "booking-page" ? "Booking page" : "Dashboard"}</dd></div>
+      {appointment.notes && <div><dt>Booking notes</dt><dd>{appointment.notes}</dd></div>}
+      {customer?.notes && <div><dt>Customer notes</dt><dd>{customer.notes}</dd></div>}
+    </dl>
+    <button type="button" className="secondary-action" onClick={onClose}>Close</button>
+  </Modal>;
+}
+
 function CalendarWorkspace() {
   const { workspace, addBlockedTime, removeBlockedTime } = useAppStore();
   const [view, setView] = useState<"day" | "week" | "month">("week");
@@ -820,6 +842,7 @@ function Bookings({ title }: { title: string }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("upcoming");
   const [reschedulingId, setReschedulingId] = useState("");
+  const [detailId, setDetailId] = useState("");
   const [replacement, setReplacement] = useState<ReplacementSlot | null>(null);
   const [slotRefresh, setSlotRefresh] = useState(0);
   const [rescheduling, setRescheduling] = useState(false);
@@ -1020,9 +1043,7 @@ function Bookings({ title }: { title: string }) {
                     </select>
                   </span>
                   <span>{item.source === "booking-page" ? "Booking page" : "Dashboard"}</span>
-                  <button disabled={(item.status !== "pending" && item.status !== "confirmed") || !item.rowVersion} onClick={() => { setReschedulingId(item.id); setReplacement(null); setError(""); }}>
-                    Reschedule
-                  </button>
+                  <div className="booking-row-actions"><button type="button" onClick={() => setDetailId(item.id)}>Details</button><button disabled={(item.status !== "pending" && item.status !== "confirmed") || !item.rowVersion} onClick={() => { setReschedulingId(item.id); setReplacement(null); setError(""); }}>Reschedule</button></div>
                 </div>
               );
             })}
@@ -1037,6 +1058,7 @@ function Bookings({ title }: { title: string }) {
           }}>Clear filters</button>}
         </div>}
       </div>
+      {detailId && <AppointmentDetailsModal appointmentId={detailId} onClose={() => setDetailId("")} />}
       {showForm && (
         <Modal title="Create booking" onClose={() => setShowForm(false)}>
           <label>
