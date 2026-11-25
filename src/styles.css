@@ -216,6 +216,7 @@
 .customer-empty .secondary-action { margin-top: 5px; }
 .customer-profile-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #eceaf0; padding-top: 14px; }
 .modal-body label > small { color: #918e99; font-weight: 500; }
+.form-builder-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #eceaf0; padding-top: 14px; }
 .schedule-exception-fields { display: grid; gap: 12px; }
 .service-intake-settings { margin-bottom: 16px; }
 .service-intake-settings fieldset, .booking-intake-fields { display: grid; gap: 12px; min-width: 0; }

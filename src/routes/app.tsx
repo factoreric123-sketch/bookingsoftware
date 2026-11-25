@@ -2731,6 +2731,7 @@ function Forms() {
   const [formError, setFormError] = useState("");
   const [copiedFormId, setCopiedFormId] = useState("");
   const [savingForm, setSavingForm] = useState(false);
+  const [updatingFormId, setUpdatingFormId] = useState("");
   const [editingId, setEditingId] = useState("");
   const [name, setName] = useState("");
   const [query, setQuery] = useState("");
@@ -2758,23 +2759,50 @@ function Forms() {
         required: false,
       },
     ]);
+  const normalizeField = (field: FormField): FormField => {
+    const choiceField = field.type === "select" || field.type === "radio";
+    const { options: _options, ...base } = field;
+    return choiceField
+      ? { ...base, label: field.label.trim(), options: (field.options ?? []).map((option) => option.trim()).filter(Boolean) }
+      : { ...base, label: field.label.trim() };
+  };
+  const normalizedFields = fields.map(normalizeField);
+  const duplicateLabel = normalizedFields.find((field, index) =>
+    normalizedFields.findIndex((candidate) => candidate.label.toLowerCase() === field.label.toLowerCase()) !== index,
+  );
+  const mappedFields = normalizedFields.filter((field) => field.customerMapping);
+  const duplicateMapping = mappedFields.find((field, index) =>
+    mappedFields.findIndex((candidate) => candidate.customerMapping === field.customerMapping) !== index,
+  );
+  const invalidChoice = normalizedFields.find((field) => (field.type === "select" || field.type === "radio") && (
+    !field.options || field.options.length < 2 || field.options.length > 20 ||
+    field.options.some((option) => option.length > 100) ||
+    new Set(field.options.map((option) => option.toLowerCase())).size !== field.options.length
+  ));
+  const formValidation = !name.trim()
+    ? "Add a form name."
+    : normalizedFields.some((field) => !field.label)
+      ? "Every question needs a label."
+      : duplicateLabel
+        ? `Question labels must be unique. “${duplicateLabel.label}” is repeated.`
+        : duplicateMapping
+          ? `Only one question can update each CRM field. “${duplicateMapping.label}” repeats a mapping.`
+          : invalidChoice
+            ? `${invalidChoice.label}: add 2–20 distinct options, one per line.`
+            : "";
+  const editingForm = workspace.forms.find((form) => form.id === editingId);
+  const formDirty = !editingForm || name.trim() !== editingForm.name.trim() || JSON.stringify(normalizedFields) !== JSON.stringify(editingForm.fields.map(normalizeField));
   const save = async () => {
-    if (!name) return;
-    const invalidChoice = fields.find((field) => (field.type === "select" || field.type === "radio") && (
-      !field.options || field.options.length < 2 || field.options.length > 20 ||
-      field.options.some((option) => !option || option.length > 100) ||
-      new Set(field.options.map((option) => option.toLowerCase())).size !== field.options.length
-    ));
-    if (invalidChoice) { setFormError(`${invalidChoice.label}: add 2–20 distinct options, one per line.`); return; }
+    if (formValidation) { setFormError(formValidation); return; }
     setSavingForm(true); setFormError("");
     try {
       if (editingId) {
-        await updateForm(editingId, { name, fields });
+        await updateForm(editingId, { name: name.trim(), fields: normalizedFields });
         setShow(false);
         setEditingId("");
         return;
       }
-      const form = await addForm({ name, description: "Custom customer intake form", active: true, fields });
+      const form = await addForm({ name: name.trim(), description: "Custom customer intake form", active: true, fields: normalizedFields });
       setSelectedFormId(form.id);
       setShow(false);
       setName("");
@@ -2792,6 +2820,11 @@ function Forms() {
     setShow(true);
   };
   const selectedForm = workspace.forms.find((form) => form.id === selectedFormId);
+  const chooseForm = (formId: string) => {
+    setSelectedFormId(formId);
+    setSelectedSubmissionId("");
+    setQuery("");
+  };
   const submissions = workspace.formSubmissions
     .filter((submission) => submission.formId === selectedFormId)
     .filter((submission) => {
@@ -2800,7 +2833,7 @@ function Forms() {
         .toLowerCase()
         .includes(query.toLowerCase());
     })
-    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt));
+    .sort((a, b) => String(b.submittedAt ?? "").localeCompare(String(a.submittedAt ?? "")));
   const selectedSubmission = workspace.formSubmissions.find(
     (submission) => submission.id === selectedSubmissionId,
   );
@@ -2812,7 +2845,7 @@ function Forms() {
       const customer = workspace.customers.find((item) => item.id === submission.customerId);
       return submission.fields.map((field) => [
         submission.id,
-        new Date(submission.submittedAt).toISOString(),
+        submission.submittedAt && !Number.isNaN(new Date(submission.submittedAt).getTime()) ? new Date(submission.submittedAt).toISOString() : "Date unavailable",
         customer?.name ?? "Unmatched",
         field.label,
         String(submission.answers[field.id] ?? ""),
@@ -2877,7 +2910,8 @@ function Forms() {
                 <input
                   type="checkbox"
                   checked={form.active}
-                  onChange={async (e) => { try { setFormError(""); await updateForm(form.id, { active: e.target.checked }); } catch (caught) { setFormError(caught instanceof Error ? caught.message : "Form status could not be changed."); } }}
+                  disabled={updatingFormId === form.id}
+                  onChange={async (e) => { try { setFormError(""); setUpdatingFormId(form.id); await updateForm(form.id, { active: e.target.checked }); } catch (caught) { setFormError(caught instanceof Error ? caught.message : "Form status could not be changed."); } finally { setUpdatingFormId(""); } }}
                 />
                 <i />
               </label>
@@ -2891,7 +2925,7 @@ function Forms() {
                 {copiedFormId === form.id ? "Copied" : form.active ? "Copy link" : "Publish first"}
               </button>
             </div>
-            <button className="submission-action" onClick={() => setSelectedFormId(form.id)}>
+            <button className="submission-action" onClick={() => chooseForm(form.id)}>
               View submissions
             </button>
           </article>
@@ -2928,7 +2962,7 @@ function Forms() {
           </div>
           <select
             value={selectedFormId}
-            onChange={(event) => setSelectedFormId(event.target.value)}
+            onChange={(event) => chooseForm(event.target.value)}
           >
             {workspace.forms.map((form) => (
               <option value={form.id} key={form.id}>
@@ -2950,7 +2984,7 @@ function Forms() {
                     <b>{customer?.name ?? "Unmatched respondent"}</b>
                     <small>
                       {customer?.email || "No customer email"} ·{" "}
-                      {new Date(submission.submittedAt).toLocaleString()}
+                      {submission.submittedAt && !Number.isNaN(new Date(submission.submittedAt).getTime()) ? new Date(submission.submittedAt).toLocaleString() : "Date unavailable"}
                     </small>
                     <p>
                       {submission.fields
@@ -3002,13 +3036,16 @@ function Forms() {
                 />
                 <select
                   value={field.type}
-                  onChange={(e) =>
-                    setFields(
-                      fields.map((item, i) =>
-                        i === index ? { ...item, type: e.target.value as typeof field.type } : item,
-                      ),
-                    )
-                  }
+                  onChange={(e) => {
+                    const type = e.target.value as typeof field.type;
+                    setFields(fields.map((item, i) => {
+                      if (i !== index) return item;
+                      if (type === "select" || type === "radio") return { ...item, type };
+                      const { options: _options, ...withoutOptions } = item;
+                      return { ...withoutOptions, type };
+                    }));
+                    if (type !== "select" && type !== "radio") setOptionDrafts((current) => { const next = { ...current }; delete next[field.id]; return next; });
+                  }}
                 >
                   <option value="text">Short text</option>
                   <option value="email">Email</option>
@@ -3074,10 +3111,10 @@ function Forms() {
             <Plus size={15} />
             Add field
           </button>
-          {formError && <p className="form-error" role="alert">{formError}</p>}
-          <button className="solid-action full" onClick={save} disabled={savingForm}>
+          {(formError || (name.trim() && formValidation)) && <p className="form-error" role="alert">{formError || formValidation}</p>}
+          <div className="form-builder-actions">{editingForm && formDirty && <button type="button" className="secondary-action" onClick={() => editForm(editingForm)}>Discard changes</button>}<button className="solid-action" onClick={save} disabled={savingForm || Boolean(formValidation) || !formDirty}>
             {savingForm ? "Saving…" : editingId ? "Publish new version" : "Save form"}
-          </button>
+          </button></div>
         </Modal>
       )}
       {selectedSubmission && (
@@ -3094,7 +3131,7 @@ function Forms() {
                 {workspace.customers.find((item) => item.id === selectedSubmission.customerId)
                   ?.name ?? "Unmatched respondent"}
               </b>
-              <small>Submitted {new Date(selectedSubmission.submittedAt).toLocaleString()}</small>
+              <small>Submitted {selectedSubmission.submittedAt && !Number.isNaN(new Date(selectedSubmission.submittedAt).getTime()) ? new Date(selectedSubmission.submittedAt).toLocaleString() : "date unavailable"}</small>
             </div>
           </div>
           <div className="answer-list">

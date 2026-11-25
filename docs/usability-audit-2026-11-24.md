@@ -36,6 +36,9 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Removed the unnecessary email requirement for manual customer creation while retaining optional-email validation and adding editable creation tags.
 - Added recoverable customer search empty states plus profile validation, dirty-state protection, and discard controls.
 - Prevented incomplete legacy activity timestamps from crashing customer profiles; affected entries now show a safe fallback.
+- Added form-builder safeguards for blank or repeated question labels, repeated CRM mappings, and invalid choice lists before a form version can be published.
+- Added form draft dirty-state protection and a one-click discard path while editing an existing form.
+- Prevented duplicate form-status requests, reset stale submission searches when switching forms, and made malformed legacy submission dates safe in lists, details, sorting, and CSV export.
 
 ## Verified
 
