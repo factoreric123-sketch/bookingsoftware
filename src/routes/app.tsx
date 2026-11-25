@@ -3566,20 +3566,24 @@ function Analytics() {
 function BusinessSettings() {
   const { workspace, updateBusiness } = useAppStore();
   const [business, setBusiness] = useState(workspace.business);
-  const [policy, setPolicy] = useState<Record<string, number> | null>(null);
+  const [policy, setPolicy] = useState<Record<string, number | boolean | null> | null>(null);
+  const [savedPolicy, setSavedPolicy] = useState<Record<string, number | boolean | null> | null>(null);
   const [dailyLimit, setDailyLimit] = useState<number | null>(null);
   const [manualApproval, setManualApproval] = useState(false);
   const [policyError, setPolicyError] = useState("");
   const [policySaved, setPolicySaved] = useState(false);
   const [policySaving, setPolicySaving] = useState(false);
+  const [policyReload, setPolicyReload] = useState(0);
+  useEffect(() => { setBusiness(workspace.business); setSaved(false); setSaveError(""); }, [workspace.business]);
   useEffect(() => {
     let active = true;
     setPolicy(null);
+    setPolicyError("");
     invokeBackend<{ settings: Record<string, number | boolean | null> }>("get_workspace_snapshot", { p_business_id: workspace.business.id })
-      .then((snapshot) => { if (active) { setPolicy(snapshot.settings as Record<string, number>); setDailyLimit(typeof snapshot.settings["maximum_appointments_per_day"] === "number" ? snapshot.settings["maximum_appointments_per_day"] : null); setManualApproval(snapshot.settings["manual_approval_required"] === true); } })
+      .then((snapshot) => { if (active) { setPolicy(snapshot.settings); setSavedPolicy(snapshot.settings); setDailyLimit(typeof snapshot.settings["maximum_appointments_per_day"] === "number" ? snapshot.settings["maximum_appointments_per_day"] : null); setManualApproval(snapshot.settings["manual_approval_required"] === true); } })
       .catch((caught) => { if (active) setPolicyError(caught instanceof Error ? caught.message : "Booking policy could not be loaded."); });
     return () => { active = false; };
-  }, [workspace.business.id]);
+  }, [workspace.business.id, policyReload]);
   const policyFields = [
     { key: "slot_interval_minutes", label: "Slot interval (minutes)", min: 5, max: 120 },
     { key: "minimum_notice_minutes", label: "Minimum booking notice (minutes)", min: 0, max: 525600 },
@@ -3593,7 +3597,7 @@ function BusinessSettings() {
     try {
       const values = { ...Object.fromEntries(policyFields.map(({ key }) => [key, policy[key]])), maximum_appointments_per_day: dailyLimit, manual_approval_required: manualApproval };
       const updated = await invokeBackend<Record<string, number | boolean | null>>("mutate_workspace", { p_business_id: workspace.business.id, p_entity: "business_settings", p_operation: "update", p_values: values });
-      setPolicy(updated as Record<string, number>); setDailyLimit(typeof updated["maximum_appointments_per_day"] === "number" ? updated["maximum_appointments_per_day"] : null); setManualApproval(updated["manual_approval_required"] === true); setPolicySaved(true);
+      setPolicy(updated); setSavedPolicy(updated); setDailyLimit(typeof updated["maximum_appointments_per_day"] === "number" ? updated["maximum_appointments_per_day"] : null); setManualApproval(updated["manual_approval_required"] === true); setPolicySaved(true);
     } catch (caught) { setPolicyError(caught instanceof Error ? caught.message : "Booking policy could not be saved."); }
     finally { setPolicySaving(false); }
   };
@@ -3604,12 +3608,28 @@ function BusinessSettings() {
   const [saveError, setSaveError] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const profileValues = { name: String(business.name ?? "").trim(), industry: String(business.industry ?? "").trim(), email: String(business.email ?? "").trim(), phone: String(business.phone ?? "").trim() };
+  const savedProfileValues = { name: String(workspace.business.name ?? "").trim(), industry: String(workspace.business.industry ?? "").trim(), email: String(workspace.business.email ?? "").trim(), phone: String(workspace.business.phone ?? "").trim() };
+  const profileDirty = JSON.stringify(profileValues) !== JSON.stringify(savedProfileValues);
+  const invalidEmail = Boolean(profileValues.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileValues.email);
+  const policyValues = policy ? { ...Object.fromEntries(policyFields.map(({ key }) => [key, policy[key]])), maximum_appointments_per_day: dailyLimit, manual_approval_required: manualApproval } : null;
+  const savedPolicyValues = savedPolicy ? { ...Object.fromEntries(policyFields.map(({ key }) => [key, savedPolicy[key]])), maximum_appointments_per_day: savedPolicy["maximum_appointments_per_day"] ?? null, manual_approval_required: savedPolicy["manual_approval_required"] === true } : null;
+  const policyDirty = JSON.stringify(policyValues) !== JSON.stringify(savedPolicyValues);
+  const resetPolicy = () => {
+    if (!savedPolicy) return;
+    setPolicy(savedPolicy);
+    setDailyLimit(typeof savedPolicy["maximum_appointments_per_day"] === "number" ? savedPolicy["maximum_appointments_per_day"] : null);
+    setManualApproval(savedPolicy["manual_approval_required"] === true);
+    setPolicyError("");
+    setPolicySaved(false);
+  };
   const save = async () => {
     setSaving(true);
     setSaved(false);
     setSaveError("");
     try {
-      await updateBusiness({ name: business.name, industry: business.industry, email: business.email, phone: business.phone });
+      await updateBusiness(profileValues);
+      setBusiness((current) => ({ ...current, ...profileValues }));
       setSaved(true);
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : "Unable to save business profile.");
@@ -3624,16 +3644,17 @@ function BusinessSettings() {
         copy="Manage the details customers see across your booking experience."
       />
       <div className="settings-layout">
-        <aside>
-          <button className="active" disabled>Business profile</button>
+        <aside className="settings-nav" aria-label="Settings sections">
+          <a href="#business-profile">Business profile</a>
+          <a href="#booking-rules">Booking rules</a>
         </aside>
-        <section className="panel settings-form">
+        <section className="panel settings-form" id="business-profile">
           <h2>Business profile</h2>
           <p>These details appear on confirmations and your public booking page.</p>
           <div className="field-pair">
             <label>
               Business name
-              <input
+                <input required
                 value={business.name}
                 onChange={(e) => setBusiness({ ...business, name: e.target.value })}
               />
@@ -3641,7 +3662,7 @@ function BusinessSettings() {
             <label>
               Industry
               <input
-                value={business.industry}
+                value={business.industry ?? ""}
                 onChange={(e) => setBusiness({ ...business, industry: e.target.value })}
               />
             </label>
@@ -3660,15 +3681,15 @@ function BusinessSettings() {
           <div className="field-pair">
             <label>
               Email
-              <input
-                value={business.email}
+              <input type="email" autoComplete="email"
+                value={business.email ?? ""}
                 onChange={(e) => setBusiness({ ...business, email: e.target.value })}
               />
             </label>
             <label>
               Phone
-              <input
-                value={business.phone}
+              <input type="tel" autoComplete="tel"
+                value={business.phone ?? ""}
                 onChange={(e) => setBusiness({ ...business, phone: e.target.value })}
               />
             </label>
@@ -3676,27 +3697,31 @@ function BusinessSettings() {
           <label>
             Address
             <input
-              value={business.address}
+              value={business.address ?? ""}
               readOnly
             />
           </label>
           <p>The address comes from your booking location and is read only in this profile.</p>
           <div className="settings-actions">
-            <button className="solid-action" onClick={save} disabled={saving}>
+            {profileDirty && <button type="button" className="secondary-action" onClick={() => { setBusiness(workspace.business); setSaveError(""); setSaved(false); }}>Discard changes</button>}
+            <button className="solid-action" onClick={save} disabled={saving || !profileDirty || !profileValues.name || invalidEmail}>
               {saving ? "Saving…" : "Save changes"}
             </button>
           </div>
+          {!profileValues.name && <p role="alert" className="form-error">Business name is required.</p>}
+          {invalidEmail && <p role="alert" className="form-error">Enter a valid business email address.</p>}
           {saveError && <p role="alert" className="form-error">{saveError}</p>}
           {saved && <p role="status">Business profile saved.</p>}
         </section>
-        <section className="panel settings-form">
+        <section className="panel settings-form" id="booking-rules">
           <h2>Booking rules</h2>
           <p>These limits apply to new bookings and customer changes. Enter zero minutes to allow an action until its appointment starts.</p>
           {!policy && !policyError && <p role="status">Loading booking rules…</p>}
-          {policy && <div className="field-pair">{policyFields.map(({ key, label, min, max }) => <label key={key}>{label}<input type="number" min={min} max={max} step="1" value={policy[key] ?? ""} onChange={(event) => setPolicy((current) => current ? { ...current, [key]: event.target.value === "" ? NaN : Number(event.target.value) } : current)} /></label>)}</div>}
-          {policy && <><label>Maximum appointments per day (blank for no limit)<input type="number" min="1" max="1000" step="1" value={dailyLimit ?? ""} onChange={(event) => setDailyLimit(event.target.value === "" ? null : Number(event.target.value))} /></label><label><input type="checkbox" checked={manualApproval} onChange={(event) => setManualApproval(event.target.checked)} /> Require manual approval for new bookings</label></>}
-          {policy && <div className="settings-actions"><button type="button" className="solid-action" disabled={policySaving || invalidPolicy} onClick={() => void savePolicy()}>{policySaving ? "Saving…" : "Save booking rules"}</button></div>}
-          {policyError && <p role="alert" className="form-error">{policyError}</p>}
+          {policy && <div className="policy-summary" aria-label="Current booking policy summary"><span>Book up to <b>{String(policy["maximum_advance_days"])} days</b> ahead</span><span><b>{manualApproval ? "Approval required" : "Instant confirmation"}</b></span><span>{dailyLimit === null ? <b>No daily limit</b> : <>Up to <b>{dailyLimit} appointments/day</b></>}</span></div>}
+          {policy && <div className="field-pair">{policyFields.map(({ key, label, min, max }) => <label key={key}>{label}<input type="number" min={min} max={max} step="1" value={typeof policy[key] === "number" ? policy[key] : ""} onChange={(event) => setPolicy((current) => current ? { ...current, [key]: event.target.value === "" ? NaN : Number(event.target.value) } : current)} /></label>)}</div>}
+          {policy && <><label>Maximum appointments per day <small>Leave blank when there is no daily limit.</small><input type="number" min="1" max="1000" step="1" value={dailyLimit ?? ""} onChange={(event) => setDailyLimit(event.target.value === "" ? null : Number(event.target.value))} /></label><label className="editor-checkbox"><input type="checkbox" checked={manualApproval} onChange={(event) => setManualApproval(event.target.checked)} /> Require manual approval for new bookings</label><p className="field-help">Pending requests reserve their slot until you approve or decline them.</p></>}
+          {policy && <div className="settings-actions">{policyDirty && <button type="button" className="secondary-action" onClick={resetPolicy}>Discard changes</button>}<button type="button" className="solid-action" disabled={policySaving || invalidPolicy || !policyDirty} onClick={() => void savePolicy()}>{policySaving ? "Saving…" : "Save booking rules"}</button></div>}
+          {policyError && <div className="settings-error" role="alert"><span>{policyError}</span><button type="button" className="secondary-action" onClick={() => setPolicyReload((value) => value + 1)}>Retry</button></div>}
           {policySaved && <p role="status">Booking rules saved.</p>}
         </section>
       </div>

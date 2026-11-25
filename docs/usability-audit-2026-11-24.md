@@ -27,6 +27,8 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Added filtered invoice CSV export, visible result counts, recoverable empty states, and client-side currency precision validation.
 - Added selectable 7-, 30-, and 90-day analytics periods with explicit date ranges, refresh/retry controls, and period-aware CSV exports.
 - Added honest analytics loading, failure, empty-service, and empty-booking-source states.
+- Repaired the settings layout so every panel stays in the content column, with usable section navigation on desktop and mobile.
+- Added unsaved-change protection, validation, plain-language booking-policy summaries, and discard controls to business settings.
 
 ## Verified
 
