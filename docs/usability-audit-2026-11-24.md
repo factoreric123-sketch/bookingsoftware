@@ -25,6 +25,8 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Submission empty states now distinguish a filtered search from a form that has not received responses.
 - Added invoice quick views for Outstanding, Overdue, Paid, and All, plus invoice/customer search and due-date/amount sorting.
 - Added filtered invoice CSV export, visible result counts, recoverable empty states, and client-side currency precision validation.
+- Added selectable 7-, 30-, and 90-day analytics periods with explicit date ranges, refresh/retry controls, and period-aware CSV exports.
+- Added honest analytics loading, failure, empty-service, and empty-booking-source states.
 
 ## Verified
 

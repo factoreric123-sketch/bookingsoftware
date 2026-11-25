@@ -3419,17 +3419,20 @@ function Analytics() {
   const formatAmount = (amount: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: workspace.business.currency ?? "USD" }).format(amount);
   const [analytics, setAnalytics] = useState<any>(null);
   const [analyticsError, setAnalyticsError] = useState("");
+  const [rangeDays, setRangeDays] = useState<7 | 30 | 90>(30);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const through = businessDate(workspace.business.timezone);
+  const from = shiftCalendarDate(through, -(rangeDays - 1));
+  const periodLabel = `${formatDate(from)}–${formatDate(through)}`;
   useEffect(() => {
     let active = true;
     setAnalytics(null);
     setAnalyticsError("");
-    const through = businessDate(workspace.business.timezone);
-    const from = shiftCalendarDate(through, -29);
     invokeBackend<any>("get_business_analytics", { p_business_id: workspace.business.id, p_location_id: null, p_from_date: from, p_through_date: through })
       .then((result) => { if (active) setAnalytics(result); })
       .catch((caught) => { if (active) setAnalyticsError(caught instanceof Error ? caught.message : "Analytics unavailable"); });
     return () => { active = false; };
-  }, [workspace.business.id, workspace.business.timezone]);
+  }, [workspace.business.id, workspace.business.timezone, from, through, refreshKey]);
   const activeCount = Number(analytics?.booking_count ?? 0) - Number(analytics?.cancelled_count ?? 0);
   const completedCount = Number(analytics?.completed_count ?? 0);
   const revenue = Number(analytics?.net_revenue_minor ?? 0) / 100;
@@ -3439,6 +3442,9 @@ function Analytics() {
   const exportCsv = () => {
     if (!analytics) return;
     const rows: Array<Array<string | number>> = [
+      ["Period start", from],
+      ["Period end", through],
+      [],
       ["Metric", "Value"],
       ["Total bookings", analytics.booking_count ?? 0],
       ["Cancelled bookings", analytics.cancelled_count ?? 0],
@@ -3454,7 +3460,7 @@ function Analytics() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `avello-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `avello-analytics-${from}-to-${through}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -3470,11 +3476,18 @@ function Analytics() {
           </button>
         }
       />
+      <div className="analytics-period panel">
+        <div><b>Reporting period</b><span>{periodLabel}</span></div>
+        <div role="group" aria-label="Analytics reporting period">{([7, 30, 90] as const).map((days) => <button type="button" key={days} className={rangeDays === days ? "active" : ""} aria-pressed={rangeDays === days} onClick={() => setRangeDays(days)}>{days} days</button>)}</div>
+        <button type="button" className="secondary-action" disabled={!analytics && !analyticsError} onClick={() => setRefreshKey((value) => value + 1)}>Refresh</button>
+      </div>
+      {!analytics && !analyticsError && <p className="analytics-loading" role="status">Loading analytics for {periodLabel}…</p>}
+      {analyticsError && <div className="booking-error analytics-error" role="alert"><span>{analyticsError}</span><button type="button" onClick={() => setRefreshKey((value) => value + 1)}>Try again</button></div>}
       <div className="metric-grid">
         <Metric
           label="Total bookings"
           value={analytics ? String(activeCount) : "—"}
-          trend="Excludes cancelled"
+          trend={`${rangeDays}-day period · excludes cancelled`}
           icon={CalendarDays}
         />
         <Metric
@@ -3486,7 +3499,7 @@ function Analytics() {
         <Metric
           label="Collected revenue"
           value={analytics ? formatAmount(revenue) : "—"}
-          trend="Paid invoices only"
+          trend={`${rangeDays}-day period · paid invoices only`}
           icon={CircleDollarSign}
         />
         <Metric
@@ -3501,7 +3514,7 @@ function Analytics() {
           <div className="panel-heading">
             <div>
               <h2>Services by booking volume</h2>
-              <p>Authoritative booking value for the last 30 days</p>
+              <p>Authoritative booking value for this {rangeDays}-day period</p>
             </div>
           </div>
           <div className="service-bars">
@@ -3514,6 +3527,7 @@ function Analytics() {
                 <b>{formatAmount(item.count)}</b>
               </div>
             ))}
+            {analytics && !serviceCounts.length && <div className="analytics-empty"><Sparkles size={22} /><b>No service booking value</b><p>No qualifying booking value was recorded in this period.</p></div>}
           </div>
         </section>
         <section className="panel source-panel">
@@ -3538,7 +3552,7 @@ function Analytics() {
               </div>
             );
           })}
-          {analyticsError && <div className="booking-error">{analyticsError}</div>}
+          {analytics && !bookingSources.length && <div className="analytics-empty"><Link2 size={22} /><b>No booking sources</b><p>No bookings were recorded in this period.</p></div>}
           <div className="analytics-disclaimer">
             Visitor conversion, provider costs, SMS usage, and AI call metrics remain unavailable
             until their real event sources are connected.
