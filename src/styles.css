@@ -199,6 +199,20 @@
 .booking-page-editor .editor-checkbox input { width: auto; }
 .booking-page-editor .approval-actions { flex-wrap: wrap; }
 .booking-page-editor > .panel { margin-top: 12px; }
+.booking-editor-status { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: #f7f6fa; border-radius: 8px; padding: 9px 11px; margin: 0 0 14px; color: #6d6976; font-size: 9px; }
+.booking-editor-status .unsaved { color: #936315; }
+.booking-editor-status .saved { color: #28785b; }
+.booking-service-actions { display: flex; gap: 7px; margin: 3px 0 8px; }
+.booking-service-actions .secondary-action { padding: 6px 9px; font-size: 9px; }
+.booking-editor-empty { color: #8d8995; font-size: 9px; margin: 6px 0; }
+.agenda-hour button.calendar-event { width: 100%; border-top: 0; border-right: 0; border-bottom: 0; text-align: left; color: inherit; cursor: pointer; }
+.agenda-hour button.calendar-event:hover, .agenda-hour button.calendar-event:focus-visible { background: #ebe7ff; }
+.appointment-intake { border-top: 1px solid #eceaf0; padding-top: 14px; }
+.appointment-intake h3 { font-size: 11px; margin: 0 0 8px; }
+.appointment-intake dl { margin: 0; }
+.appointment-intake dl > div { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1.3fr); gap: 12px; padding: 8px 0; border-top: 1px solid #f0eef3; }
+.appointment-intake dt { color: #85818e; font-size: 8px; }
+.appointment-intake dd { margin: 0; font-size: 9px; overflow-wrap: anywhere; }
 .schedule-exception-fields { display: grid; gap: 12px; }
 .service-intake-settings { margin-bottom: 16px; }
 .service-intake-settings fieldset, .booking-intake-fields { display: grid; gap: 12px; min-width: 0; }

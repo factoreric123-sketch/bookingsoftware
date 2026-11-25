@@ -29,6 +29,9 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Added honest analytics loading, failure, empty-service, and empty-booking-source states.
 - Repaired the settings layout so every panel stays in the content column, with usable section navigation on desktop and mobile.
 - Added unsaved-change protection, validation, plain-language booking-policy summaries, and discard controls to business settings.
+- Made appointments in both week and day calendar views open the same accessible detail workflow.
+- Added booking time, booked value, and attached intake answers to appointment details.
+- Added service selection counts, select-all/clear controls, unsaved-state feedback, discard, and useful empty states to the booking-page editor.
 
 ## Verified
 
