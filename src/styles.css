@@ -213,6 +213,9 @@
 .appointment-intake dl > div { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1.3fr); gap: 12px; padding: 8px 0; border-top: 1px solid #f0eef3; }
 .appointment-intake dt { color: #85818e; font-size: 8px; }
 .appointment-intake dd { margin: 0; font-size: 9px; overflow-wrap: anywhere; }
+.customer-empty .secondary-action { margin-top: 5px; }
+.customer-profile-actions { display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #eceaf0; padding-top: 14px; }
+.modal-body label > small { color: #918e99; font-weight: 500; }
 .schedule-exception-fields { display: grid; gap: 12px; }
 .service-intake-settings { margin-bottom: 16px; }
 .service-intake-settings fieldset, .booking-intake-fields { display: grid; gap: 12px; min-width: 0; }

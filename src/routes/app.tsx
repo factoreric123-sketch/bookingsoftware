@@ -1218,11 +1218,14 @@ function Customers() {
       .includes(query.toLowerCase()),
   );
   const save = async () => {
-    if (!form.name || !form.email) return;
+    const name = form.name.trim();
+    const email = form.email.trim();
+    const phone = form.phone.trim();
+    if (!name || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))) return;
     setCreating(true);
     setCreateError("");
     try {
-      await addCustomer(form);
+      await addCustomer({ ...form, name, email, phone, tags: [...new Set(form.tags.map((tag) => tag.trim()).filter(Boolean))] });
       setShow(false);
       setForm({ name: "", email: "", phone: "", notes: "", tags: ["New"] });
     } catch (caught) {
@@ -1266,15 +1269,15 @@ function Customers() {
     }
   };
   const saveProfile = async () => {
-    if (!selected || !draft.name) return;
+    if (!selected || !draft.name.trim()) return;
     setSavingProfile(true);
     setProfileError("");
     try {
       await updateCustomer(selected.id, {
-      name: draft.name,
-      email: draft.email,
-      phone: draft.phone,
-      notes: draft.notes,
+      name: draft.name.trim(),
+      email: draft.email.trim(),
+      phone: draft.phone.trim(),
+      notes: draft.notes.trim(),
       tags: draft.tags
         .split(",")
         .map((tag) => tag.trim())
@@ -1290,7 +1293,7 @@ function Customers() {
   const exportCsv = () => {
     const rows = [
       ["Name", "Email", "Phone", "Tags", "Notes", "Created", "Appointments", "Booked value", "Collected"],
-      ...workspace.customers.map((customer) => {
+      ...filtered.map((customer) => {
         const appointments = workspace.appointments.filter(
           (item) => item.customerId === customer.id,
         );
@@ -1319,7 +1322,7 @@ function Customers() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `avello-customers-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `avello-customers-visible-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -1419,8 +1422,13 @@ function Customers() {
       label: "Form submitted",
       meta: workspace.forms.find((form) => form.id === item.formId)?.name ?? "Form",
     })),
-  ].sort((a, b) => b.date.localeCompare(a.date));
+  ].sort((a, b) => String(b.date ?? "").localeCompare(String(a.date ?? "")));
   const visibleTimeline = activityFilter === "all" ? timeline : timeline.filter((item) => item.kind === activityFilter);
+  const normalizedDraft = { name: draft.name.trim(), email: draft.email.trim(), phone: draft.phone.trim(), notes: draft.notes.trim(), tags: [...new Set(draft.tags.split(",").map((tag) => tag.trim()).filter(Boolean))] };
+  const selectedProfile = selected ? { name: selected.name.trim(), email: selected.email.trim(), phone: selected.phone.trim(), notes: selected.notes.trim(), tags: selected.tags } : null;
+  const profileDirty = Boolean(selectedProfile) && JSON.stringify(normalizedDraft) !== JSON.stringify(selectedProfile);
+  const createEmailInvalid = Boolean(form.email.trim()) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+  const profileEmailInvalid = Boolean(normalizedDraft.email) && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedDraft.email);
   return (
     <>
       <PageHeader
@@ -1449,7 +1457,7 @@ function Customers() {
           <span className="record-count">
             {filtered.length} of {workspace.customers.length}
           </span>
-          <button onClick={exportCsv}>
+          <button onClick={exportCsv} disabled={!filtered.length}>
             <FileText size={15} />
             Export loaded CSV
           </button>
@@ -1516,15 +1524,16 @@ function Customers() {
         {filtered.length === 0 && (
           <div className="customer-empty">
             <Users size={25} />
-            <b>No matching customers</b>
-            <span>Try a different name, email, phone number, or tag.</span>
+            <b>{workspace.customers.length ? "No matching customers" : "No customers yet"}</b>
+            <span>{workspace.customers.length ? "Try a different name, email, phone number, or tag." : "Add your first customer or import a CSV to begin building your customer list."}</span>
+            {workspace.customers.length > 0 && <button type="button" className="secondary-action" onClick={() => setQuery("")}>Clear search</button>}
           </div>
         )}
       </div>
       {show && (
         <Modal title="Add customer" onClose={() => setShow(false)}>
           <label>
-            Full name
+            Full name <small>Required</small>
             <input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -1532,7 +1541,7 @@ function Customers() {
             />
           </label>
           <label>
-            Email
+            Email <small>Optional</small>
             <input
               type="email"
               value={form.email}
@@ -1541,12 +1550,18 @@ function Customers() {
             />
           </label>
           <label>
-            Phone
+            Phone <small>Optional</small>
             <input
+              type="tel"
+              autoComplete="tel"
               value={form.phone}
               onChange={(e) => setForm({ ...form, phone: e.target.value })}
               placeholder="(555) 000-0000"
             />
+          </label>
+          <label>
+            Tags <small>Separate tags with commas</small>
+            <input value={form.tags.join(", ")} onChange={(event) => setForm({ ...form, tags: event.target.value.split(",") })} placeholder="New, VIP, Referral" />
           </label>
           <label>
             Internal notes
@@ -1556,7 +1571,8 @@ function Customers() {
             />
           </label>
           {createError && <p className="form-error" role="alert">{createError}</p>}
-          <button className="solid-action full" onClick={save} disabled={creating || !form.name.trim() || !form.email.trim()}>
+          {createEmailInvalid && <p className="form-error" role="alert">Enter a valid email address or leave email blank.</p>}
+          <button className="solid-action full" onClick={save} disabled={creating || !form.name.trim() || createEmailInvalid}>
             {creating ? "Saving…" : "Save customer"}
           </button>
         </Modal>
@@ -1606,6 +1622,7 @@ function Customers() {
               Email
               <input
                 type="email"
+                autoComplete="email"
                 value={draft.email}
                 onChange={(event) => setDraft({ ...draft, email: event.target.value })}
               />
@@ -1614,6 +1631,8 @@ function Customers() {
           <label>
             Phone
             <input
+              type="tel"
+              autoComplete="tel"
               value={draft.phone}
               onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
             />
@@ -1651,7 +1670,7 @@ function Customers() {
                     <b>{item.label}</b>
                     <small>{item.meta}</small>
                   </span>
-                  <time>{new Date(item.date).toLocaleDateString()}</time>
+                  <time>{item.date && !Number.isNaN(new Date(item.date).getTime()) ? new Date(item.date).toLocaleDateString() : "Date unavailable"}</time>
                 </div>
               ))
             ) : (
@@ -1659,9 +1678,8 @@ function Customers() {
             )}
           </div>
           {profileError && <p role="alert" className="form-error">{profileError}</p>}
-          <button className="solid-action full" onClick={saveProfile} disabled={savingProfile}>
-            {savingProfile ? "Saving…" : "Save customer profile"}
-          </button>
+          {profileEmailInvalid && <p role="alert" className="form-error">Enter a valid email address or leave email blank.</p>}
+          <div className="customer-profile-actions">{profileDirty && <button type="button" className="secondary-action" onClick={() => openProfile(selected.id)}>Discard changes</button>}<button className="solid-action" onClick={saveProfile} disabled={savingProfile || !profileDirty || !normalizedDraft.name || profileEmailInvalid}>{savingProfile ? "Saving…" : "Save customer profile"}</button></div>
           {workspace.customers.length > 1 && <section className="customer-history">
             <h3>Merge duplicate customer</h3>
             <p>Move this customer's appointments, invoices, forms, notes, and other history into another customer record.</p>

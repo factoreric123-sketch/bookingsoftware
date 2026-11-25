@@ -32,6 +32,10 @@ This pass focused on owner/staff workflows that do not depend on external APIs.
 - Made appointments in both week and day calendar views open the same accessible detail workflow.
 - Added booking time, booked value, and attached intake answers to appointment details.
 - Added service selection counts, select-all/clear controls, unsaved-state feedback, discard, and useful empty states to the booking-page editor.
+- Corrected customer CSV export so “loaded” means the currently visible filtered records, with an explicit filename.
+- Removed the unnecessary email requirement for manual customer creation while retaining optional-email validation and adding editable creation tags.
+- Added recoverable customer search empty states plus profile validation, dirty-state protection, and discard controls.
+- Prevented incomplete legacy activity timestamps from crashing customer profiles; affected entries now show a safe fallback.
 
 ## Verified
 
