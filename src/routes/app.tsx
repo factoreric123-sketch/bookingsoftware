@@ -118,6 +118,27 @@ function Dashboard() {
     ? user.user_metadata["full_name"].trim() : user?.email ?? "Account";
   const section = sectionFromSlug(search.section);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const closeMenuRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const compact = window.matchMedia("(max-width: 900px)");
+    const close = () => setMobileOpen(false);
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    const priorOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeMenuRef.current?.focus();
+    compact.addEventListener("change", close);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      compact.removeEventListener("change", close);
+      document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = priorOverflow;
+      if (compact.matches) menuRef.current?.focus();
+    };
+  }, [mobileOpen]);
   const [hasMembership, setHasMembership] = useState<boolean | null>(null);
   const canView = (label: Section) => {
     if (workspace.memberRole === "owner") return true;
@@ -164,11 +185,12 @@ function Dashboard() {
   </main>;
   return (
     <div className="app-layout">
-      <aside className={mobileOpen ? "app-sidebar mobile-open" : "app-sidebar"}>
+      {mobileOpen && <div className="workspace-drawer-scrim" aria-hidden="true" onClick={() => setMobileOpen(false)} />}
+      <aside id="workspace-navigation" aria-label="Workspace navigation" className={mobileOpen ? "app-sidebar mobile-open" : "app-sidebar"}>
         <div className="app-logo">
           <span className="avello-logo">A</span>
           <b>Avello</b>
-          <button aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
+          <button ref={closeMenuRef} aria-label="Close navigation" onClick={() => setMobileOpen(false)}>
             <X size={18} />
           </button>
         </div>
@@ -184,7 +206,7 @@ function Dashboard() {
           {navigationGroups.map((group) => {
             const items = visibleNavigation.filter((item) => item.group === group);
             return items.length ? <div className="nav-group" key={group}><span className="nav-group-label">{group}</span>{items.map(({ label, icon: Icon }) => (
-              <button key={label} className={section === label ? "active" : ""} onClick={() => openSection(label)}><Icon size={18} />{label}</button>
+              <button key={label} aria-current={section === label ? "page" : undefined} className={section === label ? "active" : ""} onClick={() => openSection(label)}><Icon size={18} />{label}</button>
             ))}</div> : null;
           })}
         </nav>
@@ -202,9 +224,9 @@ function Dashboard() {
           </div>
         </div>
       </aside>
-      <div className="app-main">
+      <div className="app-main" inert={mobileOpen}>
         <header className="app-topbar">
-          <button className="app-menu" aria-label="Open navigation" onClick={() => setMobileOpen(true)}>
+          <button ref={menuRef} className="app-menu" aria-label="Open navigation" aria-controls="workspace-navigation" aria-expanded={mobileOpen} onClick={() => setMobileOpen(true)}>
             <Menu size={20} />
           </button>
           <WorkspaceSearch onNavigate={openSection} visibleSections={visibleNavigation.map((item) => item.label)} />
@@ -1054,22 +1076,23 @@ function Bookings({ title }: { title: string }) {
               const staff = workspace.staff.find((member) => member.id === item.staffId);
               return (
                 <div className="data-row" key={item.id}>
-                  <span>
+                  <span className="booking-row-date">
                     <b>{formatDate(item.date)}</b>
                     <small>
                       {prettyTime(item.time)} · {item.duration} min
                     </small>
                   </span>
-                  <span>
+                  <span className="booking-row-customer">
                     <b>{customer?.name}</b>
                     <small>{customer?.email}</small>
                   </span>
-                  <span>
+                  <span className="booking-row-service">
                     <b>{service?.name}</b>
                     <small>{staff?.name ?? "Unassigned"}</small>
                   </span>
-                  <span>
+                  <span className="booking-row-status">
                     <select
+                      aria-label={`Status for ${customer?.name || "booking"}`}
                       value={item.status}
                       disabled={updatingId === item.id || item.status === "cancelled" || item.status === "pending"}
                       onChange={(e) => void changeStatus(item.id, e.target.value as AppointmentStatus)}
@@ -1082,7 +1105,7 @@ function Bookings({ title }: { title: string }) {
                       <option value="no-show">No-show</option>
                     </select>
                   </span>
-                  <span>{item.source === "booking-page" ? "Booking page" : "Dashboard"}</span>
+                  <span className="booking-row-source">{item.source === "booking-page" ? "Booking page" : "Dashboard"}</span>
                   <div className="booking-row-actions"><button type="button" onClick={() => setDetailId(item.id)}>Details</button><button disabled={(item.status !== "pending" && item.status !== "confirmed") || !item.rowVersion} onClick={() => { setReschedulingId(item.id); setReplacement(null); setError(""); }}>Reschedule</button></div>
                 </div>
               );
@@ -3025,6 +3048,7 @@ function Forms() {
               <div key={field.id}>
                 <span>{index + 1}</span>
                 <input
+                  aria-label={`Question ${index + 1} label`}
                   value={field.label}
                   onChange={(e) =>
                     setFields(
@@ -3035,6 +3059,7 @@ function Forms() {
                   }
                 />
                 <select
+                  aria-label={`Question ${index + 1} type`}
                   value={field.type}
                   onChange={(e) => {
                     const type = e.target.value as typeof field.type;

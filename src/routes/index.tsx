@@ -1,7 +1,7 @@
 import { pageHead } from "../lib/page-head";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, Check, ChevronDown, ChevronUp, Menu, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/")({
   head: () => pageHead("Avello — Booking and business management", "Online booking, customer records, team schedules, and business tools in one workspace."),
@@ -19,9 +19,36 @@ const faqs = [
 function Index() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [faqOpen, setFaqOpen] = useState(0);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!menuOpen) return;
+    closeButton.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+        menuButton.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [menuOpen]);
+  const closeMenu = () => setMenuOpen(false);
 
   return <div className="site-shell">
-    <header className="nav-wrap"><a href="#top" className="brand"><LogoMark />Avello</a><nav className={menuOpen ? "nav-links mobile-open" : "nav-links"}><a href="#features">Product <ChevronDown size={14} /></a><a href="#industries">Industries <ChevronDown size={14} /></a><a href="#pricing">Pricing</a><a href="#how-it-works">How it works</a><button className="mobile-close" onClick={() => setMenuOpen(false)} aria-label="Close menu"><X size={20} /></button></nav><div className="nav-actions"><Link to="/login" className="login-btn">Login</Link><Link to="/onboarding" className="primary-btn">Create workspace <ArrowRight size={16} /></Link></div><button className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="Open menu"><Menu /></button></header>
+    <header className="nav-wrap">
+      <a href="#top" className="brand"><LogoMark />Avello</a>
+      <nav id="site-navigation" aria-label="Main navigation" className={menuOpen ? "nav-links mobile-open" : "nav-links"}>
+        <a href="#features" onClick={closeMenu}>Product</a>
+        <a href="#industries" onClick={closeMenu}>Industries</a>
+        <a href="#pricing" onClick={closeMenu}>Pricing</a>
+        <a href="#how-it-works" onClick={closeMenu}>How it works</a>
+        <Link to="/login" className="mobile-login" onClick={closeMenu}>Login</Link>
+        <button ref={closeButton} className="mobile-close" onClick={() => { closeMenu(); menuButton.current?.focus(); }} aria-label="Close menu"><X size={20} /></button>
+      </nav>
+      <div className="nav-actions"><Link to="/login" className="login-btn">Login</Link><Link to="/onboarding" className="primary-btn">Create workspace <ArrowRight size={16} /></Link></div>
+      <button ref={menuButton} className="menu-btn" onClick={() => setMenuOpen(true)} aria-label="Open menu" aria-controls="site-navigation" aria-expanded={menuOpen}><Menu /></button>
+    </header>
     <main id="top">
       <section className="hero section-pad"><div className="hero-glow" /><div className="eyebrow">Booking tools for service businesses</div><h1>Run your business. <span>Make booking simple.</span></h1><p className="hero-copy">Give customers a booking page with live availability. Manage appointments, customer records, and your team from one workspace.</p><div className="trust-line"><span><Check size={13} /> Online booking</span><em /><span><Check size={13} /> Team scheduling</span><em /><span><Check size={13} /> Customer records</span></div><div className="hero-actions"><Link to="/onboarding" className="primary-btn">Create workspace <ArrowRight size={16} /></Link><a href="#how-it-works" className="login-btn">See how it works</a></div></section>
       <section className="logo-strip" id="industries"><p>Designed for appointment-based teams.</p><div className="logo-row">{["Health & wellness", "Home services", "Auto services", "Consulting", "Personal care", "Education", "Professional services"].map((name) => <span key={name}><i />{name}</span>)}</div></section>
